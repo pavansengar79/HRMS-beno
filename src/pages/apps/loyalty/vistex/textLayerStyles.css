@@ -1,0 +1,40 @@
+/* textLayerStyles.css */
+.ReactPDF__Page__textContent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  overflow: hidden;
+  font-family: sans-serif;
+  color: inherit;
+}
+
+.ReactPDF__TextLayer {
+  font-size: 1em;
+  line-height: 1.4;
+}
+
+.ReactPDF__TextLayer__textLayer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+.ReactPDF__TextLayer__text {
+  display: inline;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+}
+
+.ReactPDF__TextLayer__highlight {
+  position: absolute;
+  background-color: #ff0;
+  border-radius: 2px;
+  opacity: 0.5;
+}
