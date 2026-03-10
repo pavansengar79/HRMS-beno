@@ -2,8 +2,8 @@
 import Grid from '@mui/material/Grid'
 
 // ** Demo Components Imports
-import UserViewLeft from 'src/views/apps/user/view/UserViewLeft'
-import UserViewRight from 'src/views/apps/user/view/UserViewRight'
+import UserViewLeft from './UserViewLeft'
+import UserViewRight from './UserViewRight'
 
 const UserView = ({ tab, invoiceData }) => {
   return (

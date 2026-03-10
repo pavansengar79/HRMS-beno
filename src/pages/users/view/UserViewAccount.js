@@ -18,8 +18,8 @@ import MuiTimeline from '@mui/lab/Timeline'
 import Icon from 'src/@core/components/icon'
 
 // ** Demo Component Imports
-import UsersInvoiceListTable from 'src/views/apps/user/view/UsersInvoiceListTable'
-import UsersProjectListTable from 'src/views/apps/user/view/UsersProjectListTable'
+import UsersInvoiceListTable from './UsersInvoiceListTable'
+import UsersProjectListTable from './UsersProjectListTable'
 
 // ** Custom Components Imports
 import OptionsMenu from 'src/@core/components/option-menu'

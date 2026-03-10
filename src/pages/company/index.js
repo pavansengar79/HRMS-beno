@@ -40,7 +40,7 @@ import axios from 'axios'
 
 // ** Custom Table Components Imports
 import TableHeader from 'src/views/apps/user/list/TableHeader'
-import AddUserDrawer from 'src/views/apps/user/list/AddUserDrawer'
+import AddCompanyDrawer from './AddCompanyDrawer'
 
 // ** renders client column
 const userRoleObj = {
@@ -253,7 +253,7 @@ const Company = ({ apiData }) => {
   const [plan, setPlan] = useState('')
   const [value, setValue] = useState('')
   const [status, setStatus] = useState('')
-  const [addUserOpen, setAddUserOpen] = useState(false)
+  const [addCompanyOpen, setAddCompanyOpen] = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
 
   // ** Hooks
@@ -275,7 +275,7 @@ const Company = ({ apiData }) => {
   }, [])
 
 
-  const toggleAddUserDrawer = () => setAddUserOpen(!addUserOpen)
+  const toggleAddCompanyDrawer = () => setAddCompanyOpen(!addCompanyOpen)
 
   return (
     <Grid container spacing={6.5}>
@@ -285,7 +285,7 @@ const Company = ({ apiData }) => {
          
           
           <Divider sx={{ m: '0 !important' }} />
-          <TableHeader value={value} handleFilter={handleFilter} toggle={toggleAddUserDrawer} />
+          <TableHeader value={value} handleFilter={handleFilter} toggle={toggleAddCompanyDrawer} />
           <DataGrid
             autoHeight
             rowHeight={62}
@@ -299,7 +299,7 @@ const Company = ({ apiData }) => {
         </Card>
       </Grid>
 
-      <AddUserDrawer open={addUserOpen} toggle={toggleAddUserDrawer} />
+      <AddCompanyDrawer open={addCompanyOpen} toggle={toggleAddCompanyDrawer} />
     </Grid>
   )
 }

@@ -18,11 +18,11 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Icon from 'src/@core/components/icon'
 
 // ** Demo Components Imports
-import UserViewBilling from 'src/views/apps/user/view/UserViewBilling'
-import UserViewAccount from 'src/views/apps/user/view/UserViewAccount'
-import UserViewSecurity from 'src/views/apps/user/view/UserViewSecurity'
-import UserViewConnection from 'src/views/apps/user/view/UserViewConnection'
-import UserViewNotification from 'src/views/apps/user/view/UserViewNotification'
+import UserViewBilling from './UserViewBilling'
+import UserViewAccount from './UserViewAccount'
+import UserViewSecurity from './UserViewSecurity'
+import UserViewConnection from './UserViewConnection'
+import UserViewNotification from './UserViewNotification'
 
 // ** Styled Tab component
 const Tab = styled(MuiTab)(({ theme }) => ({
@@ -57,7 +57,7 @@ const TabList = styled(MuiTabList)(({ theme }) => ({
   }
 }))
 
-const UserViewRight = ({ tab, invoiceData }) => {
+const UserViewRight = ({ tab, invoiceData, user }) => {
   // ** State
   const [activeTab, setActiveTab] = useState(tab)
   const [isLoading, setIsLoading] = useState(true)
@@ -70,7 +70,7 @@ const UserViewRight = ({ tab, invoiceData }) => {
     setActiveTab(value)
     router
       .push({
-        pathname: `/apps/user/view/${value.toLowerCase()}`
+        pathname: `/users/${user.id}/details/${value.toLowerCase()}`
       })
       .then(() => setIsLoading(false))
   }
@@ -114,19 +114,19 @@ const UserViewRight = ({ tab, invoiceData }) => {
         ) : (
           <>
             <TabPanel sx={{ p: 0 }} value='account'>
-              <UserViewAccount invoiceData={invoiceData} />
+              <UserViewAccount invoiceData={invoiceData} user={user} />
             </TabPanel>
             <TabPanel sx={{ p: 0 }} value='security'>
-              <UserViewSecurity />
+              <UserViewSecurity user={user} />
             </TabPanel>
             <TabPanel sx={{ p: 0 }} value='billing-plan'>
-              <UserViewBilling />
+              <UserViewBilling user={user} />
             </TabPanel>
             <TabPanel sx={{ p: 0 }} value='notification'>
-              <UserViewNotification />
+              <UserViewNotification user={user} />
             </TabPanel>
             <TabPanel sx={{ p: 0 }} value='connection'>
-              <UserViewConnection />
+              <UserViewConnection user={user} />
             </TabPanel>
           </>
         )}

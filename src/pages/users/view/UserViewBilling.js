@@ -38,7 +38,7 @@ import Cards from 'react-credit-cards'
 // ** Custom Components
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomTextField from 'src/@core/components/mui/text-field'
-import UserSubscriptionDialog from 'src/views/apps/user/view/UserSubscriptionDialog'
+import UserSubscriptionDialog from './UserSubscriptionDialog'
 
 // ** Util Import
 import { formatCVC, formatExpirationDate, formatCreditCardNumber } from 'src/@core/utils/format'

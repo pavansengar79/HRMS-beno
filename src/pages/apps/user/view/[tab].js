@@ -2,7 +2,7 @@
 import axios from 'axios'
 
 // ** Demo Components Imports
-import UserViewPage from 'src/views/apps/user/view/UserViewPage'
+import UserViewPage from '../../../users/view/UserViewPage'
 
 const UserView = ({ tab, invoiceData }) => {
   return <UserViewPage tab={tab} invoiceData={invoiceData} />

@@ -29,27 +29,11 @@ import Icon from 'src/@core/components/icon'
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
-import UserSuspendDialog from 'src/views/apps/user/view/UserSuspendDialog'
-import UserSubscriptionDialog from 'src/views/apps/user/view/UserSubscriptionDialog'
+import UserSuspendDialog from './UserSuspendDialog'
+import UserSubscriptionDialog from './UserSubscriptionDialog'
 
 // ** Utils Import
 import { getInitials } from 'src/@core/utils/get-initials'
-
-const data = {
-  id: 1,
-  role: 'admin',
-  status: 'active',
-  username: 'gslixby0',
-  avatarColor: 'primary',
-  country: 'El Salvador',
-  company: 'Yotz PVT LTD',
-  billing: 'Manual - Cash',
-  contact: '(479) 232-9151',
-  currentPlan: 'enterprise',
-  fullName: 'Daisy Patterson',
-  email: 'gslixby0@abc.net.au',
-  avatar: '/images/avatars/14.png'
-}
 
 const roleColors = {
   admin: 'error',
@@ -80,7 +64,7 @@ const Sub = styled('sub')(({ theme }) => ({
   fontSize: theme.typography.body1.fontSize
 }))
 
-const UserViewLeft = () => {
+const UserViewLeft = ({ user }) => {
   // ** States
   const [openEdit, setOpenEdit] = useState(false)
   const [openPlans, setOpenPlans] = useState(false)
@@ -94,6 +78,24 @@ const UserViewLeft = () => {
   // Handle Upgrade Plan dialog
   const handlePlansClickOpen = () => setOpenPlans(true)
   const handlePlansClose = () => setOpenPlans(false)
+
+  // Map API user data to component expected format
+  const data = user ? {
+    id: user.id,
+    role: 'subscriber', // Default role since API doesn't provide
+    status: 'active', // Default status
+    username: user.username,
+    avatarColor: 'primary',
+    country: user.address?.country || 'Unknown',
+    company: user.company?.name || 'Unknown',
+    billing: 'Manual - Cash',
+    contact: user.phone,
+    currentPlan: 'enterprise',
+    fullName: user.name,
+    email: user.email,
+    avatar: null // No avatar in API
+  } : null
+
   if (data) {
     return (
       <Grid container spacing={6}>
