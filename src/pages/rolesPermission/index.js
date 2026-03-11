@@ -55,6 +55,8 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 import DeleteModal from './delete'
 import ViewModal from './view'
 import CustomDialog from 'src/pages/components/CustomDialog/CustomDialog'
+import RolesComponent from './roles'
+
 
 // ** Styled component for the link in the dataTable
 const LinkStyled = styled(Link)(({ theme }) => ({
@@ -228,8 +230,8 @@ const RolesPermission = () => {
 
   return (
     <Grid item xs={12}>
+      <RolesComponent />
       <Card>
-        {/* <TableHeader /> */}
         <Box
           sx={{
             p: 5,

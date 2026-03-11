@@ -2,7 +2,7 @@ const navigation = () => {
   return [
     {
       title: 'Dashboard',
-      icon: 'mdi:home',
+      icon: 'mdi:view-dashboard-outline',
       path: '/dashboards/analytics',
       action: 'read',
       subject: 'dashboard'
@@ -10,73 +10,76 @@ const navigation = () => {
 
     {
       title: 'Company',
-      icon: 'mdi:user',
+      icon: 'mdi:domain',
       path: '/company',
       action: 'read',
       subject: 'employees'
     },
-  
+
+    {
+      title: 'Departments',
+      icon: 'mdi:office-building-outline',
+      path: '/department',
+      action: 'read',
+      subject: 'departments'
+    },
+
     {
       title: 'Employees',
-      icon: 'mdi:user',
+      icon: 'mdi:account-group-outline',
       path: '/users',
       action: 'read',
       subject: 'employees'
     },
-  
-   
+
+
     {
-      title: 'roles',
-      icon: 'mdi:user',
-      path: '/roles',
-      action: 'read',
-      subject: 'roles'
-    },
-     {
       title: 'Permission',
-      icon: 'mdi:user',
+      icon: 'mdi:key-outline',
       path: '/rolesPermission',
       action: 'read',
       subject: 'permissions'
     },
+
     {
       title: 'Attendance',
-      icon: 'mdi:user',
+      icon: 'mdi:clock-check-outline',
       path: '/attendance',
       action: 'read',
       subject: 'attendance'
     },
+
     {
       title: 'Leaves',
-      icon: 'mdi:user',
+      icon: 'mdi:calendar-account-outline',
       path: '/leaves',
       action: 'read',
       subject: 'leaves'
     },
+
     {
       title: 'Payrolls',
-      icon: 'mdi:user',
-      path: '/payrolls',
+      icon: 'mdi:cash-multiple',
+      path: '/payroll',
       action: 'manage',
       subject: 'payrolls'
     },
+
     {
       title: 'Holidays',
-      icon: 'mdi:user',
+      icon: 'mdi:calendar-star',
       path: '/holidays',
       action: 'read',
       subject: 'holidays'
     },
+
     {
       title: 'Settings',
-      icon: 'mdi:user',
+      icon: 'mdi:cog-outline',
       path: '/settings',
       action: 'read',
       subject: 'settings'
-    },
-   
-    
-    
+    }
   ]
 }
 
