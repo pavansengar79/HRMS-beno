@@ -22,7 +22,7 @@ axiosRequest.interceptors.response.use(
       if (error.response?.status === 401 || error.response?.data?.message === 'Token invalid or expired') {
         window.localStorage.removeItem('userData')
         window.localStorage.removeItem(authConfig.storageTokenKeyName)
-        // window.location.replace('/login')
+        // window.location.replace('/auth/login')
       } else {
         console.log('===>', error?.response?.data?.message)
 

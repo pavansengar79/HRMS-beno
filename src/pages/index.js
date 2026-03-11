@@ -1,5 +1,14 @@
-const Home = () => {
-  return <>Home Page</>
-}
+import { useRouter } from "next/router";
+import { useEffect } from "react";
 
-export default Home
+const Home = () => {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/dashboard/analytics");
+  }, []);
+
+  return null;
+};
+
+export default Home;
