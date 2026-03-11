@@ -1,204 +1,199 @@
-// ** React Imports
-import { Fragment, useState } from 'react'
+// ** Next Import
+import Link from 'next/link'
 
-// ** MUI Imports
-import Tab from '@mui/material/Tab'
+// ** MUI Components
+import Box from '@mui/material/Box'
+import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
-import TabList from '@mui/lab/TabList'
-import TabPanel from '@mui/lab/TabPanel'
+import Avatar from '@mui/material/Avatar'
 import Divider from '@mui/material/Divider'
-import TabContext from '@mui/lab/TabContext'
-import { styled } from '@mui/material/styles'
-import TimelineDot from '@mui/lab/TimelineDot'
-import TimelineItem from '@mui/lab/TimelineItem'
-import Typography from '@mui/material/Typography'
+import Tooltip from '@mui/material/Tooltip'
 import CardHeader from '@mui/material/CardHeader'
-import TimelineContent from '@mui/lab/TimelineContent'
-import TimelineSeparator from '@mui/lab/TimelineSeparator'
-import TimelineConnector from '@mui/lab/TimelineConnector'
-import MuiTimeline from '@mui/lab/Timeline'
+import Typography from '@mui/material/Typography'
+import AvatarGroup from '@mui/material/AvatarGroup'
+import CardContent from '@mui/material/CardContent'
+import LinearProgress from '@mui/material/LinearProgress'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
 
+// ** Utils Import
+import { getInitials } from 'src/@core/utils/get-initials'
+
 // ** Custom Components Imports
+import CustomChip from 'src/@core/components/mui/chip'
+import CustomAvatar from 'src/@core/components/mui/avatar'
 import OptionsMenu from 'src/@core/components/option-menu'
 
-const data = {
-  new: [
-    {
-      sender: {
-        name: 'Micheal Hughes',
-        address: '101 Boulder, California, 933130'
-      },
-      receiver: {
-        name: 'Daisy Coleman',
-        address: '939 Orange, California, 910614'
-      }
-    },
-    {
-      sender: {
-        name: 'Glenn Todd',
-        address: '1713 Garnet, California, 939573'
-      },
-      receiver: {
-        name: 'Arthur West',
-        address: '156 Blaze, California, 925878'
-      }
-    }
-  ],
-  preparing: [
-    {
-      sender: {
-        name: 'Rose Cole',
-        address: '61 Unions, California, 922523'
-      },
-      receiver: {
-        name: 'Polly Spencer',
-        address: '865 Delta, California, 932830'
-      }
-    },
-    {
-      sender: {
-        name: 'Jerry Wood',
-        address: '37 Marjory, California, 951958'
-      },
-      receiver: {
-        name: 'Sam McCormick',
-        address: '926 Reynolds, California, 910279'
-      }
-    }
-  ],
-  shipping: [
-    {
-      sender: {
-        name: 'Alex Walton',
-        address: '78 Judson, California, 956084'
-      },
-      receiver: {
-        name: 'Eula Griffin',
-        address: '56 Bernard, California, 965133'
-      }
-    },
-    {
-      sender: {
-        name: 'Lula Barton',
-        address: '95 Gaylord, California, 991955'
-      },
-      receiver: {
-        name: 'Craig Jacobs',
-        address: '73 Sandy, California, 954566'
-      }
-    }
-  ]
+const ProjectAvatar = ({ project }) => {
+  const { title, avatar, avatarColor = 'primary' } = project
+  if (avatar.length) {
+    return <CustomAvatar src={avatar} sx={{ width: 38, height: 38 }} />
+  } else {
+    return (
+      <CustomAvatar skin='light' color={avatarColor} sx={{ width: 38, height: 38 }}>
+        {getInitials(title)}
+      </CustomAvatar>
+    )
+  }
 }
 
-const Timeline = styled(MuiTimeline)({
-  '& .MuiTimelineItem-root': {
-    width: '100%',
-    '&:before': {
-      display: 'none'
-    }
-  },
-  '& .MuiTimelineDot-root': {
-    border: 0,
-    padding: 0
-  }
-})
-
-const EcommerceOrders = () => {
-  // ** State
-  const [value, setValue] = useState('new')
-
-  const handleChange = (event, newValue) => {
-    setValue(newValue)
-  }
-
+const Projects = ({ data }) => {
   return (
-    <Card>
-      <CardHeader
-        sx={{ pb: 4 }}
-        title='Orders'
-        subheader='62 deliveries in progress'
-        action={
-          <OptionsMenu
-            options={['Show all orders', 'Share', 'Refresh']}
-            iconButtonProps={{ size: 'small', sx: { color: 'text.disabled' } }}
-          />
-        }
-      />
-      <TabContext value={value}>
-        <TabList variant='fullWidth' onChange={handleChange} aria-label='tabs in orders card'>
-          <Tab value='new' label='New' />
-          <Tab value='preparing' label='Preparing' />
-          <Tab value='shipping' label='Shipping' />
-        </TabList>
-        <TabPanel value={value}>
-          {data[value].map((item, index) => {
-            return (
-              <Fragment key={index}>
-                <Timeline>
-                  <TimelineItem>
-                    <TimelineSeparator>
-                      <TimelineDot color='success' variant='outlined' sx={{ mt: 0 }}>
-                        <Icon fontSize='1.25rem' icon='tabler:circle-check' />
-                      </TimelineDot>
-                      <TimelineConnector />
-                    </TimelineSeparator>
-                    <TimelineContent sx={{ mt: 0, pt: 0, mb: theme => `${theme.spacing(1)} !important` }}>
-                      <Typography
-                        variant='body2'
-                        sx={{
-                          mb: 0.5,
-                          fontWeight: 500,
-                          lineHeight: 'normal',
-                          color: 'success.main',
-                          textTransform: 'uppercase'
-                        }}
-                      >
-                        Sender
-                      </Typography>
-                      <Typography sx={{ mb: 0.5 }} variant='h6'>
-                        {item.sender.name}
-                      </Typography>
-                      <Typography sx={{ color: 'text.disabled' }}>{item.sender.address}</Typography>
-                    </TimelineContent>
-                  </TimelineItem>
-
-                  <TimelineItem>
-                    <TimelineSeparator>
-                      <TimelineDot color='primary' variant='outlined' sx={{ mt: 1.5 }}>
-                        <Icon fontSize='1.25rem' icon='tabler:map-pin' />
-                      </TimelineDot>
-                    </TimelineSeparator>
-                    <TimelineContent sx={{ mt: 0, pb: 0 }}>
-                      <Typography
-                        variant='body2'
-                        sx={{
-                          mb: 0.5,
-                          fontWeight: 500,
-                          lineHeight: 'normal',
-                          color: 'primary.main',
-                          textTransform: 'uppercase'
-                        }}
-                      >
-                        Receiver
-                      </Typography>
-                      <Typography sx={{ mb: 0.5 }} variant='h6'>
-                        {item.receiver.name}
-                      </Typography>
-                      <Typography sx={{ color: 'text.disabled' }}>{item.receiver.address}</Typography>
-                    </TimelineContent>
-                  </TimelineItem>
-                </Timeline>
-                {index !== data[value].length - 1 && <Divider sx={{ my: 4, borderStyle: 'dashed' }} />}
-              </Fragment>
-            )
-          })}
-        </TabPanel>
-      </TabContext>
-    </Card>
+    <Grid container spacing={6}>
+      {data &&
+        Array.isArray(data) &&
+        data.map((item, index) => {
+          return (
+            <Grid key={index} item xs={12} md={6} lg={4}>
+              <Card>
+                <CardHeader
+                  avatar={<ProjectAvatar project={item} />}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'space-between',
+                    '& .MuiCardHeader-avatar': { mr: 3 }
+                  }}
+                  subheader={
+                    <Typography sx={{ display: 'flex', flexDirectionL: 'column', color: 'text.secondary' }}>
+                      <Typography component='span' sx={{ mr: 1, fontWeight: 500 }}>
+                        Client:
+                      </Typography>{' '}
+                      {item.client}
+                    </Typography>
+                  }
+                  action={
+                    <OptionsMenu
+                      iconButtonProps={{ size: 'small', sx: { color: 'text.disabled' } }}
+                      options={[
+                        'Rename Project',
+                        'View Details',
+                        'Add to Favorites',
+                        { divider: true, dividerProps: { sx: { my: theme => `${theme.spacing(2)} !important` } } },
+                        { text: 'Leave Project', menuItemProps: { sx: { color: 'error.main' } } }
+                      ]}
+                    />
+                  }
+                  title={
+                    <Typography
+                      href='/'
+                      variant='h5'
+                      component={Link}
+                      onClick={e => e.preventDefault()}
+                      sx={{
+                        textDecoration: 'none',
+                        '&:hover': { color: 'primary.main' }
+                      }}
+                    >
+                      {item.title}
+                    </Typography>
+                  }
+                />
+                <CardContent>
+                  <Box
+                    sx={{
+                      mb: 4,
+                      gap: 2,
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <CustomChip
+                      rounded
+                      size='small'
+                      skin='light'
+                      sx={{ height: 60 }}
+                      label={
+                        <>
+                          <Box sx={{ display: 'flex' }}>
+                            <Typography sx={{ fontWeight: 500 }}>{item.budgetSpent}</Typography>
+                            <Typography sx={{ color: 'text.secondary' }}>{`/${item.budget}`}</Typography>
+                          </Box>
+                          <Typography sx={{ color: 'text.secondary' }}>Total Budget</Typography>
+                        </>
+                      }
+                    />
+                    <Box sx={{ display: 'flex', alignItems: 'flex-end', flexDirection: 'column' }}>
+                      <Box sx={{ display: 'flex' }}>
+                        <Typography sx={{ mr: 1, fontWeight: 500 }}>Start Date:</Typography>
+                        <Typography sx={{ color: 'text.secondary' }}>{item.startDate}</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex' }}>
+                        <Typography sx={{ mr: 1, fontWeight: 500 }}>Deadline:</Typography>
+                        <Typography sx={{ color: 'text.secondary' }}>{item.deadline}</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Typography sx={{ color: 'text.secondary' }}>{item.description}</Typography>
+                </CardContent>
+                <Divider sx={{ my: '0 !important' }} />
+                <CardContent>
+                  <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex' }}>
+                      <Typography sx={{ mr: 1, fontWeight: 500 }}>All Hours:</Typography>
+                      <Typography sx={{ color: 'text.secondary' }}>{item.hours}</Typography>
+                    </Box>
+                    <CustomChip
+                      rounded
+                      size='small'
+                      skin='light'
+                      color={item.chipColor}
+                      label={`${item.daysLeft} days left`}
+                    />
+                  </Box>
+                  <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant='body2'>{`Tasks: ${item.completedTask}/${item.totalTask}`}</Typography>
+                    <Typography variant='body2'>
+                      {`${Math.round((item.completedTask / item.totalTask) * 100)}% Completed`}
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    color='primary'
+                    variant='determinate'
+                    sx={{ mb: 3, height: 10 }}
+                    value={Math.round((item.completedTask / item.totalTask) * 100)}
+                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <AvatarGroup className='pull-up' sx={{ mr: 2 }}>
+                        {item.avatarGroup &&
+                          item.avatarGroup.map((person, index) => {
+                            return (
+                              <Tooltip key={index} title={person.name}>
+                                <CustomAvatar src={person.avatar} alt={person.name} sx={{ height: 32, width: 32 }} />
+                              </Tooltip>
+                            )
+                          })}
+                        <Avatar sx={{ height: 32, width: 32, fontWeight: 500, fontSize: '0.75rem' }}>
+                          +{item.members}
+                        </Avatar>
+                      </AvatarGroup>
+                    </Box>
+                    <Box
+                      href='/'
+                      component={Link}
+                      onClick={e => e.preventDefault()}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        textDecoration: 'none',
+                        '& svg': { mr: 1.5, color: 'text.secondary' }
+                      }}
+                    >
+                      <Icon fontSize='1.5rem' icon='tabler:message-dots' />
+                      <Typography sx={{ color: 'text.secondary' }}>{item.comments}</Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          )
+        })}
+    </Grid>
   )
 }
 
-export default EcommerceOrders
+export default Projects
