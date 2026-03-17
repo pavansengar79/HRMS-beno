@@ -31,6 +31,31 @@ const GoogleCallbackPage = () => {
       try {
         const tokenKey = authConfig.storageTokenKeyName || 'accessToken'
 
+        // Case 0: backend redirected to frontend with token only (no CORS/cookie fetch needed)
+        if (typeof router.query?.token === 'string' && typeof router.query?.user !== 'string') {
+          const token = router.query.token
+          window.localStorage.setItem(tokenKey, token)
+
+          // Fetch user via token (NO cookies) using backend /auth/me endpoint from authConfig
+          const meUrl = `${BACKEND_BASE_URL}/api/v1/${authConfig.meEndpoint || '/auth/me'}`
+          const meRes = await fetch(meUrl, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          const meJson = await meRes.json().catch(() => null)
+
+          const user = meJson?.data?.user || meJson?.user || meJson?.data
+          if (!meRes.ok || !user) {
+            throw new Error(meJson?.message || 'Google login succeeded but fetching user failed')
+          }
+
+          window.localStorage.setItem('userData', JSON.stringify(user))
+          dispatch(setCredentials({ user, token }))
+
+          router.replace(returnUrl && returnUrl !== '/' ? returnUrl : '/dashboards/analytics')
+          return
+        }
+
         // Case A: backend redirected to frontend with token+user already present
         if (typeof router.query?.token === 'string' && typeof router.query?.user === 'string') {
           const token = router.query.token
@@ -53,9 +78,11 @@ const GoogleCallbackPage = () => {
 
         // Case B: frontend received `code` (Google redirect URI points here) → exchange via backend callback
         const queryString = router.asPath.includes('?') ? router.asPath.split('?')[1] : ''
-        const url = `${BACKEND_BASE_URL}/auth/google/callback${queryString ? `?${queryString}` : ''}`
+        const url = `${BACKEND_BASE_URL}/api/v1/auth/google/callback${queryString ? `?${queryString}` : ''}`
 
-        const res = await fetch(url, { method: 'GET', credentials: 'include' })
+        // NOTE: do not use credentials: 'include' here unless backend CORS is configured with
+        // Access-Control-Allow-Origin set to the exact frontend origin and Access-Control-Allow-Credentials: true
+        const res = await fetch(url, { method: 'GET' })
         const json = await res.json()
 
         if (!res.ok || !json?.success) {
