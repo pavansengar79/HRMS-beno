@@ -68,7 +68,7 @@ const ApplyLeaveSidebar = props => {
     setValues(defaultState)
     clearErrors()
     dispatch(handleSelectEvent(null))
-    handleAddEventSidebarToggle()
+    handleApplyLeaveSidebarToggle()
   }
 
   const onSubmit = data => {
@@ -142,7 +142,7 @@ const ApplyLeaveSidebar = props => {
     } else {
       resetToEmptyValues()
     }
-  }, [addEventSidebarOpen, resetToStoredValues, resetToEmptyValues, store.selectedEvent])
+  }, [applyLeaveSidebarOpen, resetToStoredValues, resetToEmptyValues, store.selectedEvent])
 
   const PickersComponent = forwardRef(({ ...props }, ref) => {
     return (
@@ -186,7 +186,7 @@ const ApplyLeaveSidebar = props => {
   return (
     <Drawer
       anchor='right'
-      open={addEventSidebarOpen}
+      open={applyLeaveSidebarOpen}
       onClose={handleSidebarClose}
       ModalProps={{ keepMounted: true }}
       sx={{ '& .MuiDrawer-paper': { width: ['100%', drawerWidth] } }}
