@@ -81,12 +81,8 @@ if (themeConfig.routingLoader) {
 const Guard = ({ children, authGuard, guestGuard }) => {
   if (guestGuard) {
     return <GuestGuard fallback={<Spinner />}>{children}</GuestGuard>
-  } else if (!guestGuard && !authGuard) {
-    return <>{children}</>
   } else {
-    // Bypassed AuthGuard for now
-    // return <AuthGuard fallback={<Spinner />}>{children}</AuthGuard>
-    return <>{children}</>
+    return <AuthGuard fallback={<Spinner />}>{children}</AuthGuard>
   }
 }
 
@@ -100,8 +96,10 @@ const App = props => {
   const getLayout =
     Component.getLayout ?? (page => <UserLayout contentHeightFixed={contentHeightFixed}>{page}</UserLayout>)
   const setConfig = Component.setConfig ?? undefined
-  const authGuard = Component.authGuard ?? false
-  const guestGuard =   Component.guestGuard ?? false
+  // Protect all pages by default; set `Component.guestGuard = true` for public pages like login/register.
+  // If you need a public page, explicitly set `Component.authGuard = false`.
+  const authGuard = Component.authGuard ?? true
+  const guestGuard = Component.guestGuard ?? false
   const aclAbilities = Component.acl ?? defaultACLObj
 
   return (
