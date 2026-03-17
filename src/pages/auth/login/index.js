@@ -11,6 +11,7 @@ import { useRouter } from 'next/router'
 import Alert from '@mui/material/Alert'
 import Button from '@mui/material/Button'
 import Checkbox from '@mui/material/Checkbox'
+import Divider from '@mui/material/Divider'
 import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import Box from '@mui/material/Box'
@@ -94,6 +95,20 @@ const LoginPage = () => {
 
   const hidden   = useMediaQuery(theme.breakpoints.down('md'))
   const { skin } = settings
+
+  const handleGoogleLogin = () => {
+    if (typeof window === 'undefined') return
+
+    const returnUrl =
+      typeof router.query.returnUrl === 'string' && router.query.returnUrl.trim().length
+        ? router.query.returnUrl
+        : '/'
+
+    const oauthUrl = new URL('https://2c6q0jsk-3000.inc1.devtunnels.ms/api/v1/auth/google')
+    oauthUrl.searchParams.set('returnUrl', returnUrl)
+
+    window.location.href = oauthUrl.toString()
+  }
 
   // API state from Redux
   const isLoading = useSelector(selectAuthLoading)
@@ -278,6 +293,17 @@ const LoginPage = () => {
                   ? <CircularProgress size={22} color='inherit' />
                   : 'Login'
                 }
+              </Button>
+
+              <Divider sx={{ my: 4, color: 'text.disabled' }}>or</Divider>
+
+              <Button
+                fullWidth
+                variant='outlined'
+                onClick={handleGoogleLogin}
+                startIcon={<Icon icon='mdi:google' />}
+              >
+                Continue with Google
               </Button>
 
             </form>

@@ -53,7 +53,7 @@ const GoogleCallbackPage = () => {
 
         // Case B: frontend received `code` (Google redirect URI points here) → exchange via backend callback
         const queryString = router.asPath.includes('?') ? router.asPath.split('?')[1] : ''
-        const url = `${BACKEND_BASE_URL}/api/v1/auth/google/callback${queryString ? `?${queryString}` : ''}`
+        const url = `${BACKEND_BASE_URL}/auth/google/callback${queryString ? `?${queryString}` : ''}`
 
         const res = await fetch(url, { method: 'GET', credentials: 'include' })
         const json = await res.json()
