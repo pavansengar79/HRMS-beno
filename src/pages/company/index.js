@@ -7,124 +7,103 @@ import Link from 'next/link'
 // ** MUI Imports
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
-import Menu from '@mui/material/Menu'
 import Grid from '@mui/material/Grid'
 import Divider from '@mui/material/Divider'
 import MenuItem from '@mui/material/MenuItem'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
-import CardHeader from '@mui/material/CardHeader'
-import CardContent from '@mui/material/CardContent'
 import { DataGrid } from '@mui/x-data-grid'
+import Menu from '@mui/material/Menu'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
 
-// ** Store Imports
+// ** Redux
 import { useDispatch, useSelector } from 'react-redux'
+import {
+  fetchAllCompanies,
+  deleteCompany,
+  selectAllCompanies,
+  selectCompanyTotal,
+  selectCompanyLoading
+} from 'src/store/company/companySlice'
 
-// ** Custom Components Imports
+// ** Custom Components
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
-import CardStatsHorizontalWithDetails from 'src/@core/components/card-statistics/card-stats-horizontal-with-details'
 
-// ** Utils Import
+// ** Utils
 import { getInitials } from 'src/@core/utils/get-initials'
 
-// ** Actions Imports
-import { fetchData, deleteUser } from 'src/store/apps/user'
-
-// ** Third Party Components
-import axios from 'axios'
-
-// ** Custom Table Components Imports
+// ** Table Components
 import TableHeader from 'src/views/apps/user/list/TableHeader'
 import AddCompanyDrawer from './AddCompanyDrawer'
 
-// ** renders client column
-const userRoleObj = {
-  admin: { icon: 'tabler:device-laptop', color: 'secondary' },
-  author: { icon: 'tabler:circle-check', color: 'success' },
-  editor: { icon: 'tabler:edit', color: 'info' },
-  maintainer: { icon: 'tabler:chart-pie-2', color: 'primary' },
-  subscriber: { icon: 'tabler:user', color: 'warning' }
+
+// ─── Status chip color map ────────────────────
+const statusColorMap = {
+  ACTIVE:   'success',
+  INACTIVE: 'secondary',
+  PENDING:  'warning'
 }
 
-const userStatusObj = {
-  active: 'success',
-  pending: 'warning',
-  inactive: 'secondary'
+// ─── Plan chip color map ──────────────────────
+const planColorMap = {
+  BASIC:      'primary',
+  STANDARD:   'info',
+  ENTERPRISE: 'warning'
 }
 
-// ** renders client column
-const renderClient = row => {
-  if (row.avatar.length) {
-    return <CustomAvatar src={row.avatar} sx={{ mr: 2.5, width: 38, height: 38 }} />
-  } else {
-    return (
-      <CustomAvatar
-        skin='light'
-        color={row.avatarColor}
-        sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
-      >
-        {getInitials(row.fullName ? row.fullName : 'John Doe')}
-      </CustomAvatar>
-    )
-  }
-}
+// ─── Avatar from company name initials ───────
+const renderAvatar = row => (
+  <CustomAvatar
+    skin='light'
+    color='primary'
+    sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
+  >
+    {getInitials(row.companyName || 'NA')}
+  </CustomAvatar>
+)
 
+// ─── Row Actions Menu ─────────────────────────
 const RowOptions = ({ id }) => {
-  // ** Hooks
   const dispatch = useDispatch()
-
-  // ** State
   const [anchorEl, setAnchorEl] = useState(null)
-  const rowOptionsOpen = Boolean(anchorEl)
+  const open = Boolean(anchorEl)
 
-  const handleRowOptionsClick = event => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleRowOptionsClose = () => {
-    setAnchorEl(null)
-  }
+  const handleOpen  = e => setAnchorEl(e.currentTarget)
+  const handleClose = () => setAnchorEl(null)
 
   const handleDelete = () => {
-    dispatch(deleteUser(id))
-    handleRowOptionsClose()
+    dispatch(deleteCompany(id))
+    handleClose()
   }
 
   return (
     <>
-      <IconButton size='small' onClick={handleRowOptionsClick}>
+      <IconButton size='small' onClick={handleOpen}>
         <Icon icon='tabler:dots-vertical' />
       </IconButton>
       <Menu
         keepMounted
         anchorEl={anchorEl}
-        open={rowOptionsOpen}
-        onClose={handleRowOptionsClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right'
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right'
-        }}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         PaperProps={{ style: { minWidth: '8rem' } }}
       >
         <MenuItem
           component={Link}
+          href={`/apps/company/view/${id}`}
+          onClick={handleClose}
           sx={{ '& svg': { mr: 2 } }}
-          href='/apps/user/view/account'
-          onClick={handleRowOptionsClose}
         >
           <Icon icon='tabler:eye' fontSize={20} />
           View
         </MenuItem>
-        <MenuItem onClick={handleRowOptionsClose} sx={{ '& svg': { mr: 2 } }}>
+        <MenuItem onClick={handleClose} sx={{ '& svg': { mr: 2 } }}>
           <Icon icon='tabler:edit' fontSize={20} />
           Edit
         </MenuItem>
@@ -137,105 +116,102 @@ const RowOptions = ({ id }) => {
   )
 }
 
+// ─── DataGrid Columns ─────────────────────────
+// Mapped to actual API response fields
 const columns = [
   {
-    flex: 0.25,
-    minWidth: 280,
-    field: 'fullName',
-    headerName: 'User',
-    renderCell: ({ row }) => {
-      const { fullName, email } = row
-
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          {renderClient(row)}
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column' }}>
-            <Typography
-              noWrap
-              component={Link}
-              href='/apps/user/view/account'
-              sx={{
-                fontWeight: 500,
-                textDecoration: 'none',
-                color: 'text.secondary',
-                '&:hover': { color: 'primary.main' }
-              }}
-            >
-              {fullName}
-            </Typography>
-            <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>
-              {email}
-            </Typography>
-          </Box>
-        </Box>
-      )
-    }
+    flex: 0.05,
+    minWidth: 120,
+    field: 'tenantCode',
+    headerName: 'Code',
+    renderCell: ({ row }) => (
+      <Typography noWrap sx={{ fontWeight: 500, color: 'text.secondary' }}>
+        {row.tenantCode}
+      </Typography>
+    )
   },
   {
-    flex: 0.15,
-    field: 'role',
-    minWidth: 170,
-    headerName: 'Role',
-    renderCell: ({ row }) => {
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <CustomAvatar
-            skin='light'
-            sx={{ mr: 4, width: 30, height: 30 }}
-            color={userRoleObj[row.role].color || 'primary'}
+    flex: 0.25,
+    minWidth: 250,
+    field: 'companyName',
+    headerName: 'Company',
+    renderCell: ({ row }) => (
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {renderAvatar(row)}
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Typography
+            noWrap
+            component={Link}
+            href={`/apps/company/view/${row._id}`}
+            sx={{
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: 'text.secondary',
+              '&:hover': { color: 'primary.main' }
+            }}
           >
-            <Icon icon={userRoleObj[row.role].icon} />
-          </CustomAvatar>
-          <Typography noWrap sx={{ color: 'text.secondary', textTransform: 'capitalize' }}>
-            {row.role}
+            {row.companyName}
+          </Typography>
+          <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>
+            {row.companyEmail}
           </Typography>
         </Box>
-      )
-    }
+      </Box>
+    )
   },
   {
     flex: 0.15,
-    minWidth: 120,
-    headerName: 'Plan',
-    field: 'currentPlan',
-    renderCell: ({ row }) => {
-      return (
-        <Typography noWrap sx={{ fontWeight: 500, color: 'text.secondary', textTransform: 'capitalize' }}>
-          {row.currentPlan}
-        </Typography>
-      )
-    }
+    minWidth: 140,
+    field: 'companyPhone',
+    headerName: 'Phone',
+    renderCell: ({ row }) => (
+      <Typography noWrap sx={{ color: 'text.secondary' }}>
+        {row.companyPhone}
+      </Typography>
+    )
   },
   {
-    flex: 0.15,
-    minWidth: 190,
-    field: 'billing',
-    headerName: 'Billing',
-    renderCell: ({ row }) => {
-      return (
-        <Typography noWrap sx={{ color: 'text.secondary' }}>
-          {row.billing}
-        </Typography>
-      )
-    }
-  },
-  {
-    flex: 0.1,
+    flex: 0.12,
     minWidth: 110,
+    field: 'plan',
+    headerName: 'Plan',
+    renderCell: ({ row }) => (
+      <CustomChip
+        rounded
+        skin='light'
+        size='small'
+        label={row.plan}
+        color={planColorMap[row.plan] || 'primary'}
+        sx={{ textTransform: 'capitalize' }}
+      />
+    )
+  },
+  {
+    flex: 0.12,
+    minWidth: 120,
+    field: 'subdomain',
+    headerName: 'Subdomain',
+    renderCell: ({ row }) => (
+      <Typography noWrap sx={{ color: 'text.secondary' }}>
+        {row.subdomain}
+      </Typography>
+    )
+  },
+  {
+    flex: 0.12,
+    minWidth: 100,
     field: 'status',
     headerName: 'Status',
-    renderCell: ({ row }) => {
-      return (
-        <CustomChip
-          rounded
-          skin='light'
-          size='small'
-          label={row.status}
-          color={userStatusObj[row.status]}
-          sx={{ textTransform: 'capitalize' }}
-        />
-      )
-    }
+    renderCell: ({ row }) => (
+      <CustomChip
+        rounded
+        skin='light'
+        size='small'
+        label={row.status}
+        color={statusColorMap[row.status] || 'secondary'}
+        sx={{ textTransform: 'capitalize' }}
+      />
+    )
   },
   {
     flex: 0.1,
@@ -243,76 +219,112 @@ const columns = [
     sortable: false,
     field: 'actions',
     headerName: 'Actions',
-    renderCell: ({ row }) => <RowOptions id={row.id} />
+    renderCell: ({ row }) => <RowOptions id={row._id} />
   }
 ]
 
-const Company = ({ apiData }) => {
-  // ** State
-  const [role, setRole] = useState('')
-  const [plan, setPlan] = useState('')
-  const [value, setValue] = useState('')
-  const [status, setStatus] = useState('')
+// ─── Main Component ───────────────────────────
+const Company = () => {
+  const [value, setValue]                   = useState('')
+  const [statusFilter, setStatusFilter]     = useState('')
+  const [planFilter, setPlanFilter]         = useState('')
   const [addCompanyOpen, setAddCompanyOpen] = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
 
-  // ** Hooks
-  const dispatch = useDispatch()
-  const store = useSelector(state => state.user)
+  const dispatch  = useDispatch()
+  const companies = useSelector(selectAllCompanies)
+  const total     = useSelector(selectCompanyTotal)
+  const loading   = useSelector(selectCompanyLoading)
+
+
+  
+
+  // Fetch on mount and when filters change
   useEffect(() => {
-    dispatch(
-      fetchData({
-        role,
-        status,
-        q: value,
-        currentPlan: plan
-      })
-    )
-  }, [dispatch, plan, role, status, value])
+    dispatch(fetchAllCompanies())
+  }, [dispatch])
 
-  const handleFilter = useCallback(val => {
-    setValue(val)
-  }, [])
+  // Client-side filter by search value, status, plan
+  const filteredRows = companies.filter(row => {
+    const matchSearch =
+      !value ||
+      row.companyName?.toLowerCase().includes(value.toLowerCase()) ||
+      row.companyEmail?.toLowerCase().includes(value.toLowerCase()) ||
+      row.tenantCode?.toLowerCase().includes(value.toLowerCase())
 
+    const matchStatus = !statusFilter || row.status === statusFilter
+    const matchPlan   = !planFilter   || row.plan   === planFilter
 
-  const toggleAddCompanyDrawer = () => setAddCompanyOpen(!addCompanyOpen)
+    return matchSearch && matchStatus && matchPlan
+  })
+
+  const handleFilter = useCallback(val => setValue(val), [])
+
+  const toggleDrawer = () => setAddCompanyOpen(prev => !prev)
 
   return (
     <Grid container spacing={6.5}>
-     
       <Grid item xs={12}>
+        
         <Card>
-         
-          
+          {/* Filters */}
+          <Box sx={{ p: 5, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            <CustomTextField
+              select
+              value={statusFilter}
+              label='Status'
+              sx={{ minWidth: 150 }}
+              onChange={e => setStatusFilter(e.target.value)}
+            >
+              <MenuItem value=''>All</MenuItem>
+              <MenuItem value='ACTIVE'>Active</MenuItem>
+              <MenuItem value='INACTIVE'>Inactive</MenuItem>
+              <MenuItem value='PENDING'>Pending</MenuItem>
+            </CustomTextField>
+
+            <CustomTextField
+              select
+              value={planFilter}
+              label='Plan'
+              sx={{ minWidth: 150 }}
+              onChange={e => setPlanFilter(e.target.value)}
+            >
+              <MenuItem value=''>All</MenuItem>
+              <MenuItem value='BASIC'>Basic</MenuItem>
+              <MenuItem value='STANDARD'>Standard</MenuItem>
+              <MenuItem value='ENTERPRISE'>Enterprise</MenuItem>
+            </CustomTextField>
+          </Box>
+
           <Divider sx={{ m: '0 !important' }} />
-          <TableHeader value={value} handleFilter={handleFilter} toggle={toggleAddCompanyDrawer} />
+
+
+
+          <TableHeader
+            value={value}
+            handleFilter={handleFilter}
+            toggle={toggleDrawer}
+          />
+
           <DataGrid
             autoHeight
             rowHeight={62}
-            rows={store.data}
+            loading={loading}
+            rows={filteredRows}
             columns={columns}
+            getRowId={row => row._id}        // API uses _id not id
             disableRowSelectionOnClick
             pageSizeOptions={[10, 25, 50]}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
+            rowCount={filteredRows.length}
           />
         </Card>
       </Grid>
 
-      <AddCompanyDrawer open={addCompanyOpen} toggle={toggleAddCompanyDrawer} />
+      <AddCompanyDrawer open={addCompanyOpen} toggle={toggleDrawer} />
     </Grid>
   )
-}
-
-export const getStaticProps = async () => {
-  const res = await axios.get('/cards/statistics')
-  const apiData = res.data
-
-  return {
-    props: {
-      apiData
-    }
-  }
 }
 
 export default Company

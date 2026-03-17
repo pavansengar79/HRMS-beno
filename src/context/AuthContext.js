@@ -1,165 +1,169 @@
-// ** React Imports
+// src/context/AuthContext.jsx
+
 import { createContext, useEffect, useState } from 'react'
-
-// ** Next Import
 import { useRouter } from 'next/router'
+import { useDispatch, useSelector } from 'react-redux'
 
-// ** Axios
+// NOTE: Login uses plain axios (no token needed yet).
+// All other API calls use axiosInstance (auto-attaches token).
 import axios from 'axios'
 
-// ** Config
-import authConfig from 'src/configs/auth'
-import axiosRequest from 'src/utils/AxiosInterceptor'
+import {
+  setCredentials,
+  clearCredentials,
+  setLoading,
+  setError,
+  rehydrateAuth,
+  selectUser,
+  selectToken,
+  selectIsAuthenticated
+} from 'src/store/auth/authSlice'
 
-// ** Defaults
-const defaultProvider = {
-  user: null,
-  loading: true,
-  setUser: () => null,
-  setLoading: () => Boolean,
-  login: () => Promise.resolve(),
-  logout: () => Promise.resolve()
+import authConfig from 'src/configs/auth'
+
+// ─── Storage Keys ─────────────────────────────
+const STORAGE = {
+  TOKEN: authConfig.storageTokenKeyName,  // 'accessToken'
+  USER:  'userData'
 }
+
+// ─── Context Defaults ─────────────────────────
+const defaultProvider = {
+  user:            null,
+  token:           null,
+  loading:         true,
+  isAuthenticated: false,
+  login:           () => Promise.resolve(),
+  logout:          () => Promise.resolve()
+}
+
 const AuthContext = createContext(defaultProvider)
 
+// ─── Provider ─────────────────────────────────
 const AuthProvider = ({ children }) => {
-  // ** States
-  const [user, setUser] = useState(defaultProvider.user)
-  const [loading, setLoading] = useState(defaultProvider.loading)
+  const [loading, setLoadingState] = useState(true)
 
-  // ** Hooks
-  const router = useRouter()
+  const router   = useRouter()
+  const dispatch = useDispatch()
+
+  const user            = useSelector(selectUser)
+  const token           = useSelector(selectToken)
+  const isAuthenticated = useSelector(selectIsAuthenticated)
+
+  // ── On app init: re-hydrate Redux from localStorage ───────
   useEffect(() => {
-    const initAuth = async () => {
-      const storedToken = window.localStorage.getItem(authConfig.storageTokenKeyName)
-      if (storedToken) {
-        setLoading(true)
-        // Bypassed API call for now
-        // await axios
-        //   .get(authConfig.meEndpoint, {
-        //     headers: {
-        //       Authorization: storedToken
-        //     }
-        //   })
-        //   .then(async response => {
-        //     setLoading(false)
-        //     setUser({ ...response.data.userData })
-        //   })
-        //   .catch(() => {
-        //     localStorage.removeItem('userData')
-        //     localStorage.removeItem('refreshToken')
-        //     localStorage.removeItem('accessToken')
-        //     setUser(null)
-        //     setLoading(false)
-        //     if (authConfig.onTokenExpiration === 'logout' && !router.pathname.includes('login')) {
-        //       router.replace('/login')
-        //     }
-        //   })
-        // Instead, set from localStorage
-        const storedUser = window.localStorage.getItem('userData')
-        if (storedUser) {
-          setUser(JSON.parse(storedUser))
+    const initAuth = () => {
+      const storedToken = window.localStorage.getItem(STORAGE.TOKEN)
+      const storedUser  = window.localStorage.getItem(STORAGE.USER)
+
+      if (storedToken && storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser)
+          dispatch(rehydrateAuth({ user: parsedUser, token: storedToken }))
+        } catch {
+          // Corrupted data → clear and force re-login
+          _clearStorage()
         }
-        setLoading(false)
-      } else {
-        setLoading(false)
       }
+
+      setLoadingState(false)
     }
+
     initAuth()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // ── Listen for 401 logout event fired by AxiosInterceptor ──
+    // AxiosInterceptor cannot import store directly (causes SSR crash),
+    // so it fires window event 'auth:logout' and AuthContext clears Redux here.
+    const handleForceLogout = () => {
+      dispatch(clearCredentials())
+    }
+
+    window.addEventListener('auth:logout', handleForceLogout)
+
+    return () => {
+      window.removeEventListener('auth:logout', handleForceLogout)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ── Login ─────────────────────────────────────────────────
   const handleLogin = async (params, errorCallback) => {
-    console.log('log', params)
+    dispatch(setLoading(true))
 
-    // Hardcoded credentials for bypassing login
-    const hardcodedEmail = 'admin@admin.com'
-    const hardcodedPassword = 'admin'
+    try {
+      const { data } = await axios.post(
+        `https://2c6q0jsk-3000.inc1.devtunnels.ms/api/v1/auth/login`,
+        { email: params.email, password: params.password },
+        { headers: { 'Content-Type': 'application/json' } }
+      )
 
-    if (params.email === hardcodedEmail && params.password === hardcodedPassword) {
-      // Simulate successful login
-      let role = 'EMPLOYEE' // default
-      if (params.email === 'admin@admin.com') role = 'ADMIN'
-      else if (params.email === 'manager@admin.com') role = 'MANAGER'
-      else if (params.email === 'hr@admin.com') role = 'HR'
-      const mockUser = {
-        id: 1,
-        email: params.email,
-        name: `${role} User`,
-        role: role
+      const { token, user } = data.data
+
+      // 1. Redux (source of truth)
+      dispatch(setCredentials({ user, token }))
+
+      // 2. Persist to localStorage so Redux can re-hydrate on refresh
+      //    Store the FULL user object (including role + permissions)
+      //    so re-hydration rebuilds permission state correctly
+      if (params.rememberMe) {
+        window.localStorage.setItem(STORAGE.TOKEN, token)
+        window.localStorage.setItem(STORAGE.USER, JSON.stringify(user))
+      } else {
+        // Session only — cleared when browser tab closes
+        window.sessionStorage.setItem(STORAGE.TOKEN, token)
+        window.sessionStorage.setItem(STORAGE.USER, JSON.stringify(user))
       }
-      params.rememberMe ? window.localStorage.setItem(authConfig.storageTokenKeyName, 'mock-token') : null
-      const returnUrl = router.query.returnUrl
-      setUser({ ...mockUser })
-      params.rememberMe ? window.localStorage.setItem('userData', JSON.stringify(mockUser)) : null
-      const redirectURL = returnUrl && returnUrl !== '/' ? returnUrl : '/dashboards/analytics'
-      console.log('redirect', redirectURL)
+
+      // 3. Redirect
+      const returnUrl    = router.query.returnUrl
+      const redirectURL  = returnUrl && returnUrl !== '/' ? returnUrl : '/dashboards/analytics'
       router.replace(redirectURL)
-      return
-    } else {
-      // If not hardcoded, call error callback
-      if (errorCallback) errorCallback(new Error('Invalid credentials'))
-      return
+
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Login failed. Please check your credentials.'
+
+      dispatch(setError(message))
+      if (errorCallback) errorCallback(message)
     }
-
-    // Commented out API call for now
-    // let data = {
-    //   email: params.email,
-    //   password: params.password
-    // }
-    // try {
-    //   const res = await axiosRequest({
-    //     url: 'api/admindash/admin/login',
-    //     method: 'POST',
-    //     data: data
-    //   })
-    //   console.log('loginres', res)
-    //   params.rememberMe ? window.localStorage.setItem(authConfig.storageTokenKeyName, res.token) : null
-    //   const returnUrl = router.query.returnUrl
-    //   setUser({ ...res.admin })
-    //   params.rememberMe ? window.localStorage.setItem('userData', JSON.stringify(res.admin)) : null
-    //   const redirectURL = returnUrl && returnUrl !== '/' ? returnUrl : '/apps/home/'
-    //   console.log('redirect', redirectURL)
-    //   router.replace(redirectURL)
-    // } catch (error) {
-    //   console.log(error)
-    //   if (errorCallback) errorCallback(error)
-    // }
-
-    // axios
-    //   .post(authConfig.loginEndpoint, params)
-    //   .then(async response => {
-    //     params.rememberMe
-    //       ? window.localStorage.setItem(authConfig.storageTokenKeyName, response.data.accessToken)
-    //       : null
-    //     const returnUrl = router.query.returnUrl
-    //     setUser({ ...response.data.userData })
-    //     params.rememberMe ? window.localStorage.setItem('userData', JSON.stringify(response.data.userData)) : null
-    //     const redirectURL = returnUrl && returnUrl !== '/' ? returnUrl : '/'
-    //     router.replace(redirectURL)
-    //   })
-    //   .catch(err => {
-    //     if (errorCallback) errorCallback(err)
-    //   })
   }
 
+  // ── Logout ────────────────────────────────────────────────
   const handleLogout = () => {
-    setUser(null)
-    window.localStorage.removeItem('userData')
-    window.localStorage.removeItem(authConfig.storageTokenKeyName)
+    dispatch(clearCredentials())
+    _clearStorage()
     router.push('/auth/login')
   }
 
-  const values = {
-    user,
-    loading,
-    setUser,
-    setLoading,
-    login: handleLogin,
-    logout: handleLogout
+  // ── Clear both storages ───────────────────────────────────
+  const _clearStorage = () => {
+    window.localStorage.removeItem(STORAGE.TOKEN)
+    window.localStorage.removeItem(STORAGE.USER)
+    window.sessionStorage.removeItem(STORAGE.TOKEN)
+    window.sessionStorage.removeItem(STORAGE.USER)
   }
 
-  return <AuthContext.Provider value={values}>{children}</AuthContext.Provider>
+  // ── Context Value ─────────────────────────────────────────
+  const values = {
+    user,
+    token,
+    isAuthenticated,
+    loading,
+    login:   handleLogin,
+    logout:  handleLogout,
+
+    // Legacy compat for components using setUser/setLoading from context
+    setUser:    () => {},
+    setLoading: setLoadingState
+  }
+
+  return (
+    <AuthContext.Provider value={values}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export { AuthContext, AuthProvider }

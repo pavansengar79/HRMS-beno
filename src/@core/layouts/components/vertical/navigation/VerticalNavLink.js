@@ -30,26 +30,25 @@ const MenuNavLink = styled(ListItemButton)(({ theme }) => ({
   marginRight: theme.spacing(3.5),
   borderRadius: theme.shape.borderRadius,
   transition: 'padding-left .25s ease-in-out, padding-right .25s ease-in-out',
+  borderLeft: '3px solid transparent',
   '&:hover': {
     backgroundColor: theme.palette.action.hover
   },
   '&.active': {
     '&, &:hover': {
-      boxShadow: `0px 2px 6px ${hexToRGBA(theme.palette.primary.main, 0.48)}`,
-      background: `linear-gradient(72.47deg, ${
-        theme.direction === 'ltr' ? theme.palette.primary.main : hexToRGBA(theme.palette.primary.main, 0.7)
-      } 22.16%, ${
-        theme.direction === 'ltr' ? hexToRGBA(theme.palette.primary.main, 0.7) : theme.palette.primary.main
-      } 76.47%)`,
+      boxShadow: 'none',
+      background: hexToRGBA(theme.palette.primary.main, 0.08),
+      borderLeft: `3px solid ${theme.palette.primary.main}`,
       '&.Mui-focusVisible': {
-        background: `linear-gradient(72.47deg, ${theme.palette.primary.dark} 22.16%, ${hexToRGBA(
-          theme.palette.primary.dark,
-          0.7
-        )} 76.47%)`
+        background: hexToRGBA(theme.palette.primary.main, 0.12)
       }
     },
-    '& .MuiTypography-root, & svg': {
-      color: `${theme.palette.common.white} !important`
+    '& .MuiTypography-root': {
+      color: `${theme.palette.primary.main} !important`,
+      fontWeight: 600
+    },
+    '& svg': {
+      color: `${theme.palette.primary.main} !important`
     }
   }
 }))

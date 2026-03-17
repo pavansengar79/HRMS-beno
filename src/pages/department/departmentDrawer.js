@@ -1,5 +1,5 @@
 // ** React Imports
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 // ** MUI Imports
 import Drawer from '@mui/material/Drawer'
@@ -8,35 +8,23 @@ import { styled } from '@mui/material/styles'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
 
-// ** Custom Component Import
+// ** Custom Components Imports
 import CustomTextField from 'src/@core/components/mui/text-field'
-
-// ** Third Party Imports
-import * as yup from 'yup'
-import { yupResolver } from '@hookform/resolvers/yup'
-import { useForm, Controller } from 'react-hook-form'
-
-// ** Icon Imports
 import Icon from 'src/@core/components/icon'
 
-// ---------------------------------------------------------------------------
-// Mock API helper
-// ---------------------------------------------------------------------------
+// ** Third Party Imports
+import { useForm, Controller } from 'react-hook-form'
+import * as yup from 'yup'
+import { yupResolver } from '@hookform/resolvers/yup'
+import toast from 'react-hot-toast'
 
-/**
- * Submit a new department.
- * Replace with: axios.post('/api/departments', payload)
- */
-const postDepartment = async payload => {
-  await new Promise(r => setTimeout(r, 350))
-  console.log('New department payload:', payload)
-
-  return { success: true, data: { id: Date.now(), ...payload } }
-}
+// ✅ Interceptor — attaches Bearer token from localStorage on every request
+import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ---------------------------------------------------------------------------
-// Styled header — same as all other drawers in the project
+// Styled header
 // ---------------------------------------------------------------------------
 const Header = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -46,28 +34,36 @@ const Header = styled(Box)(({ theme }) => ({
 }))
 
 // ---------------------------------------------------------------------------
-// Yup schema
+// Validation schema
 // ---------------------------------------------------------------------------
 const schema = yup.object().shape({
-  name:        yup.string().required('Department name is required'),
-  description: yup.string()
+  name: yup
+    .string()
+    .trim()
+    .min(2, 'Department name must be at least 2 characters')
+    .max(100, 'Department name must not exceed 100 characters')
+    .required('Department name is required')
 })
 
-const defaultValues = {
-  name:        '',
-  description: ''
-}
+const defaultValues = { name: '' }
 
 // ---------------------------------------------------------------------------
 // AddDepartmentDrawer
+//
+// Props:
+//   open        — boolean
+//   toggle      — () => void        close the drawer
+//   onSuccess   — () => void        called after successful create or update
+//   editingDept — null (Add mode)   |  { _id, name, ... } (Edit mode)
 // ---------------------------------------------------------------------------
-const AddDepartmentDrawer = ({ open, toggle, onSuccess }) => {
+const AddDepartmentDrawer = ({ open, toggle, onSuccess, editingDept }) => {
+  const isEditMode  = Boolean(editingDept)
   const [submitting, setSubmitting] = useState(false)
 
   const {
-    reset,
     control,
     handleSubmit,
+    reset,
     formState: { errors }
   } = useForm({
     defaultValues,
@@ -75,22 +71,47 @@ const AddDepartmentDrawer = ({ open, toggle, onSuccess }) => {
     resolver: yupResolver(schema)
   })
 
+  // Pre-fill form when editing, clear when adding
+  useEffect(() => {
+    if (open) {
+      reset({ name: editingDept?.name ?? '' })
+    }
+  }, [open, editingDept, reset])
+
+  // ---------------------------------------------------------------------------
+  // Submit
+  //   Add mode  → POST /api/v1/departments/create
+  //   Edit mode → PUT  /api/v1/departments/:id
+  // ---------------------------------------------------------------------------
   const onSubmit = async data => {
-    setSubmitting(true)
     try {
-      const res = await postDepartment(data)
-      handleClose()
-      if (onSuccess) onSuccess(res.data)
+      setSubmitting(true)
+
+      const res = isEditMode
+        ? await axiosRequest.put(`/api/v1/departments/${editingDept._id}`, { name: data.name.trim() })
+        : await axiosRequest.post('/api/v1/departments/create', { name: data.name.trim() })
+
+      if (res?.success) {
+        toast.success(
+          isEditMode
+            ? `Department renamed to "${data.name.trim()}" successfully`
+            : `Department "${data.name.trim()}" created successfully`
+        )
+        handleClose()
+        onSuccess?.()
+      } else {
+        toast.error(res?.message || `Failed to ${isEditMode ? 'update' : 'create'} department`)
+      }
     } catch (err) {
-      console.error('Failed to add department:', err)
+      toast.error(typeof err === 'string' ? err : 'Something went wrong. Please try again.')
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleClose = () => {
+    reset(defaultValues)
     toggle()
-    reset()
   }
 
   return (
@@ -103,75 +124,65 @@ const AddDepartmentDrawer = ({ open, toggle, onSuccess }) => {
       sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 400 } } }}
     >
       <Header>
-        <Typography variant='h5'>Add Department</Typography>
+        <Typography variant='h5'>
+          {isEditMode ? 'Edit Department' : 'Add Department'}
+        </Typography>
         <IconButton
           size='small'
           onClick={handleClose}
           sx={{
-            p: '0.438rem',
+            p: '0.375rem',
             borderRadius: 1,
             color: 'text.primary',
             backgroundColor: 'action.selected',
             '&:hover': {
-              backgroundColor: theme => `rgba(${theme.palette.customColors.main}, 0.16)`
+              backgroundColor: theme => `rgba(${theme.palette.customColors?.main}, 0.16)`
             }
           }}
         >
-          <Icon icon='tabler:x' fontSize='1.125rem' />
+          <Icon icon='tabler:x' fontSize='1.25rem' />
         </IconButton>
       </Header>
 
-      <Box sx={{ p: theme => theme.spacing(0, 6, 6) }}>
-        <form onSubmit={handleSubmit(onSubmit)}>
+      <Box
+        component='form'
+        onSubmit={handleSubmit(onSubmit)}
+        sx={{ px: 6, pb: 6, display: 'flex', flexDirection: 'column', gap: 5 }}
+      >
+        <Controller
+          name='name'
+          control={control}
+          render={({ field }) => (
+            <CustomTextField
+              {...field}
+              fullWidth
+              autoFocus
+              label='Department Name'
+              placeholder='e.g. Engineering'
+              error={Boolean(errors.name)}
+              helperText={errors.name?.message}
+              disabled={submitting}
+            />
+          )}
+        />
 
-          {/* Department Name */}
-          <Controller
-            name='name'
-            control={control}
-            render={({ field: { value, onChange } }) => (
-              <CustomTextField
-                fullWidth
-                value={value}
-                sx={{ mb: 4 }}
-                label='Department Name'
-                onChange={onChange}
-                placeholder='e.g. Engineering'
-                error={Boolean(errors.name)}
-                {...(errors.name && { helperText: errors.name.message })}
-              />
-            )}
-          />
-
-          {/* Department Description */}
-          <Controller
-            name='description'
-            control={control}
-            render={({ field: { value, onChange } }) => (
-              <CustomTextField
-                fullWidth
-                multiline
-                rows={4}
-                value={value}
-                sx={{ mb: 6 }}
-                label='Description (optional)'
-                onChange={onChange}
-                placeholder='Brief description of this department…'
-                error={Boolean(errors.description)}
-                {...(errors.description && { helperText: errors.description.message })}
-              />
-            )}
-          />
-
-          {/* Actions */}
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Button type='submit' variant='contained' sx={{ mr: 3 }} disabled={submitting}>
-              {submitting ? 'Adding…' : 'Add Department'}
-            </Button>
-            <Button variant='tonal' color='secondary' onClick={handleClose} disabled={submitting}>
-              Cancel
-            </Button>
-          </Box>
-        </form>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Button
+            fullWidth
+            type='submit'
+            variant='contained'
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={16} color='inherit' /> : null}
+          >
+            {submitting
+              ? isEditMode ? 'Saving…' : 'Creating…'
+              : isEditMode ? 'Save Changes' : 'Create Department'
+            }
+          </Button>
+          <Button fullWidth variant='tonal' color='secondary' onClick={handleClose} disabled={submitting}>
+            Cancel
+          </Button>
+        </Box>
       </Box>
     </Drawer>
   )

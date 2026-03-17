@@ -1,5 +1,11 @@
 // ** React Imports
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+
+// ** Redux Imports
+import { useSelector } from 'react-redux'
+
+// ** Auth selectors — import directly from authSlice so the path is always correct
+import { selectPermissions } from 'src/store/auth/authSlice'
 
 // ** MUI Imports
 import Tab from '@mui/material/Tab'
@@ -8,53 +14,29 @@ import Card from '@mui/material/Card'
 import TabList from '@mui/lab/TabList'
 import TabPanel from '@mui/lab/TabPanel'
 import Avatar from '@mui/material/Avatar'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogActions from '@mui/material/DialogActions'
 import TabContext from '@mui/lab/TabContext'
 import CardHeader from '@mui/material/CardHeader'
 import Typography from '@mui/material/Typography'
 import CardContent from '@mui/material/CardContent'
+import CircularProgress from '@mui/material/CircularProgress'
+import IconButton from '@mui/material/IconButton'
+import Tooltip from '@mui/material/Tooltip'
+import Button from '@mui/material/Button'
 import { DataGrid } from '@mui/x-data-grid'
 import { useTheme } from '@mui/material/styles'
+
+// ✅ Interceptor — attaches Bearer token from localStorage on every request
+import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ** Custom Components Import
 import Icon from 'src/@core/components/icon'
 import CustomAvatar from 'src/@core/components/mui/avatar'
-import CustomTextField from 'src/@core/components/mui/text-field'
 
-// ** Table Header (existing)
-import TableHeader from 'src/views/apps/user/list/TableHeader'
-
-// ** Drawer
+// ** Drawer (shared for Add + Edit)
 import AddDepartmentDrawer from './departmentDrawer'
-
-// ---------------------------------------------------------------------------
-// Mock Data
-// ---------------------------------------------------------------------------
-
-/**
- * Replace with: axios.get('/api/departments')
- */
-const MOCK_DEPARTMENTS = [
-  { id: 1, name: 'Engineering' },
-  { id: 2, name: 'HR'          },
-  { id: 3, name: 'Sales'       },
-  { id: 4, name: 'Design'      },
-]
-
-/**
- * Replace with: axios.get('/api/employees')
- */
-const MOCK_EMPLOYEES = [
-  { id: 1,  name: 'Rahul Sharma',  employeeId: 'EMP001', email: 'rahul@example.com',   role: 'Developer',       department: 'Engineering', joiningDate: '2024-03-10' },
-  { id: 2,  name: 'Priya Mehta',   employeeId: 'EMP002', email: 'priya@example.com',   role: 'QA Engineer',     department: 'Engineering', joiningDate: '2024-05-20' },
-  { id: 3,  name: 'Amit Verma',    employeeId: 'EMP003', email: 'amit@example.com',    role: 'Tech Lead',       department: 'Engineering', joiningDate: '2023-11-15' },
-  { id: 4,  name: 'Sneha Kapoor',  employeeId: 'EMP004', email: 'sneha@example.com',   role: 'HR Manager',      department: 'HR',          joiningDate: '2023-07-01' },
-  { id: 5,  name: 'Ravi Gupta',    employeeId: 'EMP005', email: 'ravi@example.com',    role: 'HR Executive',    department: 'HR',          joiningDate: '2024-01-15' },
-  { id: 6,  name: 'Anjali Singh',  employeeId: 'EMP006', email: 'anjali@example.com',  role: 'Sales Manager',   department: 'Sales',       joiningDate: '2023-09-10' },
-  { id: 7,  name: 'Karan Malhotra',employeeId: 'EMP007', email: 'karan@example.com',   role: 'Sales Executive', department: 'Sales',       joiningDate: '2024-02-28' },
-  { id: 8,  name: 'Pooja Sharma',  employeeId: 'EMP008', email: 'pooja@example.com',   role: 'Sales Executive', department: 'Sales',       joiningDate: '2024-04-05' },
-  { id: 9,  name: 'Vikram Nair',   employeeId: 'EMP009', email: 'vikram@example.com',  role: 'UI Designer',     department: 'Design',      joiningDate: '2024-06-01' },
-  { id: 10, name: 'Deepa Iyer',    employeeId: 'EMP010', email: 'deepa@example.com',   role: 'UX Designer',     department: 'Design',      joiningDate: '2023-12-20' },
-]
 
 // ---------------------------------------------------------------------------
 // DataGrid columns
@@ -124,15 +106,15 @@ const columns = [
 ]
 
 // ---------------------------------------------------------------------------
-// Department Tab label
+// Department Tab label — with optional edit / delete icons on the active tab
 // ---------------------------------------------------------------------------
-const DeptTab = ({ dept, count, isActive, theme }) => {
+const DeptTab = ({ dept, count, isActive, theme, canEdit, canDelete, onEdit, onDelete }) => {
   const RenderAvatar = isActive ? CustomAvatar : Avatar
 
   return (
     <Box
       sx={{
-        px: 4,
+        px: 3,
         height: 94,
         minWidth: 130,
         borderWidth: 1,
@@ -141,10 +123,42 @@ const DeptTab = ({ dept, count, isActive, theme }) => {
         borderRadius: '10px',
         flexDirection: 'column',
         justifyContent: 'center',
+        position: 'relative',
         borderStyle: isActive ? 'solid' : 'dashed',
         borderColor: isActive ? theme.palette.primary.main : theme.palette.divider
       }}
     >
+      {/* Edit + Delete icons — only on active tab, only if user has permission */}
+      {isActive && (canEdit || canDelete) && (
+        <Box
+          sx={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 0.5 }}
+          onClick={e => e.stopPropagation()}
+        >
+          {canEdit && (
+            <Tooltip title='Edit department' placement='top'>
+              <IconButton
+                size='small'
+                sx={{ width: 20, height: 20, color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+                onClick={e => { e.stopPropagation(); onEdit(dept) }}
+              >
+                <Icon icon='tabler:pencil' fontSize='0.75rem' />
+              </IconButton>
+            </Tooltip>
+          )}
+          {canDelete && (
+            <Tooltip title='Delete department' placement='top'>
+              <IconButton
+                size='small'
+                sx={{ width: 20, height: 20, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                onClick={e => { e.stopPropagation(); onDelete(dept) }}
+              >
+                <Icon icon='tabler:trash' fontSize='0.75rem' />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      )}
+
       <RenderAvatar
         variant='rounded'
         {...(isActive && { skin: 'light' })}
@@ -167,35 +181,63 @@ const DeptTab = ({ dept, count, isActive, theme }) => {
 // Employee table per department tab
 // ---------------------------------------------------------------------------
 const DepartmentEmployeeTable = ({ employees }) => {
-  const [filterQ, setFilterQ]               = useState('')
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
-  const [drawerOpen, setDrawerOpen]           = useState(false)   // unused here, kept for TableHeader toggle
-
-  const filtered = useMemo(() => {
-    if (!filterQ) return employees
-    return employees.filter(e =>
-      e.name.toLowerCase().includes(filterQ.toLowerCase()) ||
-      e.email.toLowerCase().includes(filterQ.toLowerCase()) ||
-      e.role.toLowerCase().includes(filterQ.toLowerCase())
-    )
-  }, [filterQ, employees])
 
   return (
-    <>
-      {/* <TableHeader value={filterQ} handleFilter={val => setFilterQ(val)} toggle={() => {}} /> */}
-      <DataGrid
-        autoHeight
-        rowHeight={62}
-        rows={filtered}
-        columns={columns}
-        disableRowSelectionOnClick
-        pageSizeOptions={[10, 25, 50]}
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-      />
-    </>
+    <DataGrid
+      autoHeight
+      rowHeight={62}
+      rows={employees}
+      columns={columns}
+      disableRowSelectionOnClick
+      pageSizeOptions={[10, 25, 50]}
+      paginationModel={paginationModel}
+      onPaginationModelChange={setPaginationModel}
+    />
   )
 }
+
+// ---------------------------------------------------------------------------
+// Confirm Delete Dialog
+// ---------------------------------------------------------------------------
+const ConfirmDeleteDialog = ({ open, deptName, onConfirm, onCancel, deleting }) => (
+  <Dialog open={open} onClose={onCancel} maxWidth='xs' fullWidth>
+    <DialogTitle
+      component='div'
+      sx={{
+        textAlign: 'center',
+        pt: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`],
+        px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`]
+      }}
+    >
+      <Typography variant='h4'>Delete Department</Typography>
+      <Typography color='text.secondary' sx={{ mt: 1 }}>
+        Are you sure you want to delete <strong>{deptName}</strong>? This action cannot be undone.
+      </Typography>
+    </DialogTitle>
+    <DialogActions
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        gap: 3,
+        pb: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`]
+      }}
+    >
+      <Button
+        variant='contained'
+        color='error'
+        disabled={deleting}
+        startIcon={deleting ? <CircularProgress size={16} color='inherit' /> : null}
+        onClick={onConfirm}
+      >
+        {deleting ? 'Deleting…' : 'Delete'}
+      </Button>
+      <Button variant='tonal' color='secondary' onClick={onCancel} disabled={deleting}>
+        Cancel
+      </Button>
+    </DialogActions>
+  </Dialog>
+)
 
 // ---------------------------------------------------------------------------
 // Department Page
@@ -203,32 +245,117 @@ const DepartmentEmployeeTable = ({ employees }) => {
 const DepartmentPage = () => {
   const theme = useTheme()
 
-  const [departments, setDepartments]       = useState(MOCK_DEPARTMENTS)
-  const [employees]                         = useState(MOCK_EMPLOYEES)
-  const [activeTab, setActiveTab]           = useState(String(MOCK_DEPARTMENTS[0].id))
-  const [drawerOpen, setDrawerOpen]         = useState(false)
+  // ---------------------------------------------------------------------------
+  // Permissions — read the flat array from authSlice directly
+  //
+  // authSlice stores: state.auth.permissions = ["department.create", "department.update", ...]
+  // selectPermissions selector: state => state.auth.permissions
+  //
+  // This is the O(1) flat lookup structure — use .includes() for each check
+  // ---------------------------------------------------------------------------
+  const permissions = useSelector(selectPermissions)   // ["department.create", "department.update", ...]
 
-  // Employee count per department — computed once
-  const countMap = useMemo(() => {
-    const map = {}
-    departments.forEach(d => {
-      map[d.id] = employees.filter(e => e.department === d.name).length
-    })
-    return map
-  }, [departments, employees])
+  const canCreate = permissions.includes('department.create')
+  const canEdit   = permissions.includes('department.update')
+  const canDelete = permissions.includes('department.delete')
 
-  // Employees for the active tab
-  const activeDept       = departments.find(d => String(d.id) === activeTab)
-  const activeEmployees  = activeDept
-    ? employees.filter(e => e.department === activeDept.name)
-    : []
+  // ---------------------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------------------
+  const [departments, setDepartments]   = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [activeTab, setActiveTab]       = useState('')
 
-  const handleTabChange = (_, newVal) => setActiveTab(newVal)
-  const toggleDrawer    = () => setDrawerOpen(prev => !prev)
+  // Drawer — shared for Add + Edit
+  const [drawerOpen, setDrawerOpen]     = useState(false)
+  const [editingDept, setEditingDept]   = useState(null)   // null = Add, object = Edit
 
-  // Called after a new department is added from the drawer
-  const handleDepartmentAdded = newDept => {
-    setDepartments(prev => [...prev, { id: Date.now(), name: newDept.name }])
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting]         = useState(false)
+
+  // ---------------------------------------------------------------------------
+  // Fetch departments
+  // ---------------------------------------------------------------------------
+  const fetchDepartments = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await axiosRequest.get('/api/v1/departments')
+      if (res?.success && Array.isArray(res.data)) {
+        const seen   = new Set()
+        const unique = res.data.filter(d => {
+          if (seen.has(d.name)) return false
+          seen.add(d.name)
+          return true
+        })
+        setDepartments(unique)
+        if (unique.length > 0) setActiveTab(unique[0]._id)
+      }
+    } catch (err) {
+      console.error('Failed to fetch departments:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDepartments()
+  }, [fetchDepartments])
+
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+  const handleTabChange = (_, newVal) => {
+    if (newVal !== 'add') setActiveTab(newVal)
+  }
+
+  const openAddDrawer = () => {
+    setEditingDept(null)
+    setDrawerOpen(true)
+  }
+
+  const openEditDrawer = dept => {
+    setEditingDept(dept)
+    setDrawerOpen(true)
+  }
+
+  const closeDrawer = () => {
+    setDrawerOpen(false)
+    setEditingDept(null)
+  }
+
+  const handleDrawerSuccess = useCallback(() => fetchDepartments(), [fetchDepartments])
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    try {
+      setDeleting(true)
+      const res = await axiosRequest.delete(`/api/v1/departments/${deleteTarget._id}`)
+      if (res?.success) {
+        if (activeTab === deleteTarget._id) setActiveTab('')
+        setDeleteTarget(null)
+        fetchDepartments()
+      } else {
+        const { default: toast } = await import('react-hot-toast')
+        toast.error(res?.message || 'Failed to delete department')
+      }
+    } catch (err) {
+      const { default: toast } = await import('react-hot-toast')
+      toast.error(typeof err === 'string' ? err : 'Something went wrong')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Loading state
+  // ---------------------------------------------------------------------------
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+        <CircularProgress />
+      </Box>
+    )
   }
 
   return (
@@ -237,11 +364,10 @@ const DepartmentPage = () => {
         <CardHeader
           title='Departments'
           subheader='Employee listing by department'
-          
         />
-        <CardContent sx={{ '& .MuiTabPanel-root': { p: 0 , my:6} }}>
+        <CardContent sx={{ '& .MuiTabPanel-root': { p: 0, my: 6 } }}>
           <TabContext value={activeTab}>
-            {/* Department Tabs */}
+
             <TabList
               variant='scrollable'
               scrollButtons='auto'
@@ -255,63 +381,77 @@ const DepartmentPage = () => {
             >
               {departments.map(dept => (
                 <Tab
-                  key={dept.id}
-                  value={String(dept.id)}
+                  key={dept._id}
+                  value={dept._id}
                   label={
                     <DeptTab
                       dept={dept}
-                      count={countMap[dept.id] ?? 0}
-                      isActive={activeTab === String(dept.id)}
+                      count={0}
+                      isActive={activeTab === dept._id}
                       theme={theme}
+                      canEdit={canEdit}
+                      canDelete={canDelete}
+                      onEdit={openEditDrawer}
+                      onDelete={dept => setDeleteTarget(dept)}
                     />
                   }
                 />
               ))}
 
-              {/* Static "Add" tab — disabled, opens drawer */}
-              <Tab
-                // disabled
-                value='add'
-                onClick={toggleDrawer}
-                label={
-                  <Box
-                    sx={{
-                      width: 110,
-                      height: 94,
-                      display: 'flex',
-                      alignItems: 'center',
-                      borderRadius: '10px',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      border: `1px dashed ${theme.palette.divider}`
-                    }}
-                  >
-                    <Avatar variant='rounded' sx={{ width: 34, height: 34, backgroundColor: 'action.selected' }}>
-                      <Icon icon='tabler:plus' />
-                    </Avatar>
-                  </Box>
-                }
-              />
+              {/* Add tab — only if user has department.create */}
+              {canCreate && (
+                <Tab
+                  value='add'
+                  onClick={e => { e.preventDefault(); openAddDrawer() }}
+                  label={
+                    <Box
+                      sx={{
+                        width: 110,
+                        height: 94,
+                        display: 'flex',
+                        alignItems: 'center',
+                        borderRadius: '10px',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        border: `1px dashed ${theme.palette.divider}`
+                      }}
+                    >
+                      <Avatar variant='rounded' sx={{ width: 34, height: 34, backgroundColor: 'action.selected' }}>
+                        <Icon icon='tabler:plus' />
+                      </Avatar>
+                    </Box>
+                  }
+                />
+              )}
             </TabList>
 
-            {/* Tab Panels — employee table per department */}
-            {departments.map(dept => {
-              const deptEmployees = employees.filter(e => e.department === dept.name)
+            {departments.map(dept => (
+              <TabPanel key={dept._id} value={dept._id}>
+                <DepartmentEmployeeTable employees={[]} />
+              </TabPanel>
+            ))}
 
-              return (
-                <TabPanel key={dept.id} value={String(dept.id)}>
-                  <DepartmentEmployeeTable employees={deptEmployees} />
-                </TabPanel>
-              )
-            })}
           </TabContext>
         </CardContent>
       </Card>
 
-      <AddDepartmentDrawer
-        open={drawerOpen}
-        toggle={toggleDrawer}
-        onSuccess={handleDepartmentAdded}
+      {/* Drawer — Add or Edit based on editingDept */}
+      {(canCreate || canEdit) && (
+        <AddDepartmentDrawer
+          open={drawerOpen}
+          toggle={closeDrawer}
+          onSuccess={handleDrawerSuccess}
+          editingDept={editingDept}
+        />
+      )}
+
+      {/* Delete confirm dialog */}
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTarget)}
+        deptName={deleteTarget?.name ?? ''}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => !deleting && setDeleteTarget(null)}
+        deleting={deleting}
       />
     </>
   )

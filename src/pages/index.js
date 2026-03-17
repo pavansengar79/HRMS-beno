@@ -5,7 +5,7 @@ const Home = () => {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/dashboard/analytics");
+    router.replace("/dashboards/analytics");
   }, []);
 
   return null;

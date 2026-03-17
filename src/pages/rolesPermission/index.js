@@ -108,11 +108,11 @@ const RolesPermission = () => {
     dispatch(fetchAdmin({ paginationModel, search: search }))
   }, [paginationModel, search])
 
-  useEffect(() => {
-    if (data.shouldFetchData) {
-      dispatch(fetchAdmin({ paginationModel, search: search }))
-    }
-  }, [data.shouldFetchData])
+  // useEffect(() => {
+  //   if (data.shouldFetchData) {
+  //     dispatch(fetchAdmin({ paginationModel, search: search }))
+  //   }
+  // }, [data.shouldFetchData])
 
   const handleActive = async (row, active) => {
     console.log('row', row)
@@ -232,7 +232,7 @@ const RolesPermission = () => {
     <Grid item xs={12}>
       <RolesComponent />
       <Card>
-        <Box
+        {/* <Box
           sx={{
             p: 5,
             pb: 3,
@@ -259,8 +259,8 @@ const RolesPermission = () => {
               CREATE ACCESS
             </Button>
           </Box>
-        </Box>
-        <DataGrid
+        </Box> */}
+        {/* <DataGrid
           autoHeight
           rowHeight={62}
           rows={files}
@@ -273,7 +273,7 @@ const RolesPermission = () => {
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           onProcessRowUpdateError={() => console.log('error')}
-        />
+        /> */}
 
         {/* <Stack spacing={2} alignItems={'center'} sx={{ mb: '30px' }}>
           <Pagination count={data.totalPage} page={page} onChange={handleChange} />

@@ -1,3 +1,5 @@
+// src/pages/users/index.jsx
+
 // ** React Imports
 import { useState, useEffect, useCallback } from 'react'
 
@@ -20,344 +22,337 @@ import { DataGrid } from '@mui/x-data-grid'
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
 
-// ** Store Imports
+// ** Redux
 import { useDispatch, useSelector } from 'react-redux'
+import {
+  fetchAllEmployees,
+  deleteEmployee,
+  selectEmployeeList,
+  selectEmployeeLoading,
+} from 'src/store/employee/employeeSlice'
+import { selectPermissions } from 'src/store/auth/authSlice'
 
-// ** Custom Components Imports
+// ** Custom Components
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
-import CardStatsHorizontalWithDetails from 'src/@core/components/card-statistics/card-stats-horizontal-with-details'
-
-// ** Utils Import
 import { getInitials } from 'src/@core/utils/get-initials'
 
-// ** Actions Imports
-import { fetchData, deleteUser } from 'src/store/apps/user'
-
-// ** Third Party Components
-import axios from 'axios'
-
-// ** Custom Table Components Imports
+// ** Table Components
 import TableHeader from 'src/views/apps/user/list/TableHeader'
-import AddUserDrawer from 'src/views/apps/user/list/AddUserDrawer'
+import AddEmployeeDrawer from 'src/views/apps/user/list/AddUserDrawer'
 
-// ** renders client column
-const userRoleObj = {
-  admin: { icon: 'tabler:device-laptop', color: 'secondary' },
-  author: { icon: 'tabler:circle-check', color: 'success' },
-  editor: { icon: 'tabler:edit', color: 'info' },
-  maintainer: { icon: 'tabler:chart-pie-2', color: 'primary' },
-  subscriber: { icon: 'tabler:user', color: 'warning' }
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+const STATUS_COLOR = {
+  ACTIVE:     'success',
+  INACTIVE:   'secondary',
+  TERMINATED: 'error',
+  ON_LEAVE:   'warning',
 }
 
-const userStatusObj = {
-  active: 'success',
-  pending: 'warning',
-  inactive: 'secondary'
+const EMPLOYMENT_TYPE_COLOR = {
+  FULL_TIME: 'primary',
+  PART_TIME: 'info',
+  CONTRACT:  'warning',
+  INTERN:    'secondary',
 }
 
-// ** renders client column
-const renderClient = row => {
-  if (row.avatar.length) {
-    return <CustomAvatar src={row.avatar} sx={{ mr: 2.5, width: 38, height: 38 }} />
-  } else {
-    return (
-      <CustomAvatar
-        skin='light'
-        color={row.avatarColor}
-        sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
-      >
-        {getInitials(row.fullName ? row.fullName : 'John Doe')}
-      </CustomAvatar>
-    )
-  }
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Avatar renderer
+// ─────────────────────────────────────────────────────────────────────────────
+const renderAvatar = row => (
+  <CustomAvatar
+    skin='light'
+    color='primary'
+    sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
+  >
+    {getInitials(row.name || 'NA')}
+  </CustomAvatar>
+)
 
-const RowOptions = ({ id }) => {
-  // ** Hooks
+// ─────────────────────────────────────────────────────────────────────────────
+// Row Actions Menu
+// ─────────────────────────────────────────────────────────────────────────────
+const RowOptions = ({ id, canEdit, canDelete }) => {
   const dispatch = useDispatch()
-
-  // ** State
   const [anchorEl, setAnchorEl] = useState(null)
-  const rowOptionsOpen = Boolean(anchorEl)
+  const open = Boolean(anchorEl)
 
-  const handleRowOptionsClick = event => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleRowOptionsClose = () => {
-    setAnchorEl(null)
-  }
+  const handleOpen  = e => setAnchorEl(e.currentTarget)
+  const handleClose = () => setAnchorEl(null)
 
   const handleDelete = () => {
-    dispatch(deleteUser(id))
-    handleRowOptionsClose()
+    dispatch(deleteEmployee(id))
+    handleClose()
   }
 
   return (
     <>
-      <IconButton size='small' onClick={handleRowOptionsClick}>
+      <IconButton size='small' onClick={handleOpen}>
         <Icon icon='tabler:dots-vertical' />
       </IconButton>
       <Menu
         keepMounted
         anchorEl={anchorEl}
-        open={rowOptionsOpen}
-        onClose={handleRowOptionsClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right'
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right'
-        }}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         PaperProps={{ style: { minWidth: '8rem' } }}
       >
         <MenuItem
           component={Link}
-          sx={{ '& svg': { mr: 2 } }}
           href={`/users/${id}/details`}
-          onClick={handleRowOptionsClose}
+          onClick={handleClose}
+          sx={{ '& svg': { mr: 2 } }}
         >
           <Icon icon='tabler:eye' fontSize={20} />
           View
         </MenuItem>
-        <MenuItem onClick={handleRowOptionsClose} sx={{ '& svg': { mr: 2 } }}>
-          <Icon icon='tabler:edit' fontSize={20} />
-          Edit
-        </MenuItem>
-        <MenuItem onClick={handleDelete} sx={{ '& svg': { mr: 2 } }}>
-          <Icon icon='tabler:trash' fontSize={20} />
-          Delete
-        </MenuItem>
+
+        {canEdit && (
+          <MenuItem
+            component={Link}
+            href={`/users/${id}/details/account`}
+            onClick={handleClose}
+            sx={{ '& svg': { mr: 2 } }}
+          >
+            <Icon icon='tabler:edit' fontSize={20} />
+            Edit
+          </MenuItem>
+        )}
+
+        {canDelete && (
+          <MenuItem onClick={handleDelete} sx={{ '& svg': { mr: 2 }, color: 'error.main' }}>
+            <Icon icon='tabler:trash' fontSize={20} />
+            Delete
+          </MenuItem>
+        )}
       </Menu>
     </>
   )
 }
 
-const columns = [
+// ─────────────────────────────────────────────────────────────────────────────
+// Columns
+//
+// API response shape (what each row actually looks like):
+// {
+//   _id:            "69b8e3dab3b714c091633467"
+//   employeeId:     "EMP0001"
+//   name:           "Vibhav trivedi"
+//   email:          "vibhavtrivedi6@gmail.com"
+//   phone:          "8989899982"
+//   departmentId:   { _id: "...", name: "ITI" }   ← object, NOT department
+//   employmentType: "CONTRACT"
+//   joiningDate:    "2026-03-11T00:00:00.000Z"
+//   status:         "ACTIVE"
+// }
+// ─────────────────────────────────────────────────────────────────────────────
+const buildColumns = (canEdit, canDelete) => [
   {
     flex: 0.25,
-    minWidth: 280,
-    field: 'fullName',
-    headerName: 'User',
-    renderCell: ({ row }) => {
-      const { fullName, email } = row
-
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          {renderClient(row)}
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column' }}>
-            <Typography
-              noWrap
-              component={Link}
-              href={`/users/${row.id}/details`}
-              sx={{
-                fontWeight: 500,
-                textDecoration: 'none',
-                color: 'text.secondary',
-                '&:hover': { color: 'primary.main' }
-              }}
-            >
-              {fullName}
-            </Typography>
-            <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>
-              {email}
-            </Typography>
-          </Box>
-        </Box>
-      )
-    }
-  },
-  {
-    flex: 0.15,
-    field: 'role',
-    minWidth: 170,
-    headerName: 'Role',
-    renderCell: ({ row }) => {
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <CustomAvatar
-            skin='light'
-            sx={{ mr: 4, width: 30, height: 30 }}
-            color={userRoleObj[row.role].color || 'primary'}
+    minWidth: 260,
+    field: 'name',
+    headerName: 'Employee',
+    renderCell: ({ row }) => (
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {renderAvatar(row)}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column' }}>
+          <Typography
+            noWrap
+            component={Link}
+            href={`/users/${row._id}/details`}
+            sx={{ fontWeight: 500, textDecoration: 'none', color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
           >
-            <Icon icon={userRoleObj[row.role].icon} />
-          </CustomAvatar>
-          <Typography noWrap sx={{ color: 'text.secondary', textTransform: 'capitalize' }}>
-            {row.role}
+            {row.name}
+          </Typography>
+          <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>
+            {row.email}
           </Typography>
         </Box>
-      )
-    }
-  },
-  {
-    flex: 0.15,
-    minWidth: 120,
-    headerName: 'Plan',
-    field: 'currentPlan',
-    renderCell: ({ row }) => {
-      return (
-        <Typography noWrap sx={{ fontWeight: 500, color: 'text.secondary', textTransform: 'capitalize' }}>
-          {row.currentPlan}
-        </Typography>
-      )
-    }
-  },
-  {
-    flex: 0.15,
-    minWidth: 190,
-    field: 'billing',
-    headerName: 'Billing',
-    renderCell: ({ row }) => {
-      return (
-        <Typography noWrap sx={{ color: 'text.secondary' }}>
-          {row.billing}
-        </Typography>
-      )
-    }
+      </Box>
+    )
   },
   {
     flex: 0.1,
     minWidth: 110,
-    field: 'status',
-    headerName: 'Status',
-    renderCell: ({ row }) => {
-      return (
-        <CustomChip
-          rounded
-          skin='light'
-          size='small'
-          label={row.status}
-          color={userStatusObj[row.status]}
-          sx={{ textTransform: 'capitalize' }}
-        />
-      )
-    }
+    field: 'employeeId',
+    headerName: 'Emp ID',
+    renderCell: ({ row }) => (
+      <Typography noWrap sx={{ fontWeight: 500, color: 'text.secondary' }}>
+        {row.employeeId || '—'}
+      </Typography>
+    )
+  },
+  {
+    flex: 0.15,
+    minWidth: 140,
+    field: 'departmentId',
+    headerName: 'Department',
+    // API returns departmentId as an object: { _id, name }
+    renderCell: ({ row }) => (
+      <Typography noWrap sx={{ color: 'text.secondary' }}>
+        {row.departmentId?.name || '—'}
+      </Typography>
+    )
+  },
+  {
+    flex: 0.13,
+    minWidth: 120,
+    field: 'phone',
+    headerName: 'Phone',
+    renderCell: ({ row }) => (
+      <Typography noWrap sx={{ color: 'text.secondary' }}>
+        {row.phone || '—'}
+      </Typography>
+    )
+  },
+  {
+    flex: 0.12,
+    minWidth: 130,
+    field: 'employmentType',
+    headerName: 'Type',
+    renderCell: ({ row }) => (
+      <CustomChip
+        rounded skin='light' size='small'
+        label={(row.employmentType || '—').replace('_', ' ')}
+        color={EMPLOYMENT_TYPE_COLOR[row.employmentType] || 'primary'}
+        sx={{ textTransform: 'capitalize' }}
+      />
+    )
   },
   {
     flex: 0.1,
     minWidth: 100,
+    field: 'status',
+    headerName: 'Status',
+    renderCell: ({ row }) => (
+      <CustomChip
+        rounded skin='light' size='small'
+        label={row.status || 'ACTIVE'}
+        color={STATUS_COLOR[row.status] || 'success'}
+        sx={{ textTransform: 'capitalize' }}
+      />
+    )
+  },
+  {
+    flex: 0.08,
+    minWidth: 80,
     sortable: false,
     field: 'actions',
     headerName: 'Actions',
-    renderCell: ({ row }) => <RowOptions id={row.id} />
+    renderCell: ({ row }) => <RowOptions id={row._id} canEdit={canEdit} canDelete={canDelete} />
   }
 ]
 
-const UserList = ({ apiData }) => {
-  // ** State
-  const [role, setRole] = useState('')
-  const [plan, setPlan] = useState('')
-  const [value, setValue] = useState('')
-  const [status, setStatus] = useState('')
-  const [addUserOpen, setAddUserOpen] = useState(false)
+// ─────────────────────────────────────────────────────────────────────────────
+// EmployeeList
+// ─────────────────────────────────────────────────────────────────────────────
+const EmployeeList = () => {
+  const dispatch    = useDispatch()
+  const employees   = useSelector(selectEmployeeList)   // always [] by default, never undefined
+  const loading     = useSelector(selectEmployeeLoading)
+  const permissions = useSelector(selectPermissions)
+
+  const canCreate = permissions.includes('employee.create')
+  const canEdit   = permissions.includes('employee.update')
+  const canDelete = permissions.includes('employee.delete')
+
+  const [search, setSearch]             = useState('')
+  const [typeFilter, setTypeFilter]     = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [drawerOpen, setDrawerOpen]     = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
 
-  // ** Hooks
-  const dispatch = useDispatch()
-  const store = useSelector(state => state.user)
   useEffect(() => {
-    dispatch(
-      fetchData({
-        role,
-        status,
-        q: value,
-        currentPlan: plan
-      })
-    )
-  }, [dispatch, plan, role, status, value])
+    dispatch(fetchAllEmployees())
+  }, [dispatch])
 
-  const handleFilter = useCallback(val => {
-    setValue(val)
-  }, [])
+  // Client-side filter
+  const filteredRows = employees.filter(row => {
+    const q = search.toLowerCase()
+    const matchSearch =
+      !search ||
+      row.name?.toLowerCase().includes(q) ||
+      row.email?.toLowerCase().includes(q) ||
+      row.employeeId?.toLowerCase().includes(q) ||
+      row.phone?.includes(search)
 
-  const handleRoleChange = useCallback(e => {
-    setRole(e.target.value)
-  }, [])
+    const matchType   = !typeFilter   || row.employmentType === typeFilter
+    const matchStatus = !statusFilter || row.status === statusFilter
 
-  const handlePlanChange = useCallback(e => {
-    setPlan(e.target.value)
-  }, [])
+    return matchSearch && matchType && matchStatus
+  })
 
-  const handleStatusChange = useCallback(e => {
-    setStatus(e.target.value)
-  }, [])
-  const toggleAddUserDrawer = () => setAddUserOpen(!addUserOpen)
+  const handleFilter = useCallback(val => setSearch(val), [])
+  const toggleDrawer = () => setDrawerOpen(prev => !prev)
+  const columns      = buildColumns(canEdit, canDelete)
 
   return (
     <Grid container spacing={6.5}>
-     
       <Grid item xs={12}>
         <Card>
           <CardHeader title='Search Filters' />
           <CardContent>
             <Grid container spacing={6}>
+
               <Grid item sm={4} xs={12}>
                 <CustomTextField
-                  select
-                  fullWidth
-                  defaultValue='Select Role'
+                  select fullWidth
                   SelectProps={{
-                    value: role,
+                    value: typeFilter,
                     displayEmpty: true,
-                    onChange: e => handleRoleChange(e)
+                    onChange: e => setTypeFilter(e.target.value)
                   }}
+                  defaultValue=''
                 >
-                  <MenuItem value=''>Select Role</MenuItem>
-                  <MenuItem value='admin'>Admin</MenuItem>
-                  <MenuItem value='author'>Author</MenuItem>
-                  <MenuItem value='editor'>Editor</MenuItem>
-                  <MenuItem value='maintainer'>Maintainer</MenuItem>
-                  <MenuItem value='subscriber'>Subscriber</MenuItem>
+                  <MenuItem value=''>Select Employment Type</MenuItem>
+                  <MenuItem value='FULL_TIME'>Full Time</MenuItem>
+                  <MenuItem value='PART_TIME'>Part Time</MenuItem>
+                  <MenuItem value='CONTRACT'>Contract</MenuItem>
+                  <MenuItem value='INTERN'>Intern</MenuItem>
                 </CustomTextField>
               </Grid>
+
               <Grid item sm={4} xs={12}>
                 <CustomTextField
-                  select
-                  fullWidth
-                  defaultValue='Select Plan'
+                  select fullWidth
                   SelectProps={{
-                    value: plan,
+                    value: statusFilter,
                     displayEmpty: true,
-                    onChange: e => handlePlanChange(e)
+                    onChange: e => setStatusFilter(e.target.value)
                   }}
-                >
-                  <MenuItem value=''>Select Plan</MenuItem>
-                  <MenuItem value='basic'>Basic</MenuItem>
-                  <MenuItem value='company'>Company</MenuItem>
-                  <MenuItem value='enterprise'>Enterprise</MenuItem>
-                  <MenuItem value='team'>Team</MenuItem>
-                </CustomTextField>
-              </Grid>
-              <Grid item sm={4} xs={12}>
-                <CustomTextField
-                  select
-                  fullWidth
-                  defaultValue='Select Status'
-                  SelectProps={{
-                    value: status,
-                    displayEmpty: true,
-                    onChange: e => handleStatusChange(e)
-                  }}
+                  defaultValue=''
                 >
                   <MenuItem value=''>Select Status</MenuItem>
-                  <MenuItem value='pending'>Pending</MenuItem>
-                  <MenuItem value='active'>Active</MenuItem>
-                  <MenuItem value='inactive'>Inactive</MenuItem>
+                  <MenuItem value='ACTIVE'>Active</MenuItem>
+                  <MenuItem value='INACTIVE'>Inactive</MenuItem>
+                  <MenuItem value='TERMINATED'>Terminated</MenuItem>
+                  <MenuItem value='ON_LEAVE'>On Leave</MenuItem>
                 </CustomTextField>
               </Grid>
+
             </Grid>
           </CardContent>
+
           <Divider sx={{ m: '0 !important' }} />
-          <TableHeader value={value} handleFilter={handleFilter} toggle={toggleAddUserDrawer} />
+
+          <TableHeader
+            value={search}
+            handleFilter={handleFilter}
+            toggle={canCreate ? toggleDrawer : undefined}
+          />
+{/* {JSON.stringify(filteredRows)} */}
           <DataGrid
             autoHeight
             rowHeight={62}
-            rows={store.data}
+            loading={loading}
+            rows={filteredRows}
             columns={columns}
+            getRowId={row => row._id}       // ← use _id not id
             disableRowSelectionOnClick
             pageSizeOptions={[10, 25, 50]}
             paginationModel={paginationModel}
@@ -366,20 +361,15 @@ const UserList = ({ apiData }) => {
         </Card>
       </Grid>
 
-      <AddUserDrawer open={addUserOpen} toggle={toggleAddUserDrawer} />
+      {canCreate && (
+        <AddEmployeeDrawer
+          open={drawerOpen}
+          toggle={toggleDrawer}
+          onSuccess={() => dispatch(fetchAllEmployees())}
+        />
+      )}
     </Grid>
   )
 }
 
-export const getStaticProps = async () => {
-  const res = await axios.get('/cards/statistics')
-  const apiData = res.data
-
-  return {
-    props: {
-      apiData
-    }
-  }
-}
-
-export default UserList
+export default EmployeeList

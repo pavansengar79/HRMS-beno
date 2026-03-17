@@ -48,7 +48,7 @@ const userStatusObj = {
 
 // ** renders client column
 const renderClient = row => {
-  if (row.avatar.length) {
+  if (row.avatar?.length) {
     return <CustomAvatar src={row.avatar} sx={{ mr: 3, width: 38, height: 38 }} />
   } else {
     return (
@@ -213,7 +213,7 @@ const UserList = () => {
           <DataGrid
             autoHeight
             rowHeight={62}
-            rows={store.data}
+            rows={[]}
             columns={columns}
             checkboxSelection
             disableRowSelectionOnClick

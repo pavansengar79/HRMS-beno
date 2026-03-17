@@ -178,7 +178,7 @@ const UserViewAccount = ({ invoiceData }) => {
       </Grid>
 
       <Grid item xs={12}>
-        <UsersInvoiceListTable invoiceData={invoiceData} />
+        {/* <UsersInvoiceListTable invoiceData={invoiceData} /> */}
       </Grid>
     </Grid>
   )

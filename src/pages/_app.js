@@ -3,7 +3,7 @@ import Head from 'next/head'
 import { Router } from 'next/router'
 
 // ** Store Imports
-import { store } from 'src/store'
+import store from 'src/store'
 import { Provider } from 'react-redux'
 
 // ** Loader Import

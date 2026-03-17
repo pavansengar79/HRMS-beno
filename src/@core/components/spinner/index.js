@@ -2,6 +2,7 @@
 import { useTheme } from '@mui/material/styles'
 import Box from '@mui/material/Box'
 import CircularProgress from '@mui/material/CircularProgress'
+import { Typography } from '@mui/material'
 
 const FallbackSpinner = ({ sx }) => {
   // ** Hook
@@ -46,7 +47,8 @@ const FallbackSpinner = ({ sx }) => {
           d='M7.77295 16.3566L23.6563 0H32V6.88383C32 6.88383 31.8262 9.17836 30.6591 10.4057L19.7824 22H13.6938L7.77295 16.3566Z'
         />
       </svg> */}
-      <img src='/JKLogo.webp' alt='logo' width={82} height={56.375} />
+      {/* <img src='/JKLogo.webp' alt='logo' width={82} height={56.375} /> */}
+        <Typography variant='h6' sx={{ mt: 4 }}>HRMS</Typography>
       <CircularProgress disableShrink sx={{ mt: 6 }} />
     </Box>
   )

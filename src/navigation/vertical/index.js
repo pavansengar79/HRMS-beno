@@ -1,86 +1,117 @@
-const navigation = () => {
-  return [
-    {
-      title: 'Dashboard',
-      icon: 'mdi:view-dashboard-outline',
-      path: '/dashboards/analytics',
-      action: 'read',
-      subject: 'dashboard'
-    },
+// src/navigation/vertical/index.js
 
-    {
-      title: 'Company',
-      icon: 'mdi:domain',
-      path: '/company',
-      action: 'read',
-      subject: 'employees'
-    },
+import { useSelector } from 'react-redux'
+import { selectPermissionsByModule } from 'src/store/auth/authSlice'
 
-    {
-      title: 'Departments',
-      icon: 'mdi:office-building-outline',
-      path: '/department',
-      action: 'read',
-      subject: 'departments'
-    },
+// ─────────────────────────────────────────────────────────────────────────────
+// NAV ITEM STRUCTURE
+//
+// Each item has a `module` field that maps to the permission module name from API.
+//
+//   module: 'department'  → visible only if permissionsByModule['department'] exists
+//   module: null          → always visible (no permission needed — e.g. Dashboard)
+//
+// Permission module → nav item mapping:
+//   department  → Departments
+//   employee    → Employees
+//   role        → Roles & Permissions
+//   attendance  → Attendance
+//   leave       → Leaves
+//   payroll     → Payrolls
+//   company     → Company  +  Settings
+//   null        → Dashboard, Holidays  (always shown)
+// ─────────────────────────────────────────────────────────────────────────────
 
-    {
-      title: 'Employees',
-      icon: 'mdi:account-group-outline',
-      path: '/users',
-      action: 'read',
-      subject: 'employees'
-    },
+const ALL_NAV_ITEMS = [
+  {
+    title:  'Dashboard',
+    icon:   'mdi:view-dashboard-outline',
+    path:   '/dashboards/analytics',
+    module: null,   // always show — no permission needed
+  },
+  {
+    title:  'Company',
+    icon:   'mdi:domain',
+    path:   '/company',
+    module: 'company',   // visible if user has any company.* permission
+  },
+  {
+    title:  'Departments',
+    icon:   'mdi:office-building-outline',
+    path:   '/department',
+    module: 'department',   // visible if user has any department.* permission
+  },
+  {
+    title:  'Employees',
+    icon:   'mdi:account-group-outline',
+    path:   '/users',
+    module: 'employee',   // visible if user has any employee.* permission
+  },
+  {
+    title:  'Roles & Permissions',
+    icon:   'mdi:key-outline',
+    path:   '/rolesPermission',
+    module: 'role',   // visible if user has any role.* permission
+  },
+  {
+    title:  'Attendance',
+    icon:   'mdi:clock-check-outline',
+    path:   '/attendance',
+    module: 'attendance',   // visible if user has any attendance.* permission
+  },
+  {
+    title:  'Leaves',
+    icon:   'mdi:calendar-account-outline',
+    path:   '/leaves',
+    module: 'leave',   // visible if user has any leave.* permission
+  },
+  {
+    title:  'Payrolls',
+    icon:   'mdi:cash-multiple',
+    path:   '/payroll',
+    module: 'payroll',   // visible if user has any payroll.* permission
+  },
+  {
+    title:  'Holidays',
+    icon:   'mdi:calendar-star',
+    path:   '/holidays',
+    module: null,   // always show — no permission needed
+  },
+  {
+    title:  'Settings',
+    icon:   'mdi:cog-outline',
+    path:   '/settings',
+    module: 'company',   // same module as Company — visible to whoever has company.*
+  },
+]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// VerticalNavItems
+//
+// Called by UserLayout:  navItems: VerticalNavItems()
+//
+// Reads permissionsByModule from Redux store.
+// Keeps an item if:
+//   (a) item.module is null  → always show
+//   (b) permissionsByModule[item.module] exists and has at least one action
+//       → means user has at least one permission for that module
+// ─────────────────────────────────────────────────────────────────────────────
+const VerticalNavItems = () => {
+  // permissionsByModule = { department: ["create","read","update","delete"], payroll: ["read"], ... }
+  // Built by buildPermissions() in authSlice when user logs in
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const permissionsByModule = useSelector(selectPermissionsByModule)
 
-    {
-      title: 'Permission',
-      icon: 'mdi:key-outline',
-      path: '/rolesPermission',
-      action: 'read',
-      subject: 'permissions'
-    },
+  return ALL_NAV_ITEMS.filter(item => {
+    // No module = always visible (Dashboard, Holidays)
+    if (item.module === null) return true
 
-    {
-      title: 'Attendance',
-      icon: 'mdi:clock-check-outline',
-      path: '/attendance',
-      action: 'read',
-      subject: 'attendance'
-    },
-
-    {
-      title: 'Leaves',
-      icon: 'mdi:calendar-account-outline',
-      path: '/leaves',
-      action: 'read',
-      subject: 'leaves'
-    },
-
-    {
-      title: 'Payrolls',
-      icon: 'mdi:cash-multiple',
-      path: '/payroll',
-      action: 'manage',
-      subject: 'payrolls'
-    },
-
-    {
-      title: 'Holidays',
-      icon: 'mdi:calendar-star',
-      path: '/holidays',
-      action: 'read',
-      subject: 'holidays'
-    },
-
-    {
-      title: 'Settings',
-      icon: 'mdi:cog-outline',
-      path: '/settings',
-      action: 'read',
-      subject: 'settings'
-    }
-  ]
+    // Check if the module exists in the user's permissions
+    // permissionsByModule['department'] = ["create","read","update","delete"]  → truthy → show
+    // permissionsByModule['payroll']    = undefined                            → falsy  → hide
+    const moduleActions = permissionsByModule[item.module]
+    return Array.isArray(moduleActions) && moduleActions.length > 0
+  })
 }
 
-export default navigation
+export default VerticalNavItems

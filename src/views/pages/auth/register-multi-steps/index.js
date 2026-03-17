@@ -18,7 +18,7 @@ import CustomAvatar from 'src/@core/components/mui/avatar'
 
 // ** Step Components
 import StepPersonalInfo from 'src/views/pages/auth/register-multi-steps/StepPersonalInfo'
-import StepAccountDetails from 'src/views/pages/auth/register-multi-steps/StepAccountDetails'
+import StepDocuments from 'src/views/pages/auth/register-multi-steps/StepAccountDetails'
 import StepBillingDetails from 'src/views/pages/auth/register-multi-steps/StepBillingDetails'
 
 // ** Hook Import
@@ -32,15 +32,16 @@ import StepperWrapper from 'src/@core/styles/mui/stepper'
 
 const steps = [
   {
-    title: 'Account',
-    icon: 'tabler:smart-home',
-    subtitle: 'Account Details'
-  },
-  {
     title: 'Personal',
     icon: 'tabler:users',
     subtitle: 'Enter Information'
   },
+  {
+    title: 'Account',
+    icon: 'tabler:smart-home',
+    subtitle: 'Account Details'
+  },
+  
   {
     title: 'Billing',
     icon: 'tabler:file-text',
@@ -111,9 +112,9 @@ const RegisterMultiSteps = () => {
   const getStepContent = step => {
     switch (step) {
       case 0:
-        return <StepAccountDetails handleNext={handleNext} />
+        return  <StepPersonalInfo handleNext={handleNext} handlePrev={handlePrev} />
       case 1:
-        return <StepPersonalInfo handleNext={handleNext} handlePrev={handlePrev} />
+        return <StepDocuments handleNext={handleNext}  handlePrev={handlePrev} />
       case 2:
         return <StepBillingDetails handlePrev={handlePrev} />
       default:
