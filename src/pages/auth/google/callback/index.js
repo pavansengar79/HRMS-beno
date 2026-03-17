@@ -31,13 +31,14 @@ const GoogleCallbackPage = () => {
       try {
         const tokenKey = authConfig.storageTokenKeyName || 'accessToken'
 
-        // Case 0: backend redirected to frontend with token only (no CORS/cookie fetch needed)
+        // Case 0: backend redirected to frontend with token only (no cookies / no backend-callback fetch needed)
         if (typeof router.query?.token === 'string' && typeof router.query?.user !== 'string') {
           const token = router.query.token
           window.localStorage.setItem(tokenKey, token)
 
-          // Fetch user via token (NO cookies) using backend /auth/me endpoint from authConfig
-          const meUrl = `${BACKEND_BASE_URL}/api/v1/${authConfig.meEndpoint || '/auth/me'}`
+          // Fetch user via token (NO cookies) using backend meEndpoint from authConfig
+          const meUrl = `${BACKEND_BASE_URL}${authConfig.meEndpoint || 'api/v1/auth/me'}`
+          console.log("user info endpoint:", meUrl)
           const meRes = await fetch(meUrl, {
             method: 'GET',
             headers: { Authorization: `Bearer ${token}` }
