@@ -11,9 +11,19 @@ const AuthGuard = props => {
   const { children, fallback } = props
   const auth = useAuth()
   const router = useRouter()
+
+  // Public routes that should be accessible without login
+  const isPublicRoute =
+    router.pathname === '/' ||
+    router.pathname === '/404' ||
+    router.pathname.startsWith('/auth')
+
   useEffect(
     () => {
       if (!router.isReady) {
+        return
+      }
+      if (isPublicRoute) {
         return
       }
       if (auth.user === null && !window.localStorage.getItem('userData')) {
@@ -30,6 +40,10 @@ const AuthGuard = props => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [router.route]
   )
+  if (isPublicRoute) {
+    return <>{children}</>
+  }
+
   if (auth.loading || auth.user === null) {
     return fallback
   }

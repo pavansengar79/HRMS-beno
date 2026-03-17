@@ -227,5 +227,6 @@ const TwoStepsV1 = () => {
   )
 }
 TwoStepsV1.getLayout = page => <BlankLayout>{page}</BlankLayout>
+TwoStepsV1.guestGuard = true
 
 export default TwoStepsV1

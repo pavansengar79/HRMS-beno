@@ -460,5 +460,6 @@ const RegisterV2 = () => {
 }
 
 RegisterV2.getLayout = page => <BlankLayout>{page}</BlankLayout>
+RegisterV2.guestGuard = true
 
 export default RegisterV2

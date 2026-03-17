@@ -111,5 +111,6 @@ const RegisterMultiSteps = () => {
   )
 }
 RegisterMultiSteps.getLayout = page => <BlankLayout>{page}</BlankLayout>
+RegisterMultiSteps.guestGuard = true
 
 export default RegisterMultiSteps
