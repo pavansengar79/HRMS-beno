@@ -1,6 +1,3 @@
-// ** Third Party Imports
-import axios from 'axios'
-
 // ** Demo Components Imports
 import AccountSettings from 'src/views/pages/account-settings/AccountSettings'
 
@@ -22,13 +19,10 @@ export const getStaticPaths = () => {
 }
 
 export const getStaticProps = async ({ params }) => {
-  const res = await axios.get('/pages/pricing')
-  const data = res.data
-
   return {
     props: {
       tab: params?.tab,
-      apiPricingPlanData: data.pricingPlans
+      apiPricingPlanData: []
     }
   }
 }

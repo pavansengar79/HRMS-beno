@@ -8,20 +8,17 @@ import Button from '@mui/material/Button'
 // ** Custom Component Import
 import CustomTextField from 'src/@core/components/mui/text-field'
 
-// ** Third Party Imports
-
-// ** Icon Imports
+// ** Store & Actions
 import { useDispatch } from 'react-redux'
 import { createFaqData } from 'src/store/apps/faq'
-import QuestionFields from './QuestionFields'
 import toast from 'react-hot-toast'
+
+import QuestionFields from './QuestionFields'
 
 const defaultQuestionObject = { title: null, description: null, asset: null, assetType: null }
 
 const AddModal = ({ onClose }) => {
-  // ** States
-
-  const [title, setTitle] = useState()
+  const [title, setTitle] = useState('')
   const [questionList, setQuestionList] = useState([defaultQuestionObject])
 
   const dispatch = useDispatch()
@@ -35,7 +32,7 @@ const AddModal = ({ onClose }) => {
   }
 
   const handleRemove = index => {
-    setQuestionList(prev => prev.filter((q, i) => i != index))
+    setQuestionList(prev => prev.filter((q, i) => i !== index))
   }
 
   const handleSubmit = async e => {
@@ -44,16 +41,12 @@ const AddModal = ({ onClose }) => {
       toast.error('Please enter category', { duration: 2000 })
       return
     }
-    if (questionList.some(question => !question.title || !question.description)) {
+    if (questionList.some(question => !question?.title || !question?.description)) {
       toast.error('Please enter all the fields', { duration: 2000 })
       return
     }
     dispatch(createFaqData({ question: questionList, category: title }))
-    handleCancel()
-  }
-
-  const handleCancel = () => {
-    onClose()
+    onClose?.()
   }
 
   return (
@@ -64,9 +57,10 @@ const AddModal = ({ onClose }) => {
             fullWidth
             sx={{ mb: 4 }}
             label='Category'
-            id='form-layouts-separator-select'
+            id='faq-category'
             onChange={handleTitle}
-          ></CustomTextField>
+            value={title}
+          />
           {questionList.map((question, i) => (
             <QuestionFields
               questionList={question}
@@ -75,13 +69,7 @@ const AddModal = ({ onClose }) => {
               index={i}
               onChange={({ name, value }, modifiedIndex) => {
                 setQuestionList(prev => {
-                  return prev.map((q, i) => {
-                    if (i == modifiedIndex) {
-                      return { ...q, [name]: value }
-                    } else {
-                      return q
-                    }
-                  })
+                  return prev.map((q, idx) => (idx === modifiedIndex ? { ...q, [name]: value } : q))
                 })
               }}
             />
@@ -89,7 +77,7 @@ const AddModal = ({ onClose }) => {
           <Button onClick={handleAdd} sx={{ mr: 2, mt: 5 }} variant='contained'>
             ADD QUESTION
           </Button>
-          <Button onClick={handleSubmit} sx={{ mr: 2, mt: 5 }} variant='contained' fullWidth>
+          <Button type='submit' sx={{ mr: 2, mt: 5 }} variant='contained' fullWidth>
             SUBMIT
           </Button>
         </Grid>
@@ -99,3 +87,4 @@ const AddModal = ({ onClose }) => {
 }
 
 export default AddModal
+

@@ -63,6 +63,8 @@ const AppLeaveManagement = () => {
   const handleLeftSidebarToggle = () => setLeftSidebarOpen(!leftSidebarOpen)
   const handleAddLeaveSidebarToggle = () => setAddLeaveSidebarOpen(!addLeaveSidebarOpen)
   const handleApplyLeaveSidebarToggle = () => setApplyLeaveSidebarOpen(!applyLeaveSidebarOpen)
+  // SidebarLeft expects this prop name
+  const handleAddEventSidebarToggle = handleAddLeaveSidebarToggle
 
   const handleAddLeave = () => {
     setAddLeaveSidebarOpen(true)

@@ -8,7 +8,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { fetchAdmin } from 'src/store/apps/rolesPermission'
 import toast from 'react-hot-toast'
 
-function Permissions({ selectedData, setSelectedData }) {
+function Permissions({ selectedData = [], setSelectedData = () => {} }) {
   
   let arrData = navigation().slice(0, 30) //use slice beacause of extra sidebar items
 

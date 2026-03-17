@@ -1,10 +1,6 @@
-// ** React Imports
 import { useState } from 'react'
-
-// ** Next Import
 import Link from 'next/link'
 
-// ** MUI Imports
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Menu from '@mui/material/Menu'
@@ -17,10 +13,7 @@ import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
 
-// ** Icon Imports
 import Icon from 'src/@core/components/icon'
-
-// ** Custom Component Imports
 import CustomAvatar from 'src/@core/components/mui/avatar'
 import OptionsMenu from 'src/@core/components/option-menu'
 
@@ -29,7 +22,6 @@ const LinkStyled = styled(Link)(({ theme }) => ({
   color: `${theme.palette.primary.main} !important`
 }))
 
-// ** Vars
 const invoiceStatusObj = {
   Sent: { color: 'secondary', icon: 'tabler:circle-check' },
   Paid: { color: 'success', icon: 'tabler:circle-half-2' },
@@ -79,7 +71,7 @@ const columns = [
           }
         >
           <CustomAvatar skin='light' color={color} sx={{ width: 30, height: 30 }}>
-            <Icon icon={invoiceStatusObj[invoiceStatus].icon} />
+            <Icon icon={invoiceStatusObj[invoiceStatus]?.icon ?? 'tabler:circle'} />
           </CustomAvatar>
         </Tooltip>
       )
@@ -90,14 +82,14 @@ const columns = [
     minWidth: 90,
     field: 'total',
     headerName: 'Total',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>${row.total || 0}</Typography>
+    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>${row?.total || 0}</Typography>
   },
   {
     flex: 0.3,
     minWidth: 125,
     field: 'issuedDate',
     headerName: 'Issued Date',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.issuedDate}</Typography>
+    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row?.issuedDate}</Typography>
   },
   {
     flex: 0.1,
@@ -113,12 +105,7 @@ const columns = [
           </IconButton>
         </Tooltip>
         <Tooltip title='View'>
-          <IconButton
-            size='small'
-            component={Link}
-            sx={{ color: 'text.secondary' }}
-            href={`/apps/invoice/preview/${row.id}`}
-          >
+          <IconButton size='small' component={Link} sx={{ color: 'text.secondary' }} href={`/apps/invoice/preview/${row.id}`}>
             <Icon icon='tabler:eye' />
           </IconButton>
         </Tooltip>
@@ -126,19 +113,9 @@ const columns = [
           iconButtonProps={{ size: 'small' }}
           menuProps={{ sx: { '& .MuiMenuItem-root svg': { mr: 2 } } }}
           options={[
-            {
-              text: 'Download',
-              icon: <Icon icon='tabler:download' />
-            },
-            {
-              text: 'Edit',
-              href: `/apps/invoice/edit/${row.id}`,
-              icon: <Icon icon='tabler:pencil' />
-            },
-            {
-              text: 'Duplicate',
-              icon: <Icon icon='tabler:copy' />
-            }
+            { text: 'Download', icon: <Icon icon='tabler:download' /> },
+            { text: 'Edit', href: `/apps/invoice/edit/${row.id}`, icon: <Icon icon='tabler:pencil' /> },
+            { text: 'Duplicate', icon: <Icon icon='tabler:copy' /> }
           ]}
         />
       </Box>
@@ -146,21 +123,12 @@ const columns = [
   }
 ]
 
-const InvoiceListTable = ({ invoiceData }) => {
-  // ** State
+const UsersInvoiceListTable = ({ invoiceData }) => {
   const [anchorEl, setAnchorEl] = useState(null)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 7 })
 
-  // ** Var
   const open = Boolean(anchorEl)
-
-  const handleClick = event => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleClose = () => {
-    setAnchorEl(null)
-  }
+  const rows = Array.isArray(invoiceData) ? invoiceData : []
 
   return (
     <Card>
@@ -173,17 +141,17 @@ const InvoiceListTable = ({ invoiceData }) => {
               variant='tonal'
               color='secondary'
               aria-haspopup='true'
-              onClick={handleClick}
+              onClick={e => setAnchorEl(e.currentTarget)}
               aria-expanded={open ? 'true' : undefined}
               endIcon={<Icon icon='tabler:chevron-down' />}
               aria-controls={open ? 'user-view-overview-export' : undefined}
             >
               Export
             </Button>
-            <Menu open={open} anchorEl={anchorEl} onClose={handleClose} id='user-view-overview-export'>
-              <MenuItem onClick={handleClose}>PDF</MenuItem>
-              <MenuItem onClick={handleClose}>XLSX</MenuItem>
-              <MenuItem onClick={handleClose}>CSV</MenuItem>
+            <Menu open={open} anchorEl={anchorEl} onClose={() => setAnchorEl(null)} id='user-view-overview-export'>
+              <MenuItem onClick={() => setAnchorEl(null)}>PDF</MenuItem>
+              <MenuItem onClick={() => setAnchorEl(null)}>XLSX</MenuItem>
+              <MenuItem onClick={() => setAnchorEl(null)}>CSV</MenuItem>
             </Menu>
           </>
         }
@@ -192,7 +160,7 @@ const InvoiceListTable = ({ invoiceData }) => {
         autoHeight
         rowHeight={54}
         columns={columns}
-        rows={invoiceData}
+        rows={rows}
         disableRowSelectionOnClick
         pageSizeOptions={[7, 10, 25, 50]}
         paginationModel={paginationModel}
@@ -202,4 +170,5 @@ const InvoiceListTable = ({ invoiceData }) => {
   )
 }
 
-export default InvoiceListTable
+export default UsersInvoiceListTable
+

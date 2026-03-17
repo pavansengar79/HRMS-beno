@@ -21,8 +21,8 @@ import Pagination from '@mui/material/Pagination'
 import TablePagination from '@mui/material/TablePagination'
 import QuickSearchToolbar from 'src/views/table/data-grid/QuickSearchToolbar'
 import Modal from '@mui/material/Modal'
-import EditModal from './edit'
-import AddModal from './add'
+import EditModal from 'src/views/apps/faq/EditModal'
+import AddModal from 'src/views/apps/faq/AddModal'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
@@ -52,8 +52,8 @@ import { Switch } from '@mui/material'
 import { formateDate } from 'src/utils/helper'
 import { fetchFaqData, updateFaqData } from 'src/store/apps/faq'
 import CustomTextField from 'src/@core/components/mui/text-field'
-import DeleteModal from './delete'
-import SendModal from './send'
+import DeleteModal from 'src/views/apps/faq/DeleteModal'
+import SendModal from 'src/views/apps/faq/SendModal'
 import CustomDialog from 'src/pages/components/CustomDialog/CustomDialog'
 
 // ** Styled component for the link in the dataTable
