@@ -11,12 +11,17 @@ import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Menu from '@mui/material/Menu'
 import Grid from '@mui/material/Grid'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogActions from '@mui/material/DialogActions'
+import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
 import MenuItem from '@mui/material/MenuItem'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
+import CircularProgress from '@mui/material/CircularProgress'
 import { DataGrid } from '@mui/x-data-grid'
 
 // ** Icon Imports
@@ -73,20 +78,57 @@ const renderAvatar = row => (
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Row Actions Menu
+// Confirm Delete Dialog
 // ─────────────────────────────────────────────────────────────────────────────
-const RowOptions = ({ id, canEdit, canDelete }) => {
-  const dispatch = useDispatch()
+const ConfirmDeleteDialog = ({ open, employeeName, onConfirm, onCancel, deleting }) => (
+  <Dialog open={open} onClose={onCancel} maxWidth='xs' fullWidth>
+    <DialogTitle
+      component='div'
+      sx={{
+        textAlign: 'center',
+        pt: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`],
+        px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`],
+      }}
+    >
+      <Typography variant='h4'>Delete Employee</Typography>
+      <Typography color='text.secondary' sx={{ mt: 2 }}>
+        Are you sure you want to delete <strong>{employeeName}</strong>? This cannot be undone.
+      </Typography>
+    </DialogTitle>
+    <DialogActions
+      sx={{
+        justifyContent: 'center',
+        gap: 3,
+        pb: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`],
+      }}
+    >
+      <Button
+        variant='contained'
+        color='error'
+        disabled={deleting}
+        startIcon={deleting ? <CircularProgress size={16} color='inherit' /> : null}
+        onClick={onConfirm}
+      >
+        {deleting ? 'Deleting…' : 'Delete'}
+      </Button>
+      <Button variant='tonal' color='secondary' onClick={onCancel} disabled={deleting}>
+        Cancel
+      </Button>
+    </DialogActions>
+  </Dialog>
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Row Actions Menu
+// onEdit(row)   → opens drawer pre-filled
+// onDelete(row) → opens confirm dialog
+// ─────────────────────────────────────────────────────────────────────────────
+const RowOptions = ({ row, canEdit, canDelete, onEdit, onDelete }) => {
   const [anchorEl, setAnchorEl] = useState(null)
   const open = Boolean(anchorEl)
 
   const handleOpen  = e => setAnchorEl(e.currentTarget)
   const handleClose = () => setAnchorEl(null)
-
-  const handleDelete = () => {
-    dispatch(deleteEmployee(id))
-    handleClose()
-  }
 
   return (
     <>
@@ -102,9 +144,10 @@ const RowOptions = ({ id, canEdit, canDelete }) => {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         PaperProps={{ style: { minWidth: '8rem' } }}
       >
+        {/* View — navigates to detail page */}
         <MenuItem
           component={Link}
-          href={`/users/${id}/details`}
+          href={`/users/${row._id}/details`}
           onClick={handleClose}
           sx={{ '& svg': { mr: 2 } }}
         >
@@ -112,11 +155,10 @@ const RowOptions = ({ id, canEdit, canDelete }) => {
           View
         </MenuItem>
 
+        {/* Edit — opens drawer, NOT a link */}
         {canEdit && (
           <MenuItem
-            component={Link}
-            href={`/users/${id}/details/account`}
-            onClick={handleClose}
+            onClick={() => { handleClose(); onEdit(row) }}
             sx={{ '& svg': { mr: 2 } }}
           >
             <Icon icon='tabler:edit' fontSize={20} />
@@ -124,8 +166,12 @@ const RowOptions = ({ id, canEdit, canDelete }) => {
           </MenuItem>
         )}
 
+        {/* Delete — opens confirm dialog */}
         {canDelete && (
-          <MenuItem onClick={handleDelete} sx={{ '& svg': { mr: 2 }, color: 'error.main' }}>
+          <MenuItem
+            onClick={() => { handleClose(); onDelete(row) }}
+            sx={{ '& svg': { mr: 2 }, color: 'error.main' }}
+          >
             <Icon icon='tabler:trash' fontSize={20} />
             Delete
           </MenuItem>
@@ -136,22 +182,9 @@ const RowOptions = ({ id, canEdit, canDelete }) => {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Columns
-//
-// API response shape (what each row actually looks like):
-// {
-//   _id:            "69b8e3dab3b714c091633467"
-//   employeeId:     "EMP0001"
-//   name:           "Vibhav trivedi"
-//   email:          "vibhavtrivedi6@gmail.com"
-//   phone:          "8989899982"
-//   departmentId:   { _id: "...", name: "ITI" }   ← object, NOT department
-//   employmentType: "CONTRACT"
-//   joiningDate:    "2026-03-11T00:00:00.000Z"
-//   status:         "ACTIVE"
-// }
+// Build columns
 // ─────────────────────────────────────────────────────────────────────────────
-const buildColumns = (canEdit, canDelete) => [
+const buildColumns = (canEdit, canDelete, onEdit, onDelete) => [
   {
     flex: 0.25,
     minWidth: 260,
@@ -192,7 +225,6 @@ const buildColumns = (canEdit, canDelete) => [
     minWidth: 140,
     field: 'departmentId',
     headerName: 'Department',
-    // API returns departmentId as an object: { _id, name }
     renderCell: ({ row }) => (
       <Typography noWrap sx={{ color: 'text.secondary' }}>
         {row.departmentId?.name || '—'}
@@ -244,7 +276,15 @@ const buildColumns = (canEdit, canDelete) => [
     sortable: false,
     field: 'actions',
     headerName: 'Actions',
-    renderCell: ({ row }) => <RowOptions id={row._id} canEdit={canEdit} canDelete={canDelete} />
+    renderCell: ({ row }) => (
+      <RowOptions
+        row={row}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    )
   }
 ]
 
@@ -253,7 +293,7 @@ const buildColumns = (canEdit, canDelete) => [
 // ─────────────────────────────────────────────────────────────────────────────
 const EmployeeList = () => {
   const dispatch    = useDispatch()
-  const employees   = useSelector(selectEmployeeList)   // always [] by default, never undefined
+  const employees   = useSelector(selectEmployeeList)
   const loading     = useSelector(selectEmployeeLoading)
   const permissions = useSelector(selectPermissions)
 
@@ -264,8 +304,15 @@ const EmployeeList = () => {
   const [search, setSearch]             = useState('')
   const [typeFilter, setTypeFilter]     = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [drawerOpen, setDrawerOpen]     = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
+
+  // Drawer state — null = closed/Add mode, object = Edit mode with pre-filled data
+  const [drawerOpen, setDrawerOpen]   = useState(false)
+  const [editingEmployee, setEditingEmployee] = useState(null)
+
+  // Delete confirm state
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting]         = useState(false)
 
   useEffect(() => {
     dispatch(fetchAllEmployees())
@@ -280,16 +327,51 @@ const EmployeeList = () => {
       row.email?.toLowerCase().includes(q) ||
       row.employeeId?.toLowerCase().includes(q) ||
       row.phone?.includes(search)
-
     const matchType   = !typeFilter   || row.employmentType === typeFilter
     const matchStatus = !statusFilter || row.status === statusFilter
-
     return matchSearch && matchType && matchStatus
   })
 
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
   const handleFilter = useCallback(val => setSearch(val), [])
-  const toggleDrawer = () => setDrawerOpen(prev => !prev)
-  const columns      = buildColumns(canEdit, canDelete)
+
+  // Add — open drawer empty
+  const handleOpenAdd = () => {
+    setEditingEmployee(null)
+    setDrawerOpen(true)
+  }
+
+  // Edit — open drawer with employee data pre-filled
+  const handleOpenEdit = useCallback(row => {
+    setEditingEmployee(row)
+    setDrawerOpen(true)
+  }, [])
+
+  // Drawer close
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false)
+    setEditingEmployee(null)
+  }
+
+  // Delete — open confirm dialog
+  const handleOpenDelete = useCallback(row => {
+    setDeleteTarget(row)
+  }, [])
+
+  // Delete — confirmed
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      setDeleting(true)
+      await dispatch(deleteEmployee(deleteTarget._id))
+      setDeleteTarget(null)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const columns = buildColumns(canEdit, canDelete, handleOpenEdit, handleOpenDelete)
 
   return (
     <Grid container spacing={6.5}>
@@ -343,16 +425,16 @@ const EmployeeList = () => {
           <TableHeader
             value={search}
             handleFilter={handleFilter}
-            toggle={canCreate ? toggleDrawer : undefined}
+            toggle={canCreate ? handleOpenAdd : undefined}
           />
-{/* {JSON.stringify(filteredRows)} */}
+
           <DataGrid
             autoHeight
             rowHeight={62}
             loading={loading}
             rows={filteredRows}
             columns={columns}
-            getRowId={row => row._id}       // ← use _id not id
+            getRowId={row => row._id}
             disableRowSelectionOnClick
             pageSizeOptions={[10, 25, 50]}
             paginationModel={paginationModel}
@@ -361,13 +443,27 @@ const EmployeeList = () => {
         </Card>
       </Grid>
 
-      {canCreate && (
+      {/* Add / Edit Drawer — same component, mode determined by editingEmployee */}
+      {(canCreate || canEdit) && (
         <AddEmployeeDrawer
           open={drawerOpen}
-          toggle={toggleDrawer}
-          onSuccess={() => dispatch(fetchAllEmployees())}
+          toggle={handleCloseDrawer}
+          editingEmployee={editingEmployee}
+          onSuccess={() => {
+            handleCloseDrawer()
+            dispatch(fetchAllEmployees())
+          }}
         />
       )}
+
+      {/* Delete confirm dialog */}
+      <ConfirmDeleteDialog
+        open={Boolean(deleteTarget)}
+        employeeName={deleteTarget?.name ?? ''}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => !deleting && setDeleteTarget(null)}
+        deleting={deleting}
+      />
     </Grid>
   )
 }

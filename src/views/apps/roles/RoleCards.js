@@ -366,7 +366,7 @@ const handleSelectAllCheckbox = () => {
           <CardContent>
             <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography sx={{ color: 'text.secondary' }}>
-                {`Total ${role.permissions?.length ?? 0} permissions`}
+                {`Total ${role.permissions?.length ?? 0} permissions`}  {isTenantAdmin.toString()}
               </Typography>
               <AvatarGroup
                 max={4}

@@ -20,7 +20,30 @@ import Icon from 'src/@core/components/icon'
 // ** Context
 import { useAuth } from 'src/hooks/useAuth'
 
-// ** Styled Components
+// ** Redux — read user info and role from store
+import { useSelector } from 'react-redux'
+import { selectUser, selectRole, selectRoleSlug } from 'src/store/auth/authSlice'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Role label helper
+//   tenant_admin → "ADMIN"
+//   super_admin  → "SUPER ADMIN"
+//   hr_manager   → "HR MANAGER"
+//   (any slug)   → slug uppercased, underscores → spaces
+// ─────────────────────────────────────────────────────────────────────────────
+const getRoleLabel = (roleSlug, roleName) => {
+  if (!roleSlug && !roleName) return ''
+  if (roleSlug === 'tenant_admin') return 'ADMIN'
+  if (roleSlug === 'super_admin')  return 'SUPER ADMIN'
+  // Fall back to slug → uppercase, or role name
+  return roleSlug
+    ? roleSlug.replace(/_/g, ' ').toUpperCase()
+    : roleName?.toUpperCase() || ''
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Styled Components — unchanged from original
+// ─────────────────────────────────────────────────────────────────────────────
 const BadgeContentSpan = styled('span')(({ theme }) => ({
   width: 8,
   height: 8,
@@ -35,29 +58,40 @@ const MenuItemStyled = styled(MenuItem)(({ theme }) => ({
   }
 }))
 
+// ─────────────────────────────────────────────────────────────────────────────
+// UserDropdown
+// ─────────────────────────────────────────────────────────────────────────────
 const UserDropdown = props => {
-  // ** Props
   const { settings } = props
 
-  // ** States
   const [anchorEl, setAnchorEl] = useState(null)
 
-  // ** Hooks
-  const router = useRouter()
-  const { logout } = useAuth()
-
-  // ** Vars
+  const router        = useRouter()
+  const { logout }    = useAuth()
   const { direction } = settings
 
-  const handleDropdownOpen = event => {
-    setAnchorEl(event.currentTarget)
-  }
+  // ── Read from Redux ────────────────────────────────────────────────────────
+  // selectUser  → { id, firstName, email, ... }   (role is stripped out — stored separately)
+  // selectRole     → "Tenant Admin"
+  // selectRoleSlug → "tenant_admin"
+  const user     = useSelector(selectUser)
+  const role     = useSelector(selectRole)
+  const roleSlug = useSelector(selectRoleSlug)
 
+  const displayName  = user?.firstName || user?.name || user?.email || 'User'
+  const displayEmail = user?.email     || ''
+  const roleLabel    = getRoleLabel(roleSlug, role)
+  const isSuperAdmin = roleSlug === 'super_admin'
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const handleDropdownOpen  = e => setAnchorEl(e.currentTarget)
   const handleDropdownClose = url => {
-    if (url) {
-      router.push(url)
-    }
+    if (url) router.push(url)
     setAnchorEl(null)
+  }
+  const handleLogout = () => {
+    logout()
+    handleDropdownClose()
   }
 
   const styles = {
@@ -75,30 +109,34 @@ const UserDropdown = props => {
     }
   }
 
-  const handleLogout = () => {
-    logout()
-    handleDropdownClose()
-  }
+  // ── Avatar initials fallback ───────────────────────────────────────────────
+  const initials = displayName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
 
   return (
     <Fragment>
+      {/* ── Trigger Badge + Avatar ──────────────────────────────────────── */}
       <Badge
         overlap='circular'
         onClick={handleDropdownOpen}
         sx={{ ml: 2, cursor: 'pointer' }}
         badgeContent={<BadgeContentSpan />}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right'
-        }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Avatar
-          alt='John Doe'
-          src='/images/avatars/1.png'
+          alt={displayName}
           onClick={handleDropdownOpen}
-          sx={{ width: 38, height: 38 }}
-        />
+          sx={{ width: 38, height: 38, backgroundColor: 'primary.main', fontSize: '0.875rem', fontWeight: 600 }}
+        >
+          {initials}
+        </Avatar>
       </Badge>
+
+      {/* ── Dropdown Menu ──────────────────────────────────────────────── */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
@@ -107,63 +145,56 @@ const UserDropdown = props => {
         anchorOrigin={{ vertical: 'bottom', horizontal: direction === 'ltr' ? 'right' : 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: direction === 'ltr' ? 'right' : 'left' }}
       >
+        {/* ── User Info ────────────────────────────────────────────────── */}
         <Box sx={{ py: 1.75, px: 6 }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Badge
               overlap='circular'
               badgeContent={<BadgeContentSpan />}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right'
-              }}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
-              <Avatar alt='John Doe' src='/images/avatars/1.png' sx={{ width: '2.5rem', height: '2.5rem' }} />
+              <Avatar
+                alt={displayName}
+                sx={{ width: '2.5rem', height: '2.5rem', backgroundColor: 'primary.main', fontSize: '0.875rem', fontWeight: 600 }}
+              >
+                {initials}
+              </Avatar>
             </Badge>
-            <Box sx={{ display: 'flex', ml: 2.5, alignItems: 'flex-start', flexDirection: 'column' }}>
-              <Typography sx={{ fontWeight: 500 }}>John Doe</Typography>
-              <Typography variant='body2'>Admin</Typography>
+
+            <Box sx={{ display: 'flex', ml: 2.5, alignItems: 'flex-start', flexDirection: 'column', overflow: 'hidden' }}>
+              {/* Real user name from Redux */}
+              <Typography
+                sx={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 130 }}
+              >
+                {displayName}
+              </Typography>
+
+              {/* Role label — tenant_admin → ADMIN, others → slug uppercased */}
+              <Typography
+                variant='body2'
+                sx={{ color: 'text.disabled', fontSize: '0.7rem', letterSpacing: '0.05em' }}
+              >
+                {roleLabel}
+              </Typography>
             </Box>
           </Box>
         </Box>
+
         <Divider sx={{ my: theme => `${theme.spacing(2)} !important` }} />
-        {/* <MenuItemStyled sx={{ p: 0 }} onClick={() => handleDropdownClose('/pages/user-profile/profile')}>
-          <Box sx={styles}>
-            <Icon icon='tabler:user-check' />
-            My Profile
-          </Box>
-        </MenuItemStyled> */}
-        <MenuItemStyled sx={{ p: 0 }} onClick={() => handleDropdownClose('/pages/account-settings/account')}>
-          <Box sx={styles}>
-            <Icon icon='tabler:settings' />
-            Settings
-          </Box>
-        </MenuItemStyled>
-        {/* <MenuItemStyled sx={{ p: 0 }} onClick={() => handleDropdownClose('/pages/account-settings/billing')}>
-          <Box sx={styles}>
-            <Icon icon='tabler:credit-card' />
-            Billing
-          </Box>
-        </MenuItemStyled>
-        <Divider sx={{ my: theme => `${theme.spacing(2)} !important` }} />
-        <MenuItemStyled sx={{ p: 0 }} onClick={() => handleDropdownClose('/pages/help-center')}>
-          <Box sx={styles}>
-            <Icon icon='tabler:lifebuoy' />
-            Help
-          </Box>
-        </MenuItemStyled>
-        <MenuItemStyled sx={{ p: 0 }} onClick={() => handleDropdownClose('/pages/faq')}>
-          <Box sx={styles}>
-            <Icon icon='tabler:info-circle' />
-            FAQ
-          </Box>
-        </MenuItemStyled>
-        <MenuItemStyled sx={{ p: 0 }} onClick={() => handleDropdownClose('/pages/pricing')}>
-          <Box sx={styles}>
-            <Icon icon='tabler:currency-dollar' />
-            Pricing
-          </Box>
-        </MenuItemStyled> */}
-        <Divider sx={{ my: theme => `${theme.spacing(2)} !important` }} />
+
+        {/* ── Settings — only visible to super_admin ───────────────────── */}
+        {isSuperAdmin && (
+          <MenuItemStyled sx={{ p: 0 }} onClick={() => handleDropdownClose('/pages/account-settings/account')}>
+            <Box sx={styles}>
+              <Icon icon='tabler:settings' />
+              Settings
+            </Box>
+          </MenuItemStyled>
+        )}
+
+        {/* ── Sign Out — always visible ─────────────────────────────────── */}
+        {isSuperAdmin && <Divider sx={{ my: theme => `${theme.spacing(2)} !important` }} />}
+
         <MenuItemStyled sx={{ p: 0 }} onClick={handleLogout}>
           <Box sx={styles}>
             <Icon icon='tabler:logout' />
