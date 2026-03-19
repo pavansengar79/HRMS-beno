@@ -194,6 +194,22 @@ const RegisterV2 = () => {
     }
   }
 
+
+ const handleGoogleLogin = () => {
+  if (typeof window === 'undefined') return
+ 
+  // Callback page ka full URL — yahan backend redirect karega token ke saath
+  // GoogleCallbackPage already handle karta hai:
+  //   Case A: ?token=xxx&user=yyy     → direct store + onboarding check
+  //   Case B: ?code=xxx (Google code) → backend exchange + store + onboarding check
+  const callbackUrl = `${window.location.origin}/auth/google/callback`
+ 
+  const oauthUrl = new URL('https://2c6q0jsk-3000.inc1.devtunnels.ms/api/v1/auth/google')
+  oauthUrl.searchParams.set('returnUrl', callbackUrl)
+ 
+  window.location.href = oauthUrl.toString()
+}
+
   return (
     <Box className='content-right' sx={{ backgroundColor: 'background.paper' }}>
       {!hidden ? (
@@ -430,8 +446,17 @@ const RegisterV2 = () => {
                 or
               </Divider>
 
+                <Button
+                              fullWidth
+                              variant='outlined'
+                              onClick={handleGoogleLogin}
+                              startIcon={<Icon icon='mdi:google' />}
+                            >
+                              Continue with Google
+                            </Button>
+
               {/* Social icons */}
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {/* <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <IconButton href='/' component={Link} sx={{ color: '#497ce2' }} onClick={e => e.preventDefault()}>
                   <Icon icon='mdi:facebook' />
                 </IconButton>
@@ -449,7 +474,7 @@ const RegisterV2 = () => {
                 <IconButton href='/' component={Link} sx={{ color: '#db4437' }} onClick={e => e.preventDefault()}>
                   <Icon icon='mdi:google' />
                 </IconButton>
-              </Box>
+              </Box> */}
 
             </form>
           </Box>
