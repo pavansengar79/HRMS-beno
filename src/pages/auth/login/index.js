@@ -102,12 +102,15 @@ const LoginPage = () => {
     const returnUrl =
       typeof router.query.returnUrl === 'string' && router.query.returnUrl.trim().length
         ? router.query.returnUrl
-        : '/'
+        : '/dashboards/analytics'
 
     const oauthUrl = new URL('https://2c6q0jsk-3000.inc1.devtunnels.ms/api/v1/auth/google')
     oauthUrl.searchParams.set('returnUrl', returnUrl)
 
     window.location.href = oauthUrl.toString()
+
+
+   
   }
 
   // API state from Redux
