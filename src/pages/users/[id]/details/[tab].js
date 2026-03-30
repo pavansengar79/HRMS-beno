@@ -57,9 +57,11 @@ const UserDetails = () => {
       <Grid item xs={12} md={5} lg={4}>
         
         <UserViewLeft employee={employee} />
+        
       </Grid>
       <Grid item xs={12} md={7} lg={8}>
         <UserViewRight tab={activeTab} employee={employee} />
+
       </Grid>
     </Grid>
   )
