@@ -8,7 +8,7 @@ const AccountSettingsTab = ({ tab, apiPricingPlanData }) => {
 export const getStaticPaths = () => {
   return {
     paths: [
-      { params: { tab: 'account' } },
+      { params: { tab: 'New' } },
       { params: { tab: 'security' } },
       { params: { tab: 'billing' } },
       { params: { tab: 'notifications' } },

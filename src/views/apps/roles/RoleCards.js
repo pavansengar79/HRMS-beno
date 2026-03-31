@@ -45,6 +45,7 @@ import toast from 'react-hot-toast'
 
 // ✅ Interceptor
 import axiosRequest from 'src/utils/AxiosInterceptor'
+import { selectUser, selectRole, selectRoleSlug } from 'src/store/auth/authSlice'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -102,9 +103,15 @@ const ConfirmDialog = ({ open, roleName, onConfirm, onCancel, deleting }) => (
 // RolesCards
 // ---------------------------------------------------------------------------
 const RolesCards = () => {
-  const userRole = useSelector(
-    state => state.auth?.user?.role?.slug ?? state.auth?.userData?.role?.slug ?? ''
-  )
+  // const userRole = useSelector(
+  //   state => state.auth?.user?.role?.slug ?? state.auth?.userData?.role?.slug ?? ''
+  // )
+
+  const user     = useSelector(selectUser)
+  const role     = useSelector(selectRole)
+  const userRole = useSelector(selectRoleSlug)?? ''
+ 
+// console.log('User Role:', userRole) // Debug log to check the role slug
   const isTenantAdmin = userRole === 'tenant_admin'
 
   // ── Data state ────────────────────────────────────────────────────────────
@@ -366,7 +373,7 @@ const handleSelectAllCheckbox = () => {
           <CardContent>
             <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography sx={{ color: 'text.secondary' }}>
-                {`Total ${role.permissions?.length ?? 0} permissions`}  {isTenantAdmin.toString()}
+                {`Total ${role.permissions?.length ?? 0} permissions`} 
               </Typography>
               <AvatarGroup
                 max={4}

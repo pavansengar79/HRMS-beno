@@ -29,6 +29,26 @@ const ALL_NAV_ITEMS = [
     path:   '/dashboards/analytics',
     module: null,   // always show — no permission needed
   },
+  // {
+  //   title:  'Customers',
+  //   icon:   'mdi:user-group-outline',
+  //   path:   '/customers',
+  //   module: null,   // visible if user has any customer.* permission
+  // },
+  // {
+  //   title:  'Plans',
+  //   icon:   'mdi:wrench',
+  //   path:   '/pages/pricing/',
+  //   module: null,   // visible if user has any customer.* permission
+  // },
+ 
+ 
+  //  {
+  //   title:  'Organisation',
+  //   icon:   'mdi:mdi-bank',
+  //   path:   '/pages/pricing/',
+  //   module: null,   // visible if user has any customer.* permission
+  // },
   {
     title:  'Company',
     icon:   'mdi:domain',

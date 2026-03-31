@@ -183,7 +183,7 @@ const UserDropdown = props => {
         <Divider sx={{ my: theme => `${theme.spacing(2)} !important` }} />
 
         {/* ── Settings — only visible to super_admin ───────────────────── */}
-        {isSuperAdmin && (
+        {true && (
           <MenuItemStyled sx={{ p: 0 }} onClick={() => handleDropdownClose('/pages/account-settings/account')}>
             <Box sx={styles}>
               <Icon icon='tabler:settings' />

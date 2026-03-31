@@ -6,6 +6,7 @@ import companyReducer from './company/companySlice'
 
 // ** Add your other reducers here as the app grows
 import employeeReducer from './employee/employeeSlice'
+import customerReducer from './customer/customerSlice'
 
 // ** App reducers (used across many pages via useSelector(state => state.<key>))
 import calendarReducer from './apps/calendar'
@@ -63,6 +64,7 @@ const store = configureStore({
     auth:    authReducer,
     company: companyReducer,
     employee: employeeReducer,
+    customer: customerReducer,
 
     // apps
     calendar: calendarReducer,

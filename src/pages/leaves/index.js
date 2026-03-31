@@ -196,8 +196,11 @@ const Leave = () => {
             onPaginationModelChange={setPaginationModel}
             sx={isAdminOrHR ? { '& .MuiDataGrid-row': { cursor: 'pointer' } } : {}}
           />
+
         </Card>
       </Grid>
+
+      
 
       <ApplyLeaveDrawer
         open={drawerOpen}
