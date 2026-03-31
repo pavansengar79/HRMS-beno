@@ -125,14 +125,7 @@ const AppLeaveManagement = () => {
             Apply Leave
           </Button>
         </Box>
-        {/* Leave Policies Section */}
-        <Box sx={{ mt: 4 }}>
-          <Typography variant='h6'>Leave Policies</Typography>
-          {/* Add policy management UI here */}
-          <Button variant='contained' sx={{ mt: 2 }}>
-            Add Leave Policy
-          </Button>
-        </Box>
+        
       </Box>
       <AddEventSidebar
         store={store}
