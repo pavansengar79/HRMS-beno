@@ -20,6 +20,7 @@ import {
 } from 'src/store/auth/authSlice'
 
 import authConfig from 'src/configs/auth'
+import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ─── Storage Keys ─────────────────────────────
 const STORAGE = {

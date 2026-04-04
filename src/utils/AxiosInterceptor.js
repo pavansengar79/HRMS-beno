@@ -8,7 +8,8 @@ import authConfig from 'src/configs/auth'
 
 const axiosRequest = axios.create({
   baseURL: 'https://2c6q0jsk-3000.inc1.devtunnels.ms/'
-  // baseURL: 'https://prod-connect-api.jktyre.co.in'
+  
+  
   // baseURL: 'http://localhost:3000'
 })
 
