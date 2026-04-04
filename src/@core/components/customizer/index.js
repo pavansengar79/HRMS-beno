@@ -1,5 +1,9 @@
 // ** React Imports
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+// ** Redux Imports
+import { useSelector } from 'react-redux'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 
 // ** Third Party Components
 import PerfectScrollbar from 'react-perfect-scrollbar'
@@ -15,11 +19,22 @@ import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import MuiDrawer from '@mui/material/Drawer'
+
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
 
 // ** Hook Import
 import { useSettings } from 'src/@core/hooks/useSettings'
+
+// ✅ Role → themeColor mapping (only existing palette colors used)
+const ROLE_COLOR_MAP = {
+  tenant_admin: '#FF9F43',   // 🟠 orange
+  employee:     'success.main',   // 🔵 blue
+  hr:           'success',   // 🟢 green
+  super_admin:      'error',     // 🔴 red
+  manager:      'info',      // 🔷 light blue
+  finance:   'secondary', // ⚫ secondary
+}
 
 const Toggler = styled(Box)(({ theme }) => ({
   right: 0,
@@ -79,6 +94,9 @@ const Customizer = () => {
   // ** Hook
   const { settings, saveSettings } = useSettings()
 
+  // ** Redux
+  const roleSlug = useSelector(selectRoleSlug)
+
   // ** Vars
   const {
     mode,
@@ -94,6 +112,16 @@ const Customizer = () => {
     contentWidth,
     verticalNavToggleType
   } = settings
+
+  // ✅ Auto-apply theme color based on logged-in role
+  useEffect(() => {
+    if (!roleSlug) return
+    const color = ROLE_COLOR_MAP[roleSlug]
+    if (color && color !== settings.themeColor) {
+      saveSettings({ ...settings, themeColor: color })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roleSlug])
 
   const handleChange = (field, value) => {
     saveSettings({ ...settings, [field]: value })
@@ -137,7 +165,7 @@ const Customizer = () => {
               variant='caption'
               sx={{ mb: 5, color: 'text.disabled', textTransform: 'uppercase' }}
             >
-              Theming
+              Theming {roleSlug}
             </Typography>
 
             {/* Skin */}
