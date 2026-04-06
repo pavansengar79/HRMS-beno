@@ -127,7 +127,7 @@ const TabSecurity = () => {
       </Grid>
 
       {/* API Key List & Access Card*/}
-      <Grid item xs={12}>
+      {/* <Grid item xs={12}>
         <Card>
           <CardHeader title='API Key List & Access' />
           <CardContent>
@@ -167,10 +167,10 @@ const TabSecurity = () => {
             })}
           </CardContent>
         </Card>
-      </Grid>
+      </Grid> */}
 
       {/* Recent Devices Card*/}
-      <Grid item xs={12}>
+      {/* <Grid item xs={12}>
         <Card>
           <CardHeader title='Recent Devices' />
           <TableContainer>
@@ -209,7 +209,7 @@ const TabSecurity = () => {
             </Table>
           </TableContainer>
         </Card>
-      </Grid>
+      </Grid> */}
     </Grid>
   )
 }

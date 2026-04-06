@@ -177,7 +177,6 @@
 
 
 // src/pages/auth/google/callback.jsx
-
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { useDispatch } from 'react-redux'
@@ -194,169 +193,157 @@ import { setCredentials } from 'src/store/auth/authSlice'
 const BACKEND_BASE_URL = 'https://2c6q0jsk-3000.inc1.devtunnels.ms'
 
 const GoogleCallbackPage = () => {
-  const router = useRouter()
-  const dispatch = useDispatch()
-  const [error, setError] = useState(null)
+const router = useRouter()
+const dispatch = useDispatch()
+const [error, setError] = useState(null)
 
-  const returnUrl = useMemo(() => {
+const returnUrl = useMemo(() => {
     const q = router.query?.returnUrl
     return typeof q === 'string' ? q : null
-  }, [router.query])
+}, [router.query])
 
-  useEffect(() => {
+useEffect(() => {
     if (!router.isReady) return
 
     const run = async () => {
-      try {
+     try {
         const tokenKey = authConfig.storageTokenKeyName || 'accessToken'
 
         // ── Case 0: backend ne ?token=xxx bheja (user string nahi hai) ──────
         if (typeof router.query?.token === 'string' && typeof router.query?.user !== 'string') {
-          const token = router.query.token
+         const token = router.query.token
 
-          // ✅ NEW: isNewUser check — company registration pe bhejo
-          if (router.query?.isNewUser === 'true') {
+         // ✅ New user — company registration pe bhejo
+         if (router.query?.isNewUser === 'true') {
             window.localStorage.setItem('tempToken', token)
             router.replace('/auth/register-company')
             return
-          }
+         }
 
-          // Existing user — /me se fetch karo
-          const onboarding = typeof router.query?.onboarding === 'string'
-            ? JSON.parse(router.query.onboarding)
-            : undefined
+         // ✅ Existing user — flat params se onboarding check karo
+         const isOnboardingComplete = router.query?.isOnboardingComplete === 'true'
 
-          window.localStorage.setItem(tokenKey, token)
+         window.localStorage.setItem(tokenKey, token)
 
-          const meEndpoint = authConfig.meEndpoint?.startsWith('/')
-            ? authConfig.meEndpoint
-            : `/${authConfig.meEndpoint || 'api/v1/auth/me'}`
-
-          const meUrl = `${BACKEND_BASE_URL}${meEndpoint}`
-
-          const meRes = await fetch(meUrl, {
+         // /me se user fetch karo
+         const meUrl = `${BACKEND_BASE_URL}/api/v1/auth/me`
+         const meRes = await fetch(meUrl, {
             method: 'GET',
             headers: { Authorization: `Bearer ${token}` }
-          })
-          const meJson = await meRes.json().catch(() => null)
+         })
+         const meJson = await meRes.json().catch(() => null)
+         const user = meJson?.data?.user || meJson?.user || meJson?.data
 
-          const user = meJson?.data?.user || meJson?.user || meJson?.data
-          if (!meRes.ok || !user) {
+         if (!meRes.ok || !user) {
             throw new Error(meJson?.message || 'Google login succeeded but fetching user failed')
-          }
+         }
 
-          window.localStorage.setItem('userData', JSON.stringify(user))
-          dispatch(setCredentials({ user, token }))
+         window.localStorage.setItem('userData', JSON.stringify(user))
+         dispatch(setCredentials({ user, token }))
 
-          // Onboarding check
-          if (onboarding?.isComplete === false) {
+         // ✅ Onboarding check — flat param se
+         if (!isOnboardingComplete) {
             router.replace('/auth/register-company')
-          } else if (user?.onboarding?.isComplete === false) {
-            router.replace('/auth/register-company')
-          } else {
+         } else {
             router.replace(
-              returnUrl && returnUrl !== '/auth/google/callback'
+             returnUrl && returnUrl !== '/auth/google/callback'
                 ? returnUrl
                 : '/dashboards/analytics'
             )
-          }
-          return
+         }
+         return
         }
 
         // ── Case A: backend ne ?token=xxx&user=yyy bheja ─────────────────
         if (typeof router.query?.token === 'string' && typeof router.query?.user === 'string') {
-          const token = router.query.token
-          const user = JSON.parse(router.query.user)
-          const onboarding = typeof router.query?.onboarding === 'string'
-            ? JSON.parse(router.query.onboarding)
-            : undefined
+         const token = router.query.token
+         const user = JSON.parse(router.query.user)
+         const isOnboardingComplete = router.query?.isOnboardingComplete === 'true'
 
-          window.localStorage.setItem(tokenKey, token)
-          window.localStorage.setItem('userData', JSON.stringify(user))
-          dispatch(setCredentials({ user, token }))
+         window.localStorage.setItem(tokenKey, token)
+         window.localStorage.setItem('userData', JSON.stringify(user))
+         dispatch(setCredentials({ user, token }))
 
-          if (onboarding?.isComplete === false) {
+         if (!isOnboardingComplete) {
             router.replace('/auth/register-company')
-          } else {
+         } else {
             router.replace(
-              returnUrl && returnUrl !== '/auth/google/callback'
+             returnUrl && returnUrl !== '/auth/google/callback'
                 ? returnUrl
                 : '/dashboards/analytics'
             )
-          }
-          return
+         }
+         return
         }
 
-        // ── Case B: ?code=xxx — Google ne code bheja ─────────────────────
-        // ✅ Yeh case ab aana nahi chahiye — backend redirect karta hai
-        // But fallback ke liye rakho
+        // ── Case B: fallback — ?code=xxx Google ne bheja ─────────────────
         const queryString = router.asPath.includes('?')
-          ? router.asPath.split('?')[1]
-          : ''
+         ? router.asPath.split('?')[1]
+         : ''
         const url = `${BACKEND_BASE_URL}/api/v1/auth/google/callback${queryString ? `?${queryString}` : ''}`
 
         const res = await fetch(url, { method: 'GET' })
         const json = await res.json()
 
         if (!res.ok || !json?.success) {
-          throw new Error(json?.message || 'Google login failed')
+         throw new Error(json?.message || 'Google login failed')
         }
 
-        const token = json?.data?.token
-        const user = json?.data?.user
-        const onboarding = json?.data?.onboarding
+        const token     = json?.data?.token
+        const user     = json?.data?.user
+        const isOnboardingComplete = json?.data?.onboarding?.isComplete ?? true
 
         if (!token || !user) {
-          throw new Error('Missing token or user in response')
+         throw new Error('Missing token or user in response')
         }
 
         window.localStorage.setItem(tokenKey, token)
         window.localStorage.setItem('userData', JSON.stringify(user))
         dispatch(setCredentials({ user, token }))
 
-        if (onboarding?.isComplete === false) {
-          router.replace('/auth/register-company')
+        if (!isOnboardingComplete) {
+         router.replace('/auth/register-company')
         } else {
-          router.replace(
+         router.replace(
             returnUrl && returnUrl !== '/auth/google/callback'
-              ? returnUrl
-              : '/dashboards/analytics'
-          )
+             ? returnUrl
+             : '/dashboards/analytics'
+         )
         }
 
-      } catch (e) {
+     } catch (e) {
         setError(e?.message || 'Something went wrong during Google login')
-      }
+     }
     }
 
     run()
-  }, [dispatch, returnUrl, router])
+}, [dispatch, returnUrl, router])
 
-  return (
+return (
     <Box sx={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'column',
-      gap: 3,
-      p: 6
+     minHeight: '100vh',
+     display:        'flex',
+     alignItems:     'center',
+     justifyContent: 'center',
+     flexDirection: 'column',
+     gap: 3,
+     p: 6
     }}>
-      {!error ? (
+     {!error ? (
         <>
-          <CircularProgress />
-          <Typography variant='h6'>Finishing Google sign-in…</Typography>
+         <CircularProgress />
+         <Typography variant='h6'>Finishing Google sign-in…</Typography>
         </>
-      ) : (
+     ) : (
         <>
-          <Typography variant='h6' color='error'>{error}</Typography>
-          <Button variant='contained' onClick={() => router.replace('/auth/login')}>
+         <Typography variant='h6' color='error'>{error}</Typography>
+         <Button variant='contained' onClick={() => router.replace('/auth/login')}>
             Back to login
-          </Button>
+         </Button>
         </>
-      )}
+     )}
     </Box>
-  )
+)
 }
 
 GoogleCallbackPage.getLayout = page => <BlankLayout>{page}</BlankLayout>
