@@ -22,10 +22,13 @@ import {
 import authConfig from 'src/configs/auth'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
+const BACKEND_BASE_URL = 'https://2c6q0jsk-3000.inc1.devtunnels.ms'
+
 // ─── Storage Keys ─────────────────────────────
 const STORAGE = {
-  TOKEN: authConfig.storageTokenKeyName,  // 'accessToken'
-  USER:  'userData'
+  TOKEN:     authConfig.storageTokenKeyName, // 'accessToken'
+  USER:      'userData',
+  MFA_TOKEN: 'mfaToken'
 }
 
 // ─── Context Defaults ─────────────────────────
@@ -35,7 +38,8 @@ const defaultProvider = {
   loading:         true,
   isAuthenticated: false,
   login:           () => Promise.resolve(),
-  logout:          () => Promise.resolve()
+  logout:          () => Promise.resolve(),
+  verifyMfa:       () => Promise.resolve()
 }
 
 const AuthContext = createContext(defaultProvider)
@@ -62,7 +66,6 @@ const AuthProvider = ({ children }) => {
           const parsedUser = JSON.parse(storedUser)
           dispatch(rehydrateAuth({ user: parsedUser, token: storedToken }))
         } catch {
-          // Corrupted data → clear and force re-login
           _clearStorage()
         }
       }
@@ -72,9 +75,7 @@ const AuthProvider = ({ children }) => {
 
     initAuth()
 
-    // ── Listen for 401 logout event fired by AxiosInterceptor ──
-    // AxiosInterceptor cannot import store directly (causes SSR crash),
-    // so it fires window event 'auth:logout' and AuthContext clears Redux here.
+    // Listen for 401 logout event fired by AxiosInterceptor
     const handleForceLogout = () => {
       dispatch(clearCredentials())
     }
@@ -93,31 +94,26 @@ const AuthProvider = ({ children }) => {
 
     try {
       const { data } = await axios.post(
-        `https://2c6q0jsk-3000.inc1.devtunnels.ms/api/v1/auth/login`,
+        `${BACKEND_BASE_URL}/api/v1/auth/login`,
         { email: params.email, password: params.password },
         { headers: { 'Content-Type': 'application/json' } }
       )
 
-      const { token, user } = data.data
+      const { token, mfaToken, user } = data?.data ?? data
 
-      // 1. Redux (source of truth)
-      dispatch(setCredentials({ user, token }))
-
-      // 2. Persist to localStorage so Redux can re-hydrate on refresh
-      //    Store the FULL user object (including role + permissions)
-      //    so re-hydration rebuilds permission state correctly
-      if (params.rememberMe) {
-        window.localStorage.setItem(STORAGE.TOKEN, token)
-        window.localStorage.setItem(STORAGE.USER, JSON.stringify(user))
-      } else {
-        // Session only — cleared when browser tab closes
-        window.sessionStorage.setItem(STORAGE.TOKEN, token)
-        window.sessionStorage.setItem(STORAGE.USER, JSON.stringify(user))
+      // ── MFA required ──────────────────────────────────────
+      if (mfaToken) {
+        window.localStorage.setItem(STORAGE.MFA_TOKEN, mfaToken)
+        router.push('/auth/two-factor')
+        return
       }
 
-      // 3. Redirect
-      const returnUrl    = router.query.returnUrl
-      const redirectURL  = returnUrl && returnUrl !== '/' ? returnUrl : '/dashboards/analytics'
+      // ── Normal login (no MFA) ─────────────────────────────
+      _persistSession({ token, user, rememberMe: params.rememberMe })
+      dispatch(setCredentials({ user, token }))
+
+      const returnUrl   = router.query.returnUrl
+      const redirectURL = returnUrl && returnUrl !== '/' ? returnUrl : '/dashboards/analytics'
       router.replace(redirectURL)
 
     } catch (error) {
@@ -131,6 +127,54 @@ const AuthProvider = ({ children }) => {
     }
   }
 
+  // ── Verify MFA (called from two-factor page) ──────────────
+  const handleVerifyMfa = async (otpToken, errorCallback) => {
+    const mfaToken = window.localStorage.getItem(STORAGE.MFA_TOKEN)
+
+    if (!mfaToken) {
+      const msg = 'Session expired. Please login again.'
+      if (errorCallback) errorCallback(msg)
+      router.push('/auth/login')
+      return
+    }
+
+    dispatch(setLoading(true))
+
+    try {
+      const { data } = await axios.post(
+        `${BACKEND_BASE_URL}/api/v1/auth/mfa/challenge`,
+        { mfaToken, token: otpToken },
+        { headers: { 'Content-Type': 'application/json' } }
+      )
+
+      const { token } = data?.data ?? data
+
+      // Fetch full user profile with the real token
+      const meRes = await axios.get(`${BACKEND_BASE_URL}/api/v1/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const user = meRes.data?.data?.user || meRes.data?.user || meRes.data?.data
+
+      // Clean up mfaToken — no longer needed
+      window.localStorage.removeItem(STORAGE.MFA_TOKEN)
+
+      // Persist & set Redux (default rememberMe: true after MFA)
+      _persistSession({ token, user, rememberMe: true })
+      dispatch(setCredentials({ user, token }))
+
+      router.replace('/dashboards/analytics')
+
+    } catch (error) {
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Invalid code. Please try again.'
+
+      dispatch(setError(message))
+      if (errorCallback) errorCallback(message)
+    }
+  }
+
   // ── Logout ────────────────────────────────────────────────
   const handleLogout = () => {
     dispatch(clearCredentials())
@@ -138,10 +182,21 @@ const AuthProvider = ({ children }) => {
     router.push('/auth/login')
   }
 
-  // ── Clear both storages ───────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────
+  const _persistSession = ({ token, user, rememberMe }) => {
+    if (rememberMe) {
+      window.localStorage.setItem(STORAGE.TOKEN, token)
+      window.localStorage.setItem(STORAGE.USER, JSON.stringify(user))
+    } else {
+      window.sessionStorage.setItem(STORAGE.TOKEN, token)
+      window.sessionStorage.setItem(STORAGE.USER, JSON.stringify(user))
+    }
+  }
+
   const _clearStorage = () => {
     window.localStorage.removeItem(STORAGE.TOKEN)
     window.localStorage.removeItem(STORAGE.USER)
+    window.localStorage.removeItem(STORAGE.MFA_TOKEN)
     window.sessionStorage.removeItem(STORAGE.TOKEN)
     window.sessionStorage.removeItem(STORAGE.USER)
   }
@@ -152,10 +207,11 @@ const AuthProvider = ({ children }) => {
     token,
     isAuthenticated,
     loading,
-    login:   handleLogin,
-    logout:  handleLogout,
+    login:      handleLogin,
+    logout:     handleLogout,
+    verifyMfa:  handleVerifyMfa,
 
-    // Legacy compat for components using setUser/setLoading from context
+    // Legacy compat
     setUser:    () => {},
     setLoading: setLoadingState
   }
