@@ -118,49 +118,40 @@ const ResetPasswordV2 = () => {
   }
 
   // ── Submit ──────────────────────────────────────────────────────────────────
-  const handleSubmit = async e => {
-    e.preventDefault()
-    if (!validate()) return
+ const handleSubmit = async e => {
+  e.preventDefault()
+  if (!validate()) return
 
-    // Extract token from URL: /auth/reset-password/?token=<JWT>
-    const { token } = router.query
-    if (!token) {
-      toast.error('Reset token is missing. Please request a new password reset link.')
-      return
-    }
-
-    console.log("resetToken",token)
-
-    setLoading(true)
-    try {
-      const res = await axios.post(`https://2c6q0jsk-3000.inc1.devtunnels.ms/api/v1/auth/reset-password`, {
-        password: values.newPassword,
-        token
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-        
-        }
-      })
-
-      const data = await res.json()
-
-      if (res.ok) {
-        toast.success(data?.message || 'Password reset successfully!')
-        // Redirect to login after a short delay so the user sees the toast
-        setTimeout(() => {
-          router.push('/auth/login')
-        }, 1500)
-      } else {
-        toast.error(data?.message || 'Failed to reset password. Please try again.')
-      }
-    } catch (err) {
-      toast.error('Network error. Please try again.')
-    } finally {
-      setLoading(false)
-    }
+  const { token } = router.query
+  if (!token) {
+    toast.error('Reset token is missing. Please request a new password reset link.')
+    return
   }
 
+  console.log("resetToken", token)
+
+  setLoading(true)
+  try {
+    const res = await axios.post(
+      `https://2c6q0jsk-3000.inc1.devtunnels.ms/api/v1/auth/reset-password`,
+      { password: values.newPassword, token },
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+
+    // Axios puts response body in res.data directly — no .json() needed
+    toast.success(res.data?.message || 'Password reset successfully!')
+    setTimeout(() => {
+      router.push('/auth/login')
+    }, 1500)
+
+  } catch (err) {
+    // Axios throws for non-2xx responses, error body is in err.response.data
+    const message = err.response?.data?.message || 'Failed to reset password. Please try again.'
+    toast.error(message)
+  } finally {
+    setLoading(false)
+  }
+}
   return (
     <Box className='content-right' sx={{ backgroundColor: 'background.paper' }}>
       {!hidden ? (
