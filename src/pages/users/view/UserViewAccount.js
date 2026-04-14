@@ -32,6 +32,7 @@ import { updateEmployee } from 'src/store/employee/employeeSlice'
 
 // ** Progression Timeline (shown only for TENANT_ADMIN)
 import UserProgressionTimeline from './Userprogressiontimeline'
+import Select from 'src/@core/theme/overrides/select'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const val = v => v || '—'
@@ -484,21 +485,18 @@ const DocumentsSection = ({ employee }) => {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 400 }}>
 
           {/* Document Type Dropdown */}
-          <select
+          <Select
             value={selectedDocType}
             onChange={(e) => setSelectedDocType(e.target.value)}
           >
-            <option value="">Select Document Type</option>
+            <Option value="">Select Document Type</Option>
             {DOCUMENT_TYPES.map(type => (
-              <option key={type} value={type}>{type}</option>
+              <Option key={type} value={type}>{type}</Option>
             ))}
-          </select>
+          </Select>
 
           {/* File Input */}
-          <input
-            type="file"
-            
-          />
+         
           <TextField fullWidth size='small' label='From' type='file'
                     
                     onChange={(e) => setFile(e.target.files[0])}
