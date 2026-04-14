@@ -1,7 +1,19 @@
+/**
+ * FullCalendar Component
+ *
+ * Displays holiday events on an interactive calendar with:
+ * - Drag and drop support
+ * - Event click handling
+ * - Date selection for new events
+ * - Multiple view options (month, week, day, list)
+ *
+ * @file src/views/apps/calendar/Calendar.js
+ */
+
 // ** React Import
 import { useEffect, useRef } from 'react'
 
-// ** Full Calendar & it's Plugins
+// ** Full Calendar & its Plugins
 import FullCalendar from '@fullcalendar/react'
 import listPlugin from '@fullcalendar/list'
 import dayGridPlugin from '@fullcalendar/daygrid'
@@ -12,45 +24,54 @@ import interactionPlugin from '@fullcalendar/interaction'
 // ** Third Party Style Import
 import 'bootstrap-icons/font/bootstrap-icons.css'
 
+// ─────────────────────────────────────────────────────────────────────────
+// Default/Blank event template
+// ─────────────────────────────────────────────────────────────────────────
 const blankEvent = {
   title: '',
   start: '',
   end: '',
   allDay: false,
-  url: '',
+  category: '',
   extendedProps: {
-    calendar: '',
-    guests: [],
-    location: '',
     description: ''
   }
 }
 
 const Calendar = props => {
-  // ** Props
+  // ─────────────────────────────────────────────────────────────────────────
+  // Props
+  // ─────────────────────────────────────────────────────────────────────────
   const {
     store,
     dispatch,
     direction,
     updateEvent,
     calendarApi,
-    calendarsColor,
+    holidayColors,
     setCalendarApi,
     handleSelectEvent,
+    handleDateClick,
     handleLeftSidebarToggle,
     handleAddEventSidebarToggle
   } = props
 
-  // ** Refs
+  // ─────────────────────────────────────────────────────────────────────────
+  // Refs
+  // ─────────────────────────────────────────────────────────────────────────
   const calendarRef = useRef()
+
   useEffect(() => {
     if (calendarApi === null) {
       // @ts-ignore
       setCalendarApi(calendarRef.current?.getApi())
     }
   }, [calendarApi, setCalendarApi])
+
   if (store) {
-    // ** calendarOptions(Props)
+    // ─────────────────────────────────────────────────────────────────────
+    // FullCalendar Configuration
+    // ─────────────────────────────────────────────────────────────────────
     const calendarOptions = {
       events: store.events.length ? store.events : [],
       plugins: [interactionPlugin, dayGridPlugin, timeGridPlugin, listPlugin, bootstrap5Plugin],
@@ -65,53 +86,50 @@ const Calendar = props => {
         }
       },
 
-      /*
-            Enable dragging and resizing event
-            ? Docs: https://fullcalendar.io/docs/editable
-          */
+      // ─────────────────────────────────────────────────────────────────
+      // Event Interaction Options
+      // ─────────────────────────────────────────────────────────────────
+
+      // Enable event dragging and resizing
       editable: true,
-
-      /*
-            Enable resizing event from start
-            ? Docs: https://fullcalendar.io/docs/eventResizableFromStart
-          */
       eventResizableFromStart: true,
-
-      /*
-              Automatically scroll the scroll-containers during event drag-and-drop and date selecting
-              ? Docs: https://fullcalendar.io/docs/dragScroll
-            */
       dragScroll: true,
-
-      /*
-              Max number of events within a given day
-              ? Docs: https://fullcalendar.io/docs/dayMaxEvents
-            */
       dayMaxEvents: 2,
-
-      /*
-              Determines if day names and week names are clickable
-              ? Docs: https://fullcalendar.io/docs/navLinks
-            */
       navLinks: true,
-      eventClassNames({ event: calendarEvent }) {
-        // @ts-ignore
-        const colorName = calendarsColor[calendarEvent._def.extendedProps.calendar]
 
-        return [
-          // Background Color
-          `bg-${colorName}`
-        ]
+      // ─────────────────────────────────────────────────────────────────
+      // Event Content Rendering
+      // Explicitly display event title for both holidays and leaves
+      // ─────────────────────────────────────────────────────────────────
+      eventContent({ event: calendarEvent }) {
+        return {
+          html: `<div style="padding: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${calendarEvent.title || 'Untitled'}
+          </div>`
+        }
       },
+
+      // ─────────────────────────────────────────────────────────────────
+      // Event Styling: Apply color based on category
+      // ─────────────────────────────────────────────────────────────────
+      eventClassNames({ event: calendarEvent }) {
+        // Use `category` field instead of extendedProps
+        const colorName = holidayColors?.[calendarEvent._def.extendedProps?.category || calendarEvent.category]
+
+        return [`bg-${colorName}`]
+      },
+
+      // ─────────────────────────────────────────────────────────────────
+      // Event Click Handler
+      // ─────────────────────────────────────────────────────────────────
       eventClick({ event: clickedEvent }) {
         dispatch(handleSelectEvent(clickedEvent))
         handleAddEventSidebarToggle()
-
-        // * Only grab required field otherwise it goes in infinity loop
-        // ! Always grab all fields rendered by form (even if it get `undefined`) otherwise due to Vue3/Composition API you might get: "object is not extensible"
-        // event.value = grabEventDataFromEventApi(clickedEvent)
-        // isAddNewEventSidebarActive.value = true
       },
+
+      // ─────────────────────────────────────────────────────────────────
+      // Custom Sidebar Toggle Button
+      // ─────────────────────────────────────────────────────────────────
       customButtons: {
         sidebarToggle: {
           icon: 'bi bi-list',
@@ -120,36 +138,41 @@ const Calendar = props => {
           }
         }
       },
-      dateClick(info) {
-        const ev = { ...blankEvent }
-        ev.start = info.date
-        ev.end = info.date
-        ev.allDay = true
 
-        // @ts-ignore
-        dispatch(handleSelectEvent(ev))
-        handleAddEventSidebarToggle()
+      // ─────────────────────────────────────────────────────────────────
+      // Date Click Handler (Role-based)
+      // ─────────────────────────────────────────────────────────────────
+      dateClick(info) {
+        // Call role-based handler if provided
+        if (handleDateClick) {
+          handleDateClick(info)
+        } else {
+          // Default behavior: Create blank event
+          const ev = { ...blankEvent }
+          ev.start = info.date
+          ev.end = info.date
+          ev.allDay = true
+
+          dispatch(handleSelectEvent(ev))
+          handleAddEventSidebarToggle()
+        }
       },
 
-      /*
-              Handle event drop (Also include dragged event)
-              ? Docs: https://fullcalendar.io/docs/eventDrop
-              ? We can use `eventDragStop` but it doesn't return updated event so we have to use `eventDrop` which returns updated event
-            */
+      // ─────────────────────────────────────────────────────────────────
+      // Event Drag/Drop Handler
+      // ─────────────────────────────────────────────────────────────────
       eventDrop({ event: droppedEvent }) {
         dispatch(updateEvent(droppedEvent))
       },
 
-      /*
-              Handle event resize
-              ? Docs: https://fullcalendar.io/docs/eventResize
-            */
+      // ─────────────────────────────────────────────────────────────────
+      // Event Resize Handler
+      // ─────────────────────────────────────────────────────────────────
       eventResize({ event: resizedEvent }) {
         dispatch(updateEvent(resizedEvent))
       },
-      ref: calendarRef,
 
-      // Get direction from app state (store)
+      ref: calendarRef,
       direction
     }
 

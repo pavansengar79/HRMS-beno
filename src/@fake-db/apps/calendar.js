@@ -1,186 +1,257 @@
+/**
+ * Holiday/Calendar Mock Data
+ *
+ * NOTE: This is MOCK DATA for development/testing only.
+ * In production, this should be replaced with real API calls to backend.
+ *
+ * Data structure:
+ * - id: Unique event identifier
+ * - title: Event name/title
+ * - start: Start date (ISO string or Date object)
+ * - end: End date (ISO string or Date object)
+ * - allDay: Boolean indicating full-day event
+ * - eventType: 'HOLIDAY' | 'LEAVE'
+ * - category: Holiday category ('RH', 'NATIONAL', 'OPTIONAL', 'COMPANY')
+ *
+ * @file src/@fake-db/apps/calendar.js
+ */
+
 // ** Mock Adapter
 import mock from 'src/@fake-db/mock'
+import { HOLIDAY_CATEGORIES } from 'src/configs/holidayConstants'
+import { EVENT_TYPES } from 'src/configs/eventTypeConstants'
 
 const date = new Date()
-const nextDay = new Date(new Date().getTime() + 24 * 60 * 60 * 1000)
-
 const nextMonth =
   date.getMonth() === 11 ? new Date(date.getFullYear() + 1, 0, 1) : new Date(date.getFullYear(), date.getMonth() + 1, 1)
 
 const prevMonth =
   date.getMonth() === 11 ? new Date(date.getFullYear() - 1, 0, 1) : new Date(date.getFullYear(), date.getMonth() - 1, 1)
 
+/**
+ * Holiday events data
+ *
+ * IMPORTANT: Use eventType to determine if it's a HOLIDAY or LEAVE
+ * Use category field for filtering holidays, NOT extendedProps
+ * Categories: 'RH', 'NATIONAL', 'OPTIONAL', 'COMPANY'
+ */
 const data = {
   events: [
+    // Restricted Holidays (RH)
     {
       id: 1,
-      url: '',
-      title: 'Design Review',
-      start: date,
-      end: nextDay,
-      allDay: false,
+      title: 'Republic Day',
+      start: new Date(date.getFullYear(), 0, 26),
+      end: new Date(date.getFullYear(), 0, 26),
+      allDay: true,
+      eventType: EVENT_TYPES.HOLIDAY,
+      category: HOLIDAY_CATEGORIES.RH,
       extendedProps: {
-        calendar: 'Business'
+        description: "National holiday celebrating India's constitution"
       }
     },
+
+    // National Holidays
     {
       id: 2,
-      url: '',
-      title: 'Meeting With Client',
-      start: new Date(date.getFullYear(), date.getMonth() + 1, -11),
-      end: new Date(date.getFullYear(), date.getMonth() + 1, -10),
+      title: 'Independence Day',
+      start: new Date(date.getFullYear(), 7, 15),
+      end: new Date(date.getFullYear(), 7, 15),
       allDay: true,
+      eventType: EVENT_TYPES.HOLIDAY,
+      category: HOLIDAY_CATEGORIES.NATIONAL,
       extendedProps: {
-        calendar: 'Business'
+        description: 'National independence celebration'
       }
     },
+
     {
       id: 3,
-      url: '',
-      title: 'Family Trip',
+      title: 'Gandhi Jayanti',
+      start: new Date(date.getFullYear(), 9, 2),
+      end: new Date(date.getFullYear(), 9, 2),
       allDay: true,
-      start: new Date(date.getFullYear(), date.getMonth() + 1, -9),
-      end: new Date(date.getFullYear(), date.getMonth() + 1, -7),
+      eventType: EVENT_TYPES.HOLIDAY,
+      category: HOLIDAY_CATEGORIES.NATIONAL,
       extendedProps: {
-        calendar: 'Holiday'
+        description: 'Birthday of Mahatma Gandhi'
       }
     },
+
+    // Optional Holidays
     {
       id: 4,
-      url: '',
-      title: "Doctor's Appointment",
-      start: new Date(date.getFullYear(), date.getMonth() + 1, -11),
-      end: new Date(date.getFullYear(), date.getMonth() + 1, -10),
+      title: 'Diwali Holiday',
+      start: new Date(date.getFullYear(), 10, 1),
+      end: new Date(date.getFullYear(), 10, 1),
       allDay: true,
+      eventType: EVENT_TYPES.HOLIDAY,
+      category: HOLIDAY_CATEGORIES.OPTIONAL,
       extendedProps: {
-        calendar: 'Personal'
+        description: 'Festival of lights'
       }
     },
+
     {
       id: 5,
-      url: '',
-      title: 'Dart Game?',
-      start: new Date(date.getFullYear(), date.getMonth() + 1, -13),
-      end: new Date(date.getFullYear(), date.getMonth() + 1, -12),
+      title: 'Holi Holiday',
+      start: new Date(date.getFullYear(), 2, 25),
+      end: new Date(date.getFullYear(), 2, 25),
       allDay: true,
+      eventType: EVENT_TYPES.HOLIDAY,
+      category: HOLIDAY_CATEGORIES.OPTIONAL,
       extendedProps: {
-        calendar: 'ETC'
+        description: 'Festival of colors'
       }
     },
+
+    // Company Holidays
     {
       id: 6,
-      url: '',
-      title: 'Meditation',
-      start: new Date(date.getFullYear(), date.getMonth() + 1, -13),
-      end: new Date(date.getFullYear(), date.getMonth() + 1, -12),
+      title: 'Company Annual Event',
+      start: new Date(date.getFullYear(), 5, 15),
+      end: new Date(date.getFullYear(), 5, 17),
       allDay: true,
+      eventType: EVENT_TYPES.HOLIDAY,
+      category: HOLIDAY_CATEGORIES.COMPANY,
       extendedProps: {
-        calendar: 'Personal'
+        description: 'Company annual gathering and celebration'
       }
     },
+
     {
       id: 7,
-      url: '',
-      title: 'Dinner',
-      start: new Date(date.getFullYear(), date.getMonth() + 1, -13),
-      end: new Date(date.getFullYear(), date.getMonth() + 1, -12),
+      title: 'Foundation Day',
+      start: new Date(date.getFullYear(), 2, 10),
+      end: new Date(date.getFullYear(), 2, 10),
       allDay: true,
+      eventType: EVENT_TYPES.HOLIDAY,
+      category: HOLIDAY_CATEGORIES.COMPANY,
       extendedProps: {
-        calendar: 'Family'
+        description: 'Company foundation anniversary'
       }
     },
+
     {
       id: 8,
-      url: '',
-      title: 'Product Review',
-      start: new Date(date.getFullYear(), date.getMonth() + 1, -13),
-      end: new Date(date.getFullYear(), date.getMonth() + 1, -12),
+      title: 'Year-End Celebration',
+      start: new Date(date.getFullYear(), 11, 20),
+      end: new Date(date.getFullYear(), 11, 22),
       allDay: true,
+      eventType: EVENT_TYPES.HOLIDAY,
+      category: HOLIDAY_CATEGORIES.COMPANY,
       extendedProps: {
-        calendar: 'Business'
-      }
-    },
-    {
-      id: 9,
-      url: '',
-      title: 'Monthly Meeting',
-      start: nextMonth,
-      end: nextMonth,
-      allDay: true,
-      extendedProps: {
-        calendar: 'Business'
-      }
-    },
-    {
-      id: 10,
-      url: '',
-      title: 'Monthly Checkup',
-      start: prevMonth,
-      end: prevMonth,
-      allDay: true,
-      extendedProps: {
-        calendar: 'Personal'
+        description: 'Year-end company celebration'
       }
     }
   ]
 }
 
-// ------------------------------------------------
-// GET: Return calendar events
-// ------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// GET: Return calendar events filtered by category
+// ─────────────────────────────────────────────────────────────────────────────
+// Query params: { categories: ['RH', 'NATIONAL', 'OPTIONAL', 'COMPANY'] }
+// Returns:
+//   - All LEAVE events (not filtered by category)
+//   - HOLIDAY events filtered by requested categories
+// ─────────────────────────────────────────────────────────────────────────────
 mock.onGet('/apps/calendar/events').reply(config => {
-  // Get requested calendars as Array
-  const { calendars } = config.params
+  const { categories } = config.params
 
-  return [200, data.events.filter(event => calendars.includes(event.extendedProps.calendar))]
+  // If no categories specified, return all events
+  if (!categories || !Array.isArray(categories)) {
+    return [200, data.events]
+  }
+
+  // Filter:
+  // - Include ALL leaves (eventType === 'LEAVE')
+  // - Include holidays where category matches selected categories
+  return [
+    200,
+    data.events.filter(event => {
+      // Always include leave events
+      if (event.eventType === EVENT_TYPES.LEAVE) {
+        return true
+      }
+      // For holidays, check if category is in selected categories
+      return categories.includes(event.category)
+    })
+  ]
 })
 
-// ------------------------------------------------
-// POST: Add new event
-// ------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// POST: Add new holiday event
+// ─────────────────────────────────────────────────────────────────────────────
+// Payload: { event: { title, start, end, allDay, category } }
+// Returns: { event } with assigned id
+// ─────────────────────────────────────────────────────────────────────────────
 mock.onPost('/apps/calendar/add-event').reply(config => {
-  // Get event from post data
-  const { event } = JSON.parse(config.data).data
-  const { length } = data.events
-  let lastIndex = 0
-  if (length) {
-    lastIndex = data.events[length - 1].id
-  }
-  event.id = lastIndex + 1
-  data.events.push(event)
+  try {
+    const { event } = JSON.parse(config.data).data
+    const { length } = data.events
 
-  return [201, { event }]
+    // Generate next ID
+    let lastIndex = 0
+    if (length) {
+      lastIndex = data.events[length - 1].id
+    }
+
+    event.id = lastIndex + 1
+    data.events.push(event)
+
+    return [201, { event }]
+  } catch (error) {
+    return [400, { error: 'Failed to add event' }]
+  }
 })
 
-// ------------------------------------------------
-// POST: Update Event
-// ------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// POST: Update existing holiday event
+// ─────────────────────────────────────────────────────────────────────────────
+// Payload: { event: { id, title, start, end, allDay, category } }
+// Returns: { event } updated object
+// ─────────────────────────────────────────────────────────────────────────────
 mock.onPost('/apps/calendar/update-event').reply(config => {
-  const eventData = JSON.parse(config.data).data.event
+  try {
+    const eventData = JSON.parse(config.data).data.event
 
-  // Convert Id to number
-  eventData.id = Number(eventData.id)
-  const event = data.events.find(ev => ev.id === Number(eventData.id))
-  if (event) {
-    Object.assign(event, eventData)
+    // Convert Id to number
+    eventData.id = Number(eventData.id)
+    const event = data.events.find(ev => ev.id === Number(eventData.id))
 
-    return [200, { event }]
-  } else {
-    return [400, { error: `Event doesn't exist` }]
+    if (event) {
+      // Update only specific fields, preserve others
+      Object.assign(event, eventData)
+      return [200, { event }]
+    } else {
+      return [404, { error: `Holiday event with ID ${eventData.id} not found` }]
+    }
+  } catch (error) {
+    return [400, { error: 'Failed to update event' }]
   }
 })
 
-// ------------------------------------------------
-// DELETE: Remove Event
-// ------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE: Remove holiday event
+// ─────────────────────────────────────────────────────────────────────────────
+// Query params: { id: number }
+// Returns: Success/error response
+// ─────────────────────────────────────────────────────────────────────────────
 mock.onDelete('/apps/calendar/remove-event').reply(config => {
-  // Get event id from URL
-  const { id } = config.params
+  try {
+    const { id } = config.params
 
-  // Convert Id to number
-  const eventId = Number(id)
-  const eventIndex = data.events.findIndex(ev => ev.id === eventId)
-  data.events.splice(eventIndex, 1)
+    // Convert ID to number
+    const eventId = Number(id)
+    const eventIndex = data.events.findIndex(ev => ev.id === eventId)
 
-  return [200]
+    if (eventIndex === -1) {
+      return [404, { error: `Holiday event with ID ${eventId} not found` }]
+    }
+
+    data.events.splice(eventIndex, 1)
+    return [200, { message: 'Event deleted successfully' }]
+  } catch (error) {
+    return [400, { error: 'Failed to delete event' }]
+  }
 })
