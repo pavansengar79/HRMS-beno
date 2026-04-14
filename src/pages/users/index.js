@@ -49,6 +49,7 @@ import { getInitials } from 'src/@core/utils/get-initials'
 import TableHeader from 'src/views/apps/user/list/TableHeader'
 import AddEmployeeDrawer from 'src/views/apps/user/list/AddUserDrawer'
 import axiosRequest from 'src/utils/AxiosInterceptor'
+import ComposePopup from 'src/views/apps/email/ComposePopup'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -602,7 +603,7 @@ const EmployeeList = () => {
 
           <Divider sx={{ m: '0 !important' }} />
 
-          <TableHeader value={search} handleFilter={handleFilter} toggle={canCreate ? handleOpenAdd : undefined} />
+          <TableHeader value={search} handleFilter={handleFilter} toggle={canCreate ? handleOpenAdd : undefined}  onInviteSuccess={() => dispatch(fetchAllUsers())} />
 
           <DataGrid
             autoHeight rowHeight={62} loading={loading}

@@ -22,7 +22,7 @@ export const fetchAllEmployees = createAsyncThunk(
   'employee/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await axiosRequest.get('/api/v1/employees')
+      const res = await axiosRequest.get('/api/v1/employees?limit=100')
 
       // res.data is the employees array
       return {

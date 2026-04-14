@@ -16,8 +16,11 @@ import AnalyticsWebsiteAnalyticsSlider from 'src/views/dashboards/analytics/Anal
 import KeenSliderWrapper from 'src/@core/styles/libs/keen-slider'
 import ApexChartWrapper from 'src/@core/styles/libs/react-apexcharts'
 import CardStatsWithAreaChart from 'src/@core/components/card-statistics/card-stats-with-area-chart'
+import AuditLogTimeline from 'src/views/dashboards/analytics/AuditLogsSuperAdmin'
 
 const AnalyticsDashboard = () => {
+
+
   return (
     <ApexChartWrapper>
       <KeenSliderWrapper>
@@ -57,7 +60,8 @@ const AnalyticsDashboard = () => {
             <AnalyticsSourceVisits />
           </Grid>
           <Grid item xs={12} lg={8}>
-            <AnalyticsProject />
+            {/* <AnalyticsProject /> */}
+            <AuditLogTimeline />
           </Grid>
         </Grid>
       </KeenSliderWrapper>

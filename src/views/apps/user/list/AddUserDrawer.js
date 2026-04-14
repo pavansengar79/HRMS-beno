@@ -147,7 +147,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
     const fetchDropdowns = async () => {
       try {
         setDropLoading(true)
-        const res = await axiosRequest.get('/api/v1/departments')
+        const res = await axiosRequest.get('/api/v1/departments/flat')
         if (res?.success) setDepartments(res.data || [])
       } catch (err) {
         console.error('Failed to load departments:', err)
@@ -378,7 +378,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   >
                     <MenuItem value=''>Select department</MenuItem>
                     {departments.map(d => (
-                      <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
+                      <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
                     ))}
                   </CustomTextField>
                 )} />

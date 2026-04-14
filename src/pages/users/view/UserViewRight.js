@@ -23,6 +23,9 @@ import UserViewSecurity     from './UserViewSecurity'
 import UserViewBilling      from './UserViewBilling'
 import UserViewNotification from './UserViewNotification'
 import UserViewConnection   from './UserViewConnection'
+import UserProgressionTimeline from './Userprogressiontimeline'
+import { useSelector } from 'react-redux'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styled — unchanged from original
@@ -59,6 +62,10 @@ const UserViewRight = ({ tab, employee }) => {
   const [activeTab, setActiveTab] = useState(tab || 'account')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+
+    const roleSlug    = useSelector(selectRoleSlug)   // e.g. "TENANT_ADMIN"
+
 
   const handleChange = (_, value) => {
     setIsLoading(true)
@@ -102,7 +109,10 @@ const UserViewRight = ({ tab, employee }) => {
         ) : (
           <>
             <TabPanel sx={{ p: 0 }} value='account'>
-              <UserViewAccount employee={employee} />
+              {roleSlug ==="tenent_admin"  ?  <UserProgressionTimeline userId={employee.userId} /> : <UserViewAccount employee={employee} />}
+             
+
+              
             </TabPanel>
             <TabPanel sx={{ p: 0 }} value='security'>
               <UserViewSecurity employee={employee} />

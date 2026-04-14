@@ -48,11 +48,12 @@ const statusColorMap = {
   PENDING:  'warning'
 }
 
-// ─── Plan chip color map ──────────────────────
+// ─── Plan chip color map — updated to match API ──
 const planColorMap = {
+  TRIAL:      'warning',
   BASIC:      'primary',
   STANDARD:   'info',
-  ENTERPRISE: 'warning'
+  ENTERPRISE: 'error'
 }
 
 // ─── Avatar from company name initials ───────
@@ -62,7 +63,7 @@ const renderAvatar = row => (
     color='primary'
     sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
   >
-    {getInitials(row.companyName || 'NA')}
+    {getInitials(row.companyName && row.companyName !== '—' ? row.companyName : 'NA')}
   </CustomAvatar>
 )
 
@@ -96,7 +97,7 @@ const RowOptions = ({ id }) => {
       >
         <MenuItem
           component={Link}
-          href={`/apps/company/view/${id}`}
+          href={`/company/${id}/details/account`}
           onClick={handleClose}
           sx={{ '& svg': { mr: 2 } }}
         >
@@ -116,20 +117,8 @@ const RowOptions = ({ id }) => {
   )
 }
 
-// ─── DataGrid Columns ─────────────────────────
-// Mapped to actual API response fields
+// ─── DataGrid Columns — mapped to tenants API response ───
 const columns = [
-  {
-    flex: 0.05,
-    minWidth: 120,
-    field: 'tenantCode',
-    headerName: 'Code',
-    renderCell: ({ row }) => (
-      <Typography noWrap sx={{ fontWeight: 500, color: 'text.secondary' }}>
-        {row.tenantCode}
-      </Typography>
-    )
-  },
   {
     flex: 0.25,
     minWidth: 250,
@@ -142,7 +131,7 @@ const columns = [
           <Typography
             noWrap
             component={Link}
-            href={`/apps/company/view/${row._id}`}
+            href={`/company/${row.id}/details/account`}
             sx={{
               fontWeight: 500,
               textDecoration: 'none',
@@ -150,7 +139,7 @@ const columns = [
               '&:hover': { color: 'primary.main' }
             }}
           >
-            {row.companyName}
+            {row.companyName && row.companyName !== '—' ? row.companyName : 'Unnamed'}
           </Typography>
           <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>
             {row.companyEmail}
@@ -171,6 +160,17 @@ const columns = [
     )
   },
   {
+    flex: 0.1,
+    minWidth: 90,
+    field: 'employeeCount',
+    headerName: 'Employees',
+    renderCell: ({ row }) => (
+      <Typography noWrap sx={{ color: 'text.secondary', textAlign: 'center', width: '100%' }}>
+        {row.employeeCount ?? 0}
+      </Typography>
+    )
+  },
+  {
     flex: 0.12,
     minWidth: 110,
     field: 'plan',
@@ -187,18 +187,55 @@ const columns = [
     )
   },
   {
-    flex: 0.12,
-    minWidth: 120,
-    field: 'subdomain',
-    headerName: 'Subdomain',
+    flex: 0.14,
+    minWidth: 130,
+    field: 'signupDate',
+    headerName: 'Signed Up',
     renderCell: ({ row }) => (
       <Typography noWrap sx={{ color: 'text.secondary' }}>
-        {row.subdomain}
+        {row.signupDate
+          ? new Date(row.signupDate).toLocaleDateString('en-IN', {
+              day: '2-digit', month: 'short', year: 'numeric'
+            })
+          : '—'}
+      </Typography>
+    )
+  },
+  {
+    flex: 0.14,
+    minWidth: 130,
+    field: 'trialEndsAt',
+    headerName: 'Trial Ends',
+    renderCell: ({ row }) => (
+      <Typography
+        noWrap
+        sx={{ color: row.isTrialExpired ? 'error.main' : 'text.secondary' }}
+      >
+        {row.trialEndsAt
+          ? new Date(row.trialEndsAt).toLocaleDateString('en-IN', {
+              day: '2-digit', month: 'short', year: 'numeric'
+            })
+          : '—'}
       </Typography>
     )
   },
   {
     flex: 0.12,
+    minWidth: 120,
+    field: 'isOnboardingComplete',
+    headerName: 'Onboarded',
+    renderCell: ({ row }) => (
+      <CustomChip
+        rounded
+        skin='light'
+        size='small'
+        label={row.isOnboardingComplete ? 'Complete' : 'Pending'}
+        color={row.isOnboardingComplete ? 'success' : 'warning'}
+      />
+    )
+  },
+  {
+    flex: 0.1,
     minWidth: 100,
     field: 'status',
     headerName: 'Status',
@@ -214,21 +251,22 @@ const columns = [
     )
   },
   {
-    flex: 0.1,
-    minWidth: 100,
+    flex: 0.08,
+    minWidth: 80,
     sortable: false,
     field: 'actions',
     headerName: 'Actions',
-    renderCell: ({ row }) => <RowOptions id={row._id} />
+    renderCell: ({ row }) => <RowOptions id={row.id} />
   }
 ]
 
 // ─── Main Component ───────────────────────────
 const Company = () => {
-  const [value, setValue]                   = useState('')
-  const [statusFilter, setStatusFilter]     = useState('')
-  const [planFilter, setPlanFilter]         = useState('')
-  const [addCompanyOpen, setAddCompanyOpen] = useState(false)
+  const [value, setValue]                     = useState('')
+  const [statusFilter, setStatusFilter]       = useState('')
+  const [planFilter, setPlanFilter]           = useState('')
+  const [onboardingFilter, setOnboardingFilter] = useState('')
+  const [addCompanyOpen, setAddCompanyOpen]   = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
 
   const dispatch  = useDispatch()
@@ -236,36 +274,36 @@ const Company = () => {
   const total     = useSelector(selectCompanyTotal)
   const loading   = useSelector(selectCompanyLoading)
 
-
-  
-
-  // Fetch on mount and when filters change
+  // Fetch on mount
   useEffect(() => {
     dispatch(fetchAllCompanies())
   }, [dispatch])
 
-  // Client-side filter by search value, status, plan
+  // Client-side filter — search, status, plan, onboarding
   const filteredRows = companies.filter(row => {
     const matchSearch =
       !value ||
       row.companyName?.toLowerCase().includes(value.toLowerCase()) ||
-      row.companyEmail?.toLowerCase().includes(value.toLowerCase()) ||
-      row.tenantCode?.toLowerCase().includes(value.toLowerCase())
+      row.companyEmail?.toLowerCase().includes(value.toLowerCase())
 
-    const matchStatus = !statusFilter || row.status === statusFilter
-    const matchPlan   = !planFilter   || row.plan   === planFilter
+    const matchStatus     = !statusFilter     || row.status === statusFilter
+    const matchPlan       = !planFilter       || row.plan   === planFilter
+    const matchOnboarding =
+      onboardingFilter === ''
+        ? true
+        : onboardingFilter === 'complete'
+        ? row.isOnboardingComplete === true
+        : row.isOnboardingComplete === false
 
-    return matchSearch && matchStatus && matchPlan
+    return matchSearch && matchStatus && matchPlan && matchOnboarding
   })
 
   const handleFilter = useCallback(val => setValue(val), [])
-
   const toggleDrawer = () => setAddCompanyOpen(prev => !prev)
 
   return (
     <Grid container spacing={6.5}>
       <Grid item xs={12}>
-        
         <Card>
           {/* Filters */}
           <Box sx={{ p: 5, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -290,15 +328,26 @@ const Company = () => {
               onChange={e => setPlanFilter(e.target.value)}
             >
               <MenuItem value=''>All</MenuItem>
+              <MenuItem value='TRIAL'>Trial</MenuItem>
               <MenuItem value='BASIC'>Basic</MenuItem>
               <MenuItem value='STANDARD'>Standard</MenuItem>
               <MenuItem value='ENTERPRISE'>Enterprise</MenuItem>
             </CustomTextField>
+
+            <CustomTextField
+              select
+              value={onboardingFilter}
+              label='Onboarding'
+              sx={{ minWidth: 160 }}
+              onChange={e => setOnboardingFilter(e.target.value)}
+            >
+              <MenuItem value=''>All</MenuItem>
+              <MenuItem value='complete'>Complete</MenuItem>
+              <MenuItem value='pending'>Pending</MenuItem>
+            </CustomTextField>
           </Box>
 
           <Divider sx={{ m: '0 !important' }} />
-
-
 
           <TableHeader
             value={value}
@@ -312,7 +361,7 @@ const Company = () => {
             loading={loading}
             rows={filteredRows}
             columns={columns}
-            getRowId={row => row._id}        // API uses _id not id
+            getRowId={row => row.id}         // MongoDB document uses id
             disableRowSelectionOnClick
             pageSizeOptions={[10, 25, 50]}
             paginationModel={paginationModel}

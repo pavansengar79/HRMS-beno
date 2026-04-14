@@ -37,6 +37,8 @@ import CustomAvatar from 'src/@core/components/mui/avatar'
 
 // ** Drawer (shared for Add + Edit)
 import AddDepartmentDrawer from './departmentDrawer'
+import TreeView from '../components/tree-view'
+import TreeViewCustomized from 'src/views/components/tree-view/TreeViewCustomized'
 
 // ---------------------------------------------------------------------------
 // DataGrid columns
@@ -360,99 +362,11 @@ const DepartmentPage = () => {
 
   return (
     <>
-      <Card>
-        <CardHeader
-          title='Departments'
-          subheader='Employee listing by department'
-        />
-        <CardContent sx={{ '& .MuiTabPanel-root': { p: 0, my: 6 } }}>
-          <TabContext value={activeTab}>
-
-            <TabList
-              variant='scrollable'
-              scrollButtons='auto'
-              onChange={handleTabChange}
-              aria-label='department tabs'
-              sx={{
-                border: '0 !important',
-                '& .MuiTabs-indicator': { display: 'none' },
-                '& .MuiTab-root': { p: 0, minWidth: 0, borderRadius: '10px', '&:not(:last-child)': { mr: 4 } }
-              }}
-            >
-              {departments.map(dept => (
-                <Tab
-                  key={dept._id}
-                  value={dept._id}
-                  label={
-                    <DeptTab
-                      dept={dept}
-                      count={0}
-                      isActive={activeTab === dept._id}
-                      theme={theme}
-                      canEdit={canEdit}
-                      canDelete={canDelete}
-                      onEdit={openEditDrawer}
-                      onDelete={dept => setDeleteTarget(dept)}
-                    />
-                  }
-                />
-              ))}
-
-              {/* Add tab — only if user has department.create */}
-              {canCreate && (
-                <Tab
-                  value='add'
-                  onClick={e => { e.preventDefault(); openAddDrawer() }}
-                  label={
-                    <Box
-                      sx={{
-                        width: 110,
-                        height: 94,
-                        display: 'flex',
-                        alignItems: 'center',
-                        borderRadius: '10px',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        border: `1px dashed ${theme.palette.divider}`
-                      }}
-                    >
-                      <Avatar variant='rounded' sx={{ width: 34, height: 34, backgroundColor: 'action.selected' }}>
-                        <Icon icon='tabler:plus' />
-                      </Avatar>
-                    </Box>
-                  }
-                />
-              )}
-            </TabList>
-
-            {departments.map(dept => (
-              <TabPanel key={dept._id} value={dept._id}>
-                <DepartmentEmployeeTable employees={[]} />
-              </TabPanel>
-            ))}
-
-          </TabContext>
-        </CardContent>
-      </Card>
-
-      {/* Drawer — Add or Edit based on editingDept */}
-      {(canCreate || canEdit) && (
-        <AddDepartmentDrawer
-          open={drawerOpen}
-          toggle={closeDrawer}
-          onSuccess={handleDrawerSuccess}
-          editingDept={editingDept}
-        />
-      )}
-
-      {/* Delete confirm dialog */}
-      <ConfirmDeleteDialog
-        open={Boolean(deleteTarget)}
-        deptName={deleteTarget?.name ?? ''}
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => !deleting && setDeleteTarget(null)}
-        deleting={deleting}
-      />
+    <Card>
+ <TreeViewCustomized />
+    </Card>
+      
+     
     </>
   )
 }
