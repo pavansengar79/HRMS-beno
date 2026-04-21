@@ -5,7 +5,7 @@ import LeaveManagement from 'src/views/leavemanagement/leaveManagement'
 
 // ** Leave Management Main Component
 
-const VALID_TABS = ['requests', 'approval', 'types', 'category', 'balance', 'apply']
+const VALID_TABS = ['policy', 'requests', 'approval', 'types', 'category', 'balance', 'apply']
 
 const LeaveTab = () => {
   const router = useRouter()
@@ -29,3 +29,4 @@ const LeaveTab = () => {
 }
 
 export default LeaveTab
+

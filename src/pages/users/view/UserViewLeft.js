@@ -1,418 +1,516 @@
 // src/views/apps/user/view/UserViewLeft.jsx
+// Employee left panel — all sections independently editable
+// PUT /api/v1/employees/:id  (axiosRequest, res.data directly)
 
-// ** React Imports
 import { useState } from 'react'
 
 // ** MUI Imports
 import Box from '@mui/material/Box'
-import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
-import Button from '@mui/material/Button'
-import Dialog from '@mui/material/Dialog'
-import Divider from '@mui/material/Divider'
-import Typography from '@mui/material/Typography'
 import CardContent from '@mui/material/CardContent'
-import CardActions from '@mui/material/CardActions'
-import DialogTitle from '@mui/material/DialogTitle'
-import DialogContent from '@mui/material/DialogContent'
-import DialogActions from '@mui/material/DialogActions'
-import DialogContentText from '@mui/material/DialogContentText'
+import Typography from '@mui/material/Typography'
+import Avatar from '@mui/material/Avatar'
+import Button from '@mui/material/Button'
+import Chip from '@mui/material/Chip'
+import Divider from '@mui/material/Divider'
+import IconButton from '@mui/material/IconButton'
+import Link from '@mui/material/Link'
+import MenuItem from '@mui/material/MenuItem'
+import Grid from '@mui/material/Grid'
 import CircularProgress from '@mui/material/CircularProgress'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
 
 // ** Custom Components
-import CustomChip from 'src/@core/components/mui/chip'
-import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
-import { getInitials } from 'src/@core/utils/get-initials'
 
 // ** Redux
-import { useDispatch, useSelector } from 'react-redux'
+import { useDispatch } from 'react-redux'
 import { updateEmployee } from 'src/store/employee/employeeSlice'
-import { selectPermissions } from 'src/store/auth/authSlice'
 
-// ** Third Party
-import { useForm, Controller } from 'react-hook-form'
-import * as yup from 'yup'
-import { yupResolver } from '@hookform/resolvers/yup'
+// ** Axios + Toast
+import axiosRequest from 'src/utils/AxiosInterceptor'
+import toast from 'react-hot-toast'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────────────────────
-const STATUS_COLOR = {
-  ACTIVE:     'success',
-  INACTIVE:   'secondary',
-  TERMINATED: 'error',
-  ON_LEAVE:   'warning',
+// ─── Constants ────────────────────────────────────────────────────────────────
+const GENDERS        = ['MALE', 'FEMALE', 'OTHER']
+const BLOOD_GROUPS   = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+const MARITAL_STATUS = ['SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED']
+const ACCOUNT_TYPES  = ['SAVINGS', 'CURRENT']
+
+const fmt = iso => iso
+  ? new Date(iso).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
+  : '—'
+
+const val = v => v || '—'
+
+// ─── API call ─────────────────────────────────────────────────────────────────
+const callUpdate = async (employeeId, payload) => {
+  const res = await axiosRequest.put(`/api/v1/employees/${employeeId}`, payload)
+  return res.data
 }
 
-const EMPLOYMENT_TYPE_LABEL = {
-  FULL_TIME: 'Full Time',
-  PART_TIME: 'Part Time',
-  CONTRACT:  'Contract',
-  INTERN:    'Intern',
-}
+// ─── Reusable sub-components ──────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Edit schema — only fields PUT /api/v1/employees/:id accepts
-// ─────────────────────────────────────────────────────────────────────────────
-const editSchema = yup.object().shape({
-  phone:       yup.string().matches(/^[0-9]{10}$/, 'Enter valid 10-digit number').required('Phone is required'),
-  salaryBasic: yup.number().typeError('Must be a number').min(0).optional(),
-  salaryHra:   yup.number().typeError('Must be a number').min(0).optional(),
-})
+// View-mode info row
+const InfoRow = ({ icon, label, value, isLink, linkHref }) => (
+  <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1.75 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 150, color: 'text.secondary' }}>
+      <Box sx={{ color: 'text.secondary', display: 'flex' }}>{icon}</Box>
+      <Typography variant='body2' color='text.secondary' sx={{ ml: 1 }}>
+        {label}
+      </Typography>
+    </Box>
+    {isLink ? (
+      <Link href={linkHref} sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+        <Typography variant='body2'>{value}</Typography>
+      </Link>
+    ) : (
+      <Typography variant='body2' sx={{ color: 'text.primary', fontWeight: 500 }}>
+        {val(value)}
+      </Typography>
+    )}
+  </Box>
+)
 
-// ─────────────────────────────────────────────────────────────────────────────
-// UserViewLeft
-// ─────────────────────────────────────────────────────────────────────────────
-const UserViewLeft = ({ employee }) => {
-  const dispatch    = useDispatch()
-  const permissions = useSelector(selectPermissions)
-  const canEdit     = permissions.includes('employee.update')
+// Section header with independent edit/save/cancel icons
+const SectionHeader = ({ title, editing, saving, onEdit, onSave, onCancel, canEdit = true }) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+    <Typography variant='subtitle2' sx={{ fontWeight: 600 }}>{title}</Typography>
+    {canEdit && (
+      <Box sx={{ display: 'flex', gap: 0.25 }}>
+        {editing ? (
+          <>
+            <IconButton size='small' color='primary' onClick={onSave} disabled={saving}>
+              {saving ? <CircularProgress size={14} /> : <Icon icon='tabler:check' fontSize={16} />}
+            </IconButton>
+            <IconButton size='small' onClick={onCancel} disabled={saving}>
+              <Icon icon='tabler:x' fontSize={16} />
+            </IconButton>
+          </>
+        ) : (
+          <IconButton size='small' onClick={onEdit}>
+            <Icon icon='tabler:edit' fontSize={16} />
+          </IconButton>
+        )}
+      </Box>
+    )}
+  </Box>
+)
 
-  const [openEdit, setOpenEdit]       = useState(false)
-  const [suspendOpen, setSuspendOpen] = useState(false)
-  const [suspending, setSuspending]   = useState(false)
+// ─── Section: Personal Info ───────────────────────────────────────────────────
+const PersonalInfoSection = ({ employee, onUpdated }) => {
+  const [editing, setEditing] = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const [form,    setForm]    = useState({})
 
-  const {
-    control, handleSubmit, reset,
-    formState: { errors, isSubmitting }
-  } = useForm({
-    resolver: yupResolver(editSchema),
-    defaultValues: {
-      phone:       '',
-      salaryBasic: '',
-      salaryHra:   '',
-    }
-  })
-
-  if (!employee) return null
-
-  // ── Helpers — API uses departmentId object not department ──────────────────
-  // { _id: "...", name: "ITI" }
-  const deptName  = employee.departmentId?.name || employee.department?.name || '—'
-  const deptId    = employee.departmentId?._id  || employee.department?._id  || '—'
-
-  const joiningFormatted = employee.joiningDate
-    ? new Date(employee.joiningDate).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })
-    : '—'
-
-  // ── Edit submit ────────────────────────────────────────────────────────────
-  const onEditSubmit = async data => {
-    const payload = {
-      phone:  data.phone,
-      salary: {
-        ...(data.salaryBasic && { basic: Number(data.salaryBasic) }),
-        ...(data.salaryHra   && { hra:   Number(data.salaryHra)   }),
-      }
-    }
-    const result = await dispatch(updateEmployee({ id: employee._id, payload }))
-    if (updateEmployee.fulfilled.match(result)) {
-      setOpenEdit(false)
-    }
-  }
-
-  // ── Open edit — pre-fill current values ────────────────────────────────────
-  const handleOpenEdit = () => {
-    reset({
-      phone:       employee.phone              || '',
-      salaryBasic: employee.salary?.basic      || '',
-      salaryHra:   employee.salary?.hra        || '',
+  const startEdit = () => {
+    setForm({
+      phone:         employee.phone         || '',
+      alternatePhone:employee.alternatePhone|| '',
+      dateOfBirth:   employee.dateOfBirth?.slice(0,10) || '',
+      gender:        employee.gender        || '',
+      bloodGroup:    employee.bloodGroup    || '',
+      maritalStatus: employee.maritalStatus || '',
+      nationality:   employee.nationality   || '',
+      numberOfChildren: employee.numberOfChildren ?? '',
     })
-    setOpenEdit(true)
+    setEditing(true)
   }
 
-  // ── Suspend ────────────────────────────────────────────────────────────────
-  const handleSuspend = async () => {
+  const handleSave = async () => {
+    setSaving(true)
     try {
-      setSuspending(true)
-      await dispatch(updateEmployee({ id: employee._id, payload: { status: 'INACTIVE' } }))
-      setSuspendOpen(false)
+      const updated = await callUpdate(employee._id, {
+        phone:          form.phone,
+        alternatePhone: form.alternatePhone || undefined,
+        dateOfBirth:    form.dateOfBirth    || undefined,
+        gender:         form.gender         || undefined,
+        bloodGroup:     form.bloodGroup     || undefined,
+        maritalStatus:  form.maritalStatus  || undefined,
+        nationality:    form.nationality    || undefined,
+        numberOfChildren: form.numberOfChildren !== '' ? Number(form.numberOfChildren) : undefined,
+      })
+      onUpdated(updated)
+      setEditing(false)
+      toast.success('Personal info updated')
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Update failed')
     } finally {
-      setSuspending(false)
+      setSaving(false)
+    }
+  }
+
+  const onChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }))
+  const ic = { fontSize: 16, color: 'text.secondary' }
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      <SectionHeader title='Personal Information' editing={editing} saving={saving}
+        onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)} />
+
+      {editing ? (
+        <Grid container spacing={2}>
+          <Grid item xs={6}>
+            <CustomTextField fullWidth size='small' label='Phone *' name='phone' value={form.phone} onChange={onChange} />
+          </Grid>
+          <Grid item xs={6}>
+            <CustomTextField fullWidth size='small' label='Alternate Phone' name='alternatePhone' value={form.alternatePhone} onChange={onChange} />
+          </Grid>
+          <Grid item xs={6}>
+            <CustomTextField fullWidth size='small' label='Date of Birth' name='dateOfBirth' type='date'
+              InputLabelProps={{ shrink: true }} value={form.dateOfBirth} onChange={onChange} />
+          </Grid>
+          <Grid item xs={6}>
+            <CustomTextField select fullWidth size='small' label='Gender' name='gender' value={form.gender} onChange={onChange}>
+              <MenuItem value=''><em>Select</em></MenuItem>
+              {GENDERS.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+            </CustomTextField>
+          </Grid>
+          <Grid item xs={6}>
+            <CustomTextField select fullWidth size='small' label='Blood Group' name='bloodGroup' value={form.bloodGroup} onChange={onChange}>
+              <MenuItem value=''><em>Select</em></MenuItem>
+              {BLOOD_GROUPS.map(b => <MenuItem key={b} value={b}>{b}</MenuItem>)}
+            </CustomTextField>
+          </Grid>
+          <Grid item xs={6}>
+            <CustomTextField select fullWidth size='small' label='Marital Status' name='maritalStatus' value={form.maritalStatus} onChange={onChange}>
+              <MenuItem value=''><em>Select</em></MenuItem>
+              {MARITAL_STATUS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+            </CustomTextField>
+          </Grid>
+          <Grid item xs={6}>
+            <CustomTextField fullWidth size='small' label='Nationality' name='nationality' value={form.nationality} onChange={onChange} />
+          </Grid>
+          <Grid item xs={6}>
+            <CustomTextField fullWidth size='small' label='No. of Children' name='numberOfChildren'
+              type='number' value={form.numberOfChildren} onChange={onChange} />
+          </Grid>
+        </Grid>
+      ) : (
+        <>
+          <InfoRow icon={<Icon icon='tabler:phone' fontSize={ic.fontSize} />}         label='Phone'         value={employee.phone} />
+          <InfoRow icon={<Icon icon='tabler:phone-plus' fontSize={ic.fontSize} />}    label='Alt. Phone'    value={employee.alternatePhone} />
+          <InfoRow icon={<Icon icon='tabler:cake' fontSize={ic.fontSize} />}          label='Birthday'      value={fmt(employee.dateOfBirth)} />
+          <InfoRow icon={<Icon icon='tabler:gender-bigender' fontSize={ic.fontSize}/>}label='Gender'        value={employee.gender} />
+          <InfoRow icon={<Icon icon='tabler:heart-rate-monitor' fontSize={ic.fontSize}/>} label='Blood Group' value={employee.bloodGroup} />
+          <InfoRow icon={<Icon icon='tabler:rings' fontSize={ic.fontSize} />}         label='Marital Status' value={employee.maritalStatus} />
+          <InfoRow icon={<Icon icon='tabler:world' fontSize={ic.fontSize} />}         label='Nationality'   value={employee.nationality} />
+          <InfoRow icon={<Icon icon='tabler:baby-carriage' fontSize={ic.fontSize} />} label='Children'      value={String(employee.numberOfChildren ?? '0')} />
+        </>
+      )}
+    </Box>
+  )
+}
+
+// ─── Section: Address ─────────────────────────────────────────────────────────
+const AddressSection = ({ employee, onUpdated }) => {
+  const [editing, setEditing] = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const [form,    setForm]    = useState({})
+
+  const startEdit = () => {
+    const cur = employee.currentAddress   || {}
+    const per = employee.permanentAddress || {}
+    setForm({
+      cur_street:  cur.street  || '', cur_city:    cur.city    || '',
+      cur_state:   cur.state   || '', cur_country: cur.country || '', cur_pincode: cur.pincode || '',
+      per_street:  per.street  || '', per_city:    per.city    || '',
+      per_state:   per.state   || '', per_country: per.country || '', per_pincode: per.pincode || '',
+    })
+    setEditing(true)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const updated = await callUpdate(employee._id, {
+        currentAddress:   { street: form.cur_street, city: form.cur_city, state: form.cur_state, country: form.cur_country, pincode: form.cur_pincode },
+        permanentAddress: { street: form.per_street, city: form.per_city, state: form.per_state, country: form.per_country, pincode: form.per_pincode },
+      })
+      onUpdated(updated)
+      setEditing(false)
+      toast.success('Address updated')
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Update failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const onChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }))
+  const ic = { fontSize: 16 }
+  const cur = employee.currentAddress   || {}
+  const per = employee.permanentAddress || {}
+  const fmtAddr = a => [a.street, a.city, a.state, a.pincode].filter(Boolean).join(', ') || '—'
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      <SectionHeader title='Address' editing={editing} saving={saving}
+        onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)} />
+
+      {editing ? (
+        <Box>
+          <Typography variant='caption' sx={{ color: 'text.secondary', fontWeight: 600, mb: 1, display: 'block' }}>
+            Current Address
+          </Typography>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={12}><CustomTextField fullWidth size='small' label='Street' name='cur_street' value={form.cur_street} onChange={onChange} /></Grid>
+            <Grid item xs={6}><CustomTextField fullWidth size='small' label='City' name='cur_city' value={form.cur_city} onChange={onChange} /></Grid>
+            <Grid item xs={6}><CustomTextField fullWidth size='small' label='State' name='cur_state' value={form.cur_state} onChange={onChange} /></Grid>
+            <Grid item xs={6}><CustomTextField fullWidth size='small' label='Country' name='cur_country' value={form.cur_country} onChange={onChange} /></Grid>
+            <Grid item xs={6}><CustomTextField fullWidth size='small' label='Pincode' name='cur_pincode' value={form.cur_pincode} onChange={onChange} /></Grid>
+          </Grid>
+          <Typography variant='caption' sx={{ color: 'text.secondary', fontWeight: 600, mb: 1, display: 'block' }}>
+            Permanent Address
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12}><CustomTextField fullWidth size='small' label='Street' name='per_street' value={form.per_street} onChange={onChange} /></Grid>
+            <Grid item xs={6}><CustomTextField fullWidth size='small' label='City' name='per_city' value={form.per_city} onChange={onChange} /></Grid>
+            <Grid item xs={6}><CustomTextField fullWidth size='small' label='State' name='per_state' value={form.per_state} onChange={onChange} /></Grid>
+            <Grid item xs={6}><CustomTextField fullWidth size='small' label='Country' name='per_country' value={form.per_country} onChange={onChange} /></Grid>
+            <Grid item xs={6}><CustomTextField fullWidth size='small' label='Pincode' name='per_pincode' value={form.per_pincode} onChange={onChange} /></Grid>
+          </Grid>
+        </Box>
+      ) : (
+        <>
+          <InfoRow icon={<Icon icon='tabler:home' fontSize={ic.fontSize} />}      label='Current'   value={fmtAddr(cur)} />
+          <InfoRow icon={<Icon icon='tabler:building' fontSize={ic.fontSize} />}  label='Permanent' value={fmtAddr(per)} />
+        </>
+      )}
+    </Box>
+  )
+}
+
+// ─── Section: Bank Details ────────────────────────────────────────────────────
+const BankSection = ({ employee, onUpdated }) => {
+  const [editing, setEditing] = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const [form,    setForm]    = useState({})
+
+  const startEdit = () => {
+    const b = employee.bankDetails || {}
+    setForm({
+      bankName:      b.bankName      || '',
+      accountNumber: b.accountNumber || '',
+      ifscCode:      b.ifscCode      || '',
+      branchName:    b.branchName    || '',
+      accountType:   b.accountType   || 'SAVINGS',
+    })
+    setEditing(true)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const updated = await callUpdate(employee._id, { bankDetails: form })
+      onUpdated(updated)
+      setEditing(false)
+      toast.success('Bank details updated')
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Update failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const onChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }))
+  const b  = employee.bankDetails || {}
+  const ic = { fontSize: 16 }
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      <SectionHeader title='Bank Details' editing={editing} saving={saving}
+        onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)} />
+
+      {editing ? (
+        <Grid container spacing={2}>
+          <Grid item xs={12}><CustomTextField fullWidth size='small' label='Bank Name' name='bankName' value={form.bankName} onChange={onChange} /></Grid>
+          <Grid item xs={6}><CustomTextField fullWidth size='small' label='Account Number' name='accountNumber' value={form.accountNumber} onChange={onChange} /></Grid>
+          <Grid item xs={6}><CustomTextField fullWidth size='small' label='IFSC Code' name='ifscCode' value={form.ifscCode} onChange={onChange} /></Grid>
+          <Grid item xs={6}><CustomTextField fullWidth size='small' label='Branch' name='branchName' value={form.branchName} onChange={onChange} /></Grid>
+          <Grid item xs={6}>
+            <CustomTextField select fullWidth size='small' label='Account Type' name='accountType' value={form.accountType} onChange={onChange}>
+              {ACCOUNT_TYPES.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+            </CustomTextField>
+          </Grid>
+        </Grid>
+      ) : (
+        <>
+          <InfoRow icon={<Icon icon='tabler:building-bank' fontSize={ic.fontSize} />} label='Bank'     value={b.bankName} />
+          <InfoRow icon={<Icon icon='tabler:credit-card' fontSize={ic.fontSize} />}   label='Account'  value={b.accountNumber} />
+          <InfoRow icon={<Icon icon='tabler:hash' fontSize={ic.fontSize} />}          label='IFSC'     value={b.ifscCode} />
+          <InfoRow icon={<Icon icon='tabler:map-pin' fontSize={ic.fontSize} />}       label='Branch'   value={b.branchName} />
+          <InfoRow icon={<Icon icon='tabler:wallet' fontSize={ic.fontSize} />}        label='Type'     value={b.accountType} />
+        </>
+      )}
+    </Box>
+  )
+}
+
+// ─── Section: Emergency Contact ───────────────────────────────────────────────
+const EmergencySection = ({ employee, onUpdated }) => {
+  const [editing, setEditing] = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const [form,    setForm]    = useState({})
+
+  const startEdit = () => {
+    const e = employee.emergencyContact || {}
+    setForm({ name: e.name || '', phone: e.phone || '', relation: e.relation || '' })
+    setEditing(true)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const updated = await callUpdate(employee._id, { emergencyContact: form })
+      onUpdated(updated)
+      setEditing(false)
+      toast.success('Emergency contact updated')
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Update failed')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const onChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }))
+  const ec = employee.emergencyContact || {}
+  const ic = { fontSize: 16 }
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      <SectionHeader title='Emergency Contact' editing={editing} saving={saving}
+        onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)} />
+
+      {editing ? (
+        <Grid container spacing={2}>
+          <Grid item xs={12}><CustomTextField fullWidth size='small' label='Name' name='name' value={form.name} onChange={onChange} /></Grid>
+          <Grid item xs={6}><CustomTextField fullWidth size='small' label='Phone' name='phone' value={form.phone} onChange={onChange} /></Grid>
+          <Grid item xs={6}><CustomTextField fullWidth size='small' label='Relation' name='relation' value={form.relation} onChange={onChange} /></Grid>
+        </Grid>
+      ) : (
+        <>
+          <InfoRow icon={<Icon icon='tabler:user' fontSize={ic.fontSize} />}        label='Name'     value={ec.name} />
+          <InfoRow icon={<Icon icon='tabler:phone' fontSize={ic.fontSize} />}       label='Phone'    value={ec.phone} />
+          <InfoRow icon={<Icon icon='tabler:users' fontSize={ic.fontSize} />}       label='Relation' value={ec.relation} />
+        </>
+      )}
+    </Box>
+  )
+}
+
+// ─── Section: About ───────────────────────────────────────────────────────────
+const AboutSection = ({ employee, onUpdated }) => {
+  const [editing, setEditing] = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const [about,   setAbout]   = useState('')
+
+  const startEdit = () => { setAbout(employee.about || ''); setEditing(true) }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const updated = await callUpdate(employee._id, { about })
+      onUpdated(updated)
+      setEditing(false)
+      toast.success('About updated')
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Update failed')
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
-    <Grid container spacing={6}>
-      <Grid item xs={12}>
-        <Card>
+    <Box sx={{ mb: 3 }}>
+      <SectionHeader title='About' editing={editing} saving={saving}
+        onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)} />
 
-          {/* ── Avatar + Name + Designation ─────────────────────── */}
-          <CardContent sx={{ pt: 13.5, display: 'flex', alignItems: 'center', flexDirection: 'column' }}>
-            <CustomAvatar
-              skin='light'
-              variant='rounded'
-              color='primary'
-              sx={{ width: 100, height: 100, mb: 4, fontSize: '3rem' }}
+      {editing ? (
+        <CustomTextField
+          fullWidth multiline rows={3} size='small' label='About'
+          value={about} onChange={e => setAbout(e.target.value)}
+        />
+      ) : (
+        <Typography variant='body2' sx={{ color: 'text.secondary', lineHeight: 1.75 }}>
+          {employee.about || <span style={{ color: '#94a3b8' }}>Not added yet.</span>}
+        </Typography>
+      )}
+    </Box>
+  )
+}
+
+// ─── Main UserViewLeft ────────────────────────────────────────────────────────
+const UserViewLeft = ({ employee: initialEmployee, canEdit = true }) => {
+  // Local employee state — updated optimistically after each section save
+  const [employee, setEmployee] = useState(initialEmployee)
+
+  const onUpdated = updated => setEmployee(updated)
+
+  if (!employee) return null
+
+  const joiningFormatted = fmt(employee.joiningDate)
+  const deptName  = employee.departmentId?.name  || '—'
+  const desgName  = employee.designationId?.name || employee.employmentType || '—'
+  const managerName = employee.reportingManagerId?.name || '—'
+  const ic = { fontSize: 16 }
+
+  return (
+    <Card sx={{ position: 'relative' }}>
+      <CardContent sx={{ p: 3 }}>
+
+        {/* ── Avatar banner ─────────────────────────────────────── */}
+        <Box sx={{ borderRadius: 2, overflow: 'hidden', mb: 3 }}>
+          <Box sx={{ height: 100, bgcolor: 'primary.light' }} />
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: -7, px: 2, pb: 2 }}>
+            <Avatar
+              src={employee.profilePhoto}
+              sx={{ width: 80, height: 80, border: '4px solid', borderColor: 'background.paper', fontSize: '1.6rem', fontWeight: 600 }}
             >
-              {getInitials(employee.name || 'NA')}
-            </CustomAvatar>
+              {!employee.profilePhoto && (employee.name?.[0] || 'U')}
+            </Avatar>
 
-            <Typography variant='h4' sx={{ mb: 3 }}>
-              {employee.name}
-            </Typography>
-
-            <CustomChip
-              rounded skin='light' size='small'
-              label={EMPLOYMENT_TYPE_LABEL[employee.employmentType] || employee.employmentType || 'Employee'}
-              color='primary'
-              sx={{ textTransform: 'capitalize' }}
-            />
-          </CardContent>
-
-          {/* ── Stats row ──────────────────────────────────────── */}
-          <CardContent sx={{ pt: theme => `${theme.spacing(2)} !important` }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-
-              <Box sx={{ mr: 8, display: 'flex', alignItems: 'center' }}>
-                <CustomAvatar skin='light' variant='rounded' sx={{ mr: 2.5, width: 38, height: 38 }}>
-                  <Icon fontSize='1.75rem' icon='tabler:building' />
-                </CustomAvatar>
-                <div>
-                  <Typography sx={{ fontWeight: 500, color: 'text.secondary' }}>
-                    {deptName}
-                  </Typography>
-                  <Typography variant='body2'>Department</Typography>
-                </div>
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <CustomAvatar skin='light' variant='rounded' sx={{ mr: 2.5, width: 38, height: 38 }}>
-                  <Icon fontSize='1.75rem' icon='tabler:calendar' />
-                </CustomAvatar>
-                <div>
-                  <Typography sx={{ fontWeight: 500, color: 'text.secondary' }}>
-                    {joiningFormatted}
-                  </Typography>
-                  <Typography variant='body2'>Joined</Typography>
-                </div>
-              </Box>
-
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1 }}>
+              <Typography variant='h6' sx={{ fontWeight: 600 }}>{employee.name}</Typography>
+              {employee.email && <Icon icon='tabler:circle-check-filled' fontSize={18} color='#22c55e' />}
             </Box>
-          </CardContent>
 
-          <Divider sx={{ my: '0 !important', mx: 6 }} />
-
-          {/* ── Details ────────────────────────────────────────── */}
-          <CardContent sx={{ pb: 4 }}>
-            <Typography variant='body2' sx={{ color: 'text.disabled', textTransform: 'uppercase' }}>
-              Details
-            </Typography>
-
-            <Box sx={{ pt: 4 }}>
-              {[
-                { label: 'Employee ID', value: employee.employeeId },
-                { label: 'Full Name',   value: employee.name },
-                { label: 'Email',       value: employee.email },
-                { label: 'Phone',       value: employee.phone },
-                { label: 'Department',  value: deptName },
-                { label: 'Type',        value: EMPLOYMENT_TYPE_LABEL[employee.employmentType] || employee.employmentType },
-                { label: 'Joined',      value: joiningFormatted },
-              ].map(({ label, value }) => (
-                <Box key={label} sx={{ display: 'flex', mb: 3 }}>
-                  <Typography sx={{ mr: 2, fontWeight: 500, color: 'text.secondary', minWidth: 110 }}>
-                    {label}:
-                  </Typography>
-                  <Typography sx={{ color: 'text.secondary' }}>
-                    {value || '—'}
-                  </Typography>
-                </Box>
-              ))}
-
-              {/* Status chip */}
-              <Box sx={{ display: 'flex', mb: 3, alignItems: 'center' }}>
-                <Typography sx={{ mr: 2, fontWeight: 500, color: 'text.secondary', minWidth: 110 }}>
-                  Status:
-                </Typography>
-                <CustomChip
-                  rounded skin='light' size='small'
-                  label={employee.status || 'ACTIVE'}
-                  color={STATUS_COLOR[employee.status] || 'success'}
-                  sx={{ textTransform: 'capitalize' }}
-                />
-              </Box>
+            <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Chip label={desgName} size='small' sx={{ bgcolor: 'action.hover', fontSize: '0.75rem' }} />
+              <Chip
+                label={employee.status || 'ACTIVE'}
+                size='small'
+                color={employee.status === 'ACTIVE' ? 'success' : 'default'}
+                variant='tonal'
+                sx={{ fontSize: '0.75rem' }}
+              />
             </Box>
-          </CardContent>
+          </Box>
+        </Box>
 
-          {/* ── Salary ─────────────────────────────────────────── */}
-          {employee.salary && Object.values(employee.salary).some(Boolean) && (
-            <>
-              <Divider sx={{ my: '0 !important', mx: 6 }} />
-              <CardContent sx={{ pb: 4 }}>
-                <Typography variant='body2' sx={{ color: 'text.disabled', textTransform: 'uppercase', mb: 3 }}>
-                  Salary
-                </Typography>
-                {[
-                  { label: 'Basic',            value: employee.salary.basic },
-                  { label: 'HRA',              value: employee.salary.hra },
-                  { label: 'Travel Allowance', value: employee.salary.travelAllowance },
-                  { label: 'PF',               value: employee.salary.pf },
-                  { label: 'TDS',              value: employee.salary.tds },
-                ].filter(s => s.value).map(({ label, value }) => (
-                  <Box key={label} sx={{ display: 'flex', mb: 2 }}>
-                    <Typography sx={{ mr: 2, fontWeight: 500, color: 'text.secondary', minWidth: 130 }}>
-                      {label}:
-                    </Typography>
-                    <Typography sx={{ color: 'text.secondary' }}>
-                      ₹{Number(value).toLocaleString('en-IN')}
-                    </Typography>
-                  </Box>
-                ))}
-              </CardContent>
-            </>
-          )}
+        {/* ── Quick info (read-only) ─────────────────────────────── */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant='subtitle2' sx={{ fontWeight: 600, mb: 1.5 }}>Quick Info</Typography>
+          <InfoRow icon={<Icon icon='tabler:id-badge-2' fontSize={ic.fontSize} />}   label='Employee ID'  value={employee.employeeId} />
+          <InfoRow icon={<Icon icon='tabler:mail' fontSize={ic.fontSize} />}         label='Email'        value={employee.email} isLink linkHref={`mailto:${employee.email}`} />
+          <InfoRow icon={<Icon icon='tabler:building-community' fontSize={ic.fontSize} />} label='Department' value={deptName} />
+          <InfoRow icon={<Icon icon='tabler:calendar-event' fontSize={ic.fontSize} />} label='Joined'     value={joiningFormatted} />
+          <InfoRow icon={<Icon icon='tabler:user-circle' fontSize={ic.fontSize} />}  label='Reports to'  value={managerName} />
+        </Box>
 
-          {/* ── Actions ────────────────────────────────────────── */}
-          {canEdit && (
-            <CardActions sx={{ display: 'flex', justifyContent: 'center' }}>
-              <Button variant='contained' sx={{ mr: 2 }} onClick={handleOpenEdit}>
-                Edit
-              </Button>
-              {employee.status !== 'INACTIVE' && employee.status !== 'TERMINATED' && (
-                <Button color='error' variant='tonal' onClick={() => setSuspendOpen(true)}>
-                  Suspend
-                </Button>
-              )}
-            </CardActions>
-          )}
+        <Divider sx={{ my: 2 }} />
 
-        </Card>
-      </Grid>
+   
 
-      {/* ── Edit Dialog ─────────────────────────────────────────── */}
-      <Dialog
-        open={openEdit}
-        onClose={() => !isSubmitting && setOpenEdit(false)}
-        sx={{ '& .MuiPaper-root': { width: '100%', maxWidth: 600 } }}
-      >
-        <DialogTitle
-          sx={{
-            textAlign: 'center',
-            fontSize: '1.5rem !important',
-            px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`],
-            pt: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`],
-          }}
-        >
-          Edit Employee
-        </DialogTitle>
+        {/* ── Personal info ─────────────────────────────────────── */}
+        <PersonalInfoSection employee={employee} onUpdated={onUpdated} />
+        <Divider sx={{ my: 2 }} />
 
-        <DialogContent
-          sx={{
-            pb: theme => `${theme.spacing(8)} !important`,
-            px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`],
-          }}
-        >
-          <DialogContentText variant='body2' sx={{ textAlign: 'center', mb: 7 }}>
-            Update phone number and salary details.
-          </DialogContentText>
 
-          <form id='edit-employee-form' onSubmit={handleSubmit(onEditSubmit)}>
-            <Grid container spacing={5}>
-              <Grid item xs={12} sm={6}>
-                <Controller name='phone' control={control} render={({ field }) => (
-                  <CustomTextField
-                    {...field} fullWidth label='Phone' placeholder='9876543210'
-                    error={Boolean(errors.phone)} helperText={errors.phone?.message}
-                    disabled={isSubmitting}
-                  />
-                )} />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Controller name='salaryBasic' control={control} render={({ field }) => (
-                  <CustomTextField
-                    {...field} fullWidth type='number' label='Basic Salary'
-                    error={Boolean(errors.salaryBasic)} helperText={errors.salaryBasic?.message}
-                    disabled={isSubmitting}
-                  />
-                )} />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Controller name='salaryHra' control={control} render={({ field }) => (
-                  <CustomTextField
-                    {...field} fullWidth type='number' label='HRA'
-                    error={Boolean(errors.salaryHra)} helperText={errors.salaryHra?.message}
-                    disabled={isSubmitting}
-                  />
-                )} />
-              </Grid>
-            </Grid>
-          </form>
-        </DialogContent>
-
-        <DialogActions
-          sx={{
-            justifyContent: 'center',
-            px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`],
-            pb: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`],
-          }}
-        >
-          <Button
-            form='edit-employee-form'
-            type='submit'
-            variant='contained'
-            sx={{ mr: 2 }}
-            disabled={isSubmitting}
-            startIcon={isSubmitting ? <CircularProgress size={16} color='inherit' /> : null}
-          >
-            {isSubmitting ? 'Saving…' : 'Save Changes'}
-          </Button>
-          <Button
-            variant='tonal' color='secondary'
-            onClick={() => setOpenEdit(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Suspend Confirm Dialog ───────────────────────────────── */}
-      <Dialog open={suspendOpen} onClose={() => !suspending && setSuspendOpen(false)} maxWidth='xs' fullWidth>
-        <DialogTitle
-          component='div'
-          sx={{
-            textAlign: 'center',
-            pt: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`],
-            px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`],
-          }}
-        >
-          <Typography variant='h4'>Suspend Employee</Typography>
-          <Typography color='text.secondary' sx={{ mt: 2 }}>
-            Are you sure you want to suspend <strong>{employee.name}</strong>?
-            Their status will be set to Inactive.
-          </Typography>
-        </DialogTitle>
-        <DialogActions
-          sx={{
-            justifyContent: 'center',
-            pb: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`],
-            gap: 3,
-          }}
-        >
-          <Button
-            variant='contained' color='error'
-            onClick={handleSuspend}
-            disabled={suspending}
-            startIcon={suspending ? <CircularProgress size={16} color='inherit' /> : null}
-          >
-            {suspending ? 'Suspending…' : 'Suspend'}
-          </Button>
-          <Button
-            variant='tonal' color='secondary'
-            onClick={() => setSuspendOpen(false)}
-            disabled={suspending}
-          >
-            Cancel
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-    </Grid>
+      </CardContent>
+    </Card>
   )
 }
 

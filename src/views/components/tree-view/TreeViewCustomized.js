@@ -88,9 +88,9 @@ const StatusChip = ({ status }) => (
 
 // ─── Add / Edit Dialog — no color picker ─────────────────────────────────────
 const DeptDialog = ({ open, onClose, onConfirm, parentLabel, initial, loading }) => {
-  const [name, setName]        = useState('')
+  const [name, setName] = useState('')
   const [description, setDesc] = useState('')
-  const [status, setStatus]    = useState('active')
+  const [status, setStatus] = useState('active')
 
   useEffect(() => {
     if (open) {
@@ -100,7 +100,7 @@ const DeptDialog = ({ open, onClose, onConfirm, parentLabel, initial, loading })
     }
   }, [open])
 
-  const isEdit    = Boolean(initial?.id)
+  const isEdit = Boolean(initial?.id)
   const canSubmit = name.trim().length > 0
 
   return (
@@ -109,8 +109,8 @@ const DeptDialog = ({ open, onClose, onConfirm, parentLabel, initial, loading })
         {isEdit
           ? `Edit "${initial?.label || initial?.name}"`
           : parentLabel
-          ? `Add sub-department under "${parentLabel}"`
-          : 'Add department'}
+            ? `Add sub-department under "${parentLabel}"`
+            : 'Add department'}
       </DialogTitle>
 
       <DialogContent sx={{ pt: '12px !important', display: 'flex', flexDirection: 'column', gap: 2.5 }}>
@@ -189,10 +189,10 @@ const DeptRow = ({
   onAdd, onEdit, onDelete,
   canCreate, canEdit, canDelete,
 }) => {
-  const hasKids    = (node.children ?? []).length > 0
+  const hasKids = (node.children ?? []).length > 0
   const isExpanded = expandedIds.has(node.id)
   const descendants = countDescendants(node)
-  const name       = node.label || node.name || '—'
+  const name = node.label || node.name || '—'
 
   return (
     <>
@@ -333,13 +333,13 @@ const DeptRow = ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const DepartmentTreePage = () => {
   const permissions = useSelector(selectPermissions)
-  const canCreate   = permissions.includes('department.create')
-  const canEdit     = permissions.includes('department.update')
-  const canDelete   = permissions.includes('department.delete')
+  const canCreate = permissions.includes('department.create')
+  const canEdit = permissions.includes('department.update')
+  const canDelete = permissions.includes('department.delete')
 
-  const [tree, setTree]               = useState([])
-  const [loading, setLoading]         = useState(true)
-  const [search, setSearch]           = useState('')
+  const [tree, setTree] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [expandedIds, setExpandedIds] = useState(new Set())
 
   const [deptDialog, setDeptDialog] = useState({
@@ -353,7 +353,7 @@ const DepartmentTreePage = () => {
   const fetchTree = useCallback(async () => {
     setLoading(true)
     try {
-      const res  = await axiosRequest.get('/api/v1/departments')
+      const res = await axiosRequest.get('/api/v1/departments')
       const data = res.data ?? []
       setTree(data)
       // Auto-expand all root nodes on first load
@@ -434,23 +434,25 @@ const DepartmentTreePage = () => {
       setDelDialog({ open: false, id: null, label: '', childCount: 0, loading: false })
       fetchTree()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Delete failed')
-      setDelDialog(d => ({ ...d, loading: false }))
+      console.log("data", e)
+      toast.error(e || e.response?.data?.message || 'Delete failed')
+
+      setDelDialog(d => ({ ...d, loading: false, open: false }))
     }
   }
 
   // ── Export ─────────────────────────────────────────────────────────────────
   const handleExport = () => {
     const blob = new Blob([JSON.stringify(tree, null, 2)], { type: 'application/json' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
     a.href = url; a.download = 'departments.json'; a.click()
     URL.revokeObjectURL(url)
     toast.success('Exported')
   }
 
-  const totalDepts    = flattenTree(tree).length
-  const displayTree   = filterTree(tree, search)
+  const totalDepts = flattenTree(tree).length
+  const displayTree = filterTree(tree, search)
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -588,8 +590,8 @@ const DepartmentTreePage = () => {
                         {search
                           ? `No departments match "${search}"`
                           : canCreate
-                          ? 'No departments yet. Click "Add Department" to get started.'
-                          : 'No departments found.'}
+                            ? 'No departments yet. Click "Add Department" to get started.'
+                            : 'No departments found.'}
                       </Typography>
                     </Box>
                   </TableCell>

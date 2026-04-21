@@ -109,10 +109,10 @@ const UserViewRight = ({ tab, employee }) => {
         ) : (
           <>
             <TabPanel sx={{ p: 0 }} value='account'>
-              {roleSlug ==="tenent_admin"  ?  <UserProgressionTimeline userId={employee.userId} /> : <UserViewAccount employee={employee} />}
-             
-
-              
+              {roleSlug ==="tenent_admin"  ? 
+               <UserProgressionTimeline userId={employee.userId} /> 
+               : 
+               <UserViewAccount employee={employee} />}
             </TabPanel>
             <TabPanel sx={{ p: 0 }} value='security'>
               <UserViewSecurity employee={employee} />

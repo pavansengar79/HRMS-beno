@@ -200,7 +200,7 @@
 //         </Card>
 //       </Grid>
 
-      
+
 
 //       <ApplyLeaveDrawer
 //         open={drawerOpen}
@@ -237,3 +237,7 @@ const LeavesIndex = () => {
 }
 
 export default LeavesIndex
+
+
+
+

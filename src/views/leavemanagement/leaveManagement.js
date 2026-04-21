@@ -20,13 +20,15 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Icon from 'src/@core/components/icon'
 
 // ** Tab Content Imports
-import TabLeaveRequests  from './leaveRequesttab'
+import TabLeaveRequests from './leaveRequesttab'
 import TabLeaveApproval from './leaveApproval'
 import TabLeaveTypes from './leaveTypes'
 import TabLeaveCategory from './leaveCategory'
 import TabLeaveBalance from './leaveBalance'
 import TabApplyLeave from './leaveApply'
 import ApplyLeaveDrawer from './applyleaveDrawer'
+import CreateDealWizard from '../pages/wizard-examples/create-deal'
+import LeavePolicyConfigWizard from './policyWizard'
 
 
 const TabList = styled(MuiTabList)(({ theme }) => ({
@@ -53,19 +55,20 @@ const TabList = styled(MuiTabList)(({ theme }) => ({
 }))
 
 const TABS = [
-  { value: 'requests',  label: 'Leave Requests',  icon: 'tabler:clipboard-list'   },
-  { value: 'approval',  label: 'Approval',         icon: 'tabler:checks'           },
-  { value: 'types',     label: 'Leave Types',      icon: 'tabler:category'         },
-  { value: 'category',  label: 'Category',         icon: 'tabler:tag'              },
-  { value: 'balance',   label: 'Balance',          icon: 'tabler:scale'            },
-  { value: 'apply',     label: 'Apply Leave',      icon: 'tabler:calendar-plus'    },
+  { value: 'policy', label: 'Leave Policy', icon: 'tabler:clipboard-list' },
+  { value: 'requests', label: 'Leave Requests', icon: 'tabler:clipboard-list' },
+  { value: 'approval', label: 'Approval', icon: 'tabler:checks' },
+  { value: 'types', label: 'Leave Types', icon: 'tabler:category' },
+  { value: 'category', label: 'Category', icon: 'tabler:tag' },
+  { value: 'balance', label: 'Balance', icon: 'tabler:scale' },
+  { value: 'apply', label: 'Apply Leave', icon: 'tabler:calendar-plus' },
 ]
 
 const LeaveManagement = ({ tab }) => {
-  const [activeTab, setActiveTab]   = useState(tab)
-  const [isLoading, setIsLoading]   = useState(false)
+  const [activeTab, setActiveTab] = useState(tab)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const router   = useRouter()
+  const router = useRouter()
   const hideText = useMediaQuery(theme => theme.breakpoints.down('md'))
 
   useEffect(() => {
@@ -78,12 +81,13 @@ const LeaveManagement = ({ tab }) => {
   }
 
   const tabContentList = {
+    policy: <LeavePolicyConfigWizard />,
     requests: <TabLeaveRequests />,
     approval: <TabLeaveApproval />,
-    types:    <TabLeaveTypes />,
+    types: <TabLeaveTypes />,
     category: <TabLeaveCategory />,
-    balance:  <TabLeaveBalance />,
-    apply:    <ApplyLeaveDrawer />,
+    balance: <TabLeaveBalance />,
+    apply: <ApplyLeaveDrawer />,
   }
 
   return (

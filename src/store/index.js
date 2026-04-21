@@ -1,12 +1,13 @@
 // src/store/index.js
 
 import { configureStore } from '@reduxjs/toolkit'
-import authReducer    from './auth/authSlice'
+import authReducer from './auth/authSlice'
 import companyReducer from './company/companySlice'
 
 // ** Add your other reducers here as the app grows
 import employeeReducer from './employee/employeeSlice'
 import customerReducer from './customer/customerSlice'
+import leaveReducer from "./leaves/leaveSlice" // ✅ import your leave reducer here
 
 // ** App reducers (used across many pages via useSelector(state => state.<key>))
 import calendarReducer from './apps/calendar'
@@ -61,10 +62,11 @@ import compatibleVehiclesReducer from './apps/productsPage/compatibleVehicles'
 
 const store = configureStore({
   reducer: {
-    auth:    authReducer,
+    auth: authReducer,
     company: companyReducer,
     employee: employeeReducer,
     customer: customerReducer,
+    leaves: leaveReducer, // ✅ add your leave reducer here
 
     // apps
     calendar: calendarReducer,
