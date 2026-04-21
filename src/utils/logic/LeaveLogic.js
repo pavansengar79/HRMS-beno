@@ -7,11 +7,11 @@
  * ============================================================
  */
 
-import { calculateLeaveBalance } from "./logic/leaveCalculator.js";
-import { processAttendance, applySandwichRule, countLeaveDays } from "./logic/leaveAttendanceEng.js";
-import { calculatePayroll, calculateEncashment } from "./logic/payrollCalculator.js";
-import { validateLeaveApplication, validateRegularisation } from "./logic/leaveValidator.js";
-import { processYearEnd } from "./logic/yearsAndProcessor.js";
+import { calculateLeaveBalance } from "./leaveCalculator.js";
+import { processAttendance, applySandwichRule, countLeaveDays } from "./leaveAttendanceEng.js";
+import { calculatePayroll, calculateEncashment } from "./payrollCalculator.js";
+import { validateLeaveApplication, validateRegularisation } from "./leaveValidator.js";
+import { processYearEnd } from "./yearsAndProcessor.js";
 
 // ─── Sample Policy Snapshot (matches your Mongoose schema) ──────────────────
 

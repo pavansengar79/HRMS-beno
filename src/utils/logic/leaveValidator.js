@@ -4,7 +4,7 @@
  */
 
 import dayjs from "dayjs";
-import { countLeaveDays } from "./leaveAttendanceEng.js";
+import { countLeaveDays } from "./leaveAttendanceEng";
 
 /**
  * validateLeaveApplication
