@@ -8,9 +8,10 @@ import companyReducer from './company/companySlice'
 import employeeReducer from './employee/employeeSlice'
 import customerReducer from './customer/customerSlice'
 import leaveReducer from "./leaves/leaveSlice" // ✅ import your leave reducer here
+import holidayReducer from './calendar/leaveSlice' // ✅ import your holiday reducer here
 
 // ** App reducers (used across many pages via useSelector(state => state.<key>))
-import calendarReducer from './apps/calendar'
+import calendarReducer from './calendar/leaveSlice'
 import chatReducer from './apps/chat'
 import couponReducer from './apps/coupon'
 import disabledReducer from './apps/disabled'
@@ -67,6 +68,7 @@ const store = configureStore({
     employee: employeeReducer,
     customer: customerReducer,
     leaves: leaveReducer, // ✅ add your leave reducer here
+    holiday: holidayReducer,
 
     // apps
     calendar: calendarReducer,

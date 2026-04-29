@@ -29,7 +29,7 @@ import {
   handleSelectEvent,
   handleAllCalendars,
   handleCalendarsUpdate
-} from 'src/store/apps/calendar'
+} from 'src/store/calendar/leaveSlice'
 
 // ** CalendarColors
 const calendarsColor = {
@@ -117,7 +117,7 @@ const AppLeaveManagement = () => {
           setCalendarApi={setCalendarApi}
           handleSelectEvent={handleSelectEvent}
           handleLeftSidebarToggle={handleLeftSidebarToggle}
-        handleAddEventSidebarToggle={handleAddLeaveSidebarToggle}
+          handleAddEventSidebarToggle={handleAddLeaveSidebarToggle}
         />
         <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'center' }}>
           <Button variant='contained' onClick={handleAddLeave}>

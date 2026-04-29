@@ -7,7 +7,7 @@ import {
 } from 'src/store/auth/authSlice'
 
 // ❌ These modules only for super_admin
-const SUPER_ADMIN_ONLY_MODULES = ['company', 'organisation', 'plans','customers']
+const SUPER_ADMIN_ONLY_MODULES = ['company', 'organisation', 'plans', 'customers', 'policy']
 
 const ALL_NAV_ITEMS = [
   { title: 'Dashboard', icon: 'mdi:view-dashboard-outline', path: '/dashboards/analytics', module: null },
@@ -25,6 +25,7 @@ const ALL_NAV_ITEMS = [
   { title: 'Payrolls', icon: 'mdi:cash-multiple', path: '/payroll', module: 'payroll' },
 
   { title: 'Holidays', icon: 'mdi:calendar-star', path: '/holidays', module: null },
+  { title: 'Policy', icon: 'mdi:shield-outline', path: '/policy', module: 'policy' },
   { title: 'Settings', icon: 'mdi:cog-outline', path: '/settings', module: 'company' }
 ]
 
