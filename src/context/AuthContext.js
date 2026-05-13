@@ -22,7 +22,7 @@ import {
 import authConfig from 'src/configs/auth'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
-const BACKEND_BASE_URL = 'https://2c6q0jsk-3000.inc1.devtunnels.ms'
+const BACKEND_BASE_URL = 'https://s0380lsz-3000.inc1.devtunnels.ms'
 
 // ─── Storage Keys ─────────────────────────────
 const STORAGE = {

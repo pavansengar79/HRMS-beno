@@ -7,7 +7,7 @@ import axios from 'axios'
 import authConfig from 'src/configs/auth'
 
 const axiosRequest = axios.create({
-  baseURL: 'https://2c6q0jsk-3000.inc1.devtunnels.ms/'
+  baseURL: 'https://s0380lsz-3000.inc1.devtunnels.ms/'
   
   
   // baseURL: 'http://localhost:3000'

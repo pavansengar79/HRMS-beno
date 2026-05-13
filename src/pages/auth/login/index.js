@@ -102,7 +102,7 @@ const LoginPage = () => {
   // ✅ Full frontend URL hardcode karo
   const frontendUrl =  'https://hrms-beno.vercel.app'
   const callbackUrl = `${frontendUrl}/auth/google/callback`
-  const backendUrl = `https://2c6q0jsk-3000.inc1.devtunnels.ms`
+  const backendUrl = `https://s0380lsz-3000.inc1.devtunnels.ms`
 
   const oauthUrl = new URL(`${backendUrl}/api/v1/auth/google`)
   oauthUrl.searchParams.set('returnUrl', callbackUrl)

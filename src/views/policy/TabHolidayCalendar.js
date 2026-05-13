@@ -18,7 +18,6 @@ import Tooltip from '@mui/material/Tooltip'
 import Alert from '@mui/material/Alert'
 import Switch from '@mui/material/Switch'
 import FormControlLabel from '@mui/material/FormControlLabel'
-import Checkbox from '@mui/material/Checkbox'
 import Drawer from '@mui/material/Drawer'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
@@ -26,7 +25,10 @@ import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
-import Paper from '@mui/material/Paper'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
@@ -35,333 +37,578 @@ import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 // ** Third Party
-import { useForm, Controller, useFieldArray } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import axiosRequest from 'src/utils/AxiosInterceptor'
+import { Paper } from '@mui/material'
 
-// ** API
+// ────────────────────────────────────────────────────────────────
+// Constants
+// ────────────────────────────────────────────────────────────────
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const WEEKEND_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-const defaultHoliday = { date: '', name: '', type: 'public', isPaid: true }
+const HOLIDAY_TYPES = [
+  { label: 'National', value: 'NATIONAL' },
+  { label: 'Festival', value: 'FESTIVAL' },
+  { label: 'Regional', value: 'REGIONAL' },
+  { label: 'Optional', value: 'OPTIONAL' }
+]
 
 const defaultValues = {
-    name: '',
-    location: '',
-    weeklyOff: ['Sat', 'Sun'],
-    holidays: []
+  name: '',
+  date: '',
+  type: 'NATIONAL',
+  year: new Date().getFullYear()
 }
 
-// ─── Holiday Calendar Drawer ──────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
+// Drawer
+// ────────────────────────────────────────────────────────────────
 
-const HolidayCalendarDrawer = ({ open, onClose, editData, onSuccess }) => {
-    const [saving, setSaving] = useState(false)
-    const isEdit = Boolean(editData?._id)
+const HolidayDrawer = ({ open, onClose, editData, onSuccess }) => {
+  const [saving, setSaving] = useState(false)
 
-    const { control, handleSubmit, reset, formState: { errors } } = useForm({ defaultValues })
-    const { fields, append, remove } = useFieldArray({ control, name: 'holidays' })
+  const isEdit = Boolean(editData?._id)
 
-    useEffect(() => {
-        if (open) reset(editData ? { ...defaultValues, ...editData } : defaultValues)
-    }, [open, editData])
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors }
+  } = useForm({
+    defaultValues
+  })
 
-    const onSubmit = async (data) => {
-        setSaving(true)
-        try {
-            const res = isEdit
-                ? await axiosRequest.put(`/holiday/calendars/${editData._id}`, data)
-                : await axiosRequest.post('/holiday/calendars', data)
-
-            if (res.data?.success) {
-                toast.success(`Holiday calendar ${isEdit ? 'updated' : 'created'}`)
-                onSuccess(res.data.data, isEdit)
-                onClose()
+  useEffect(() => {
+    if (open) {
+      reset(
+        editData
+          ? {
+              name: editData.name || '',
+              date: editData.date ? editData.date.split('T')[0] : '',
+              type: editData.type || 'NATIONAL',
+              year: editData.year || new Date().getFullYear()
             }
-        } catch (err) {
-            toast.error(err?.response?.data?.message || 'Failed to save')
-        } finally {
-            setSaving(false)
-        }
+          : defaultValues
+      )
     }
+  }, [open, editData, reset])
 
-    return (
-        <Drawer open={open} anchor='right' onClose={onClose}
-            PaperProps={{ sx: { width: { xs: '100%', sm: 680 } } }}
+  const onSubmit = async values => {
+    setSaving(true)
+
+    try {
+      const payload = {
+        ...values,
+        year: Number(values.year)
+      }
+
+      let res
+
+      if (isEdit) {
+        res = await axiosRequest.put(`api/v1/holidays/${editData._id}`, payload)
+      } else {
+        res = await axiosRequest.post('api/v1/holidays', payload)
+      }
+
+      if (res?.data?.success) {
+        toast.success(`Holiday ${isEdit ? 'updated' : 'created'} successfully`)
+        onSuccess(res.data.data, isEdit)
+        onClose()
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Something went wrong')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Drawer
+      anchor='right'
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: {
+            xs: '100%',
+            sm: 520
+          }
+        }
+      }}
+    >
+      {/* Header */}
+      <Box
+        sx={{
+          px: 5,
+          py: 4,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: theme => `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Typography variant='h6'>
+          {isEdit ? 'Edit Holiday' : 'Create Holiday'}
+        </Typography>
+
+        <IconButton size='small' onClick={onClose}>
+          <Icon icon='tabler:x' />
+        </IconButton>
+      </Box>
+
+      {/* Form */}
+      <Box
+        component='form'
+        onSubmit={handleSubmit(onSubmit)}
+        sx={{
+          p: 5,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 5,
+          height: '100%'
+        }}
+      >
+        <Grid container spacing={4}>
+          <Grid item xs={12}>
+            <Controller
+              name='name'
+              control={control}
+              rules={{
+                required: 'Holiday name is required'
+              }}
+              render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  fullWidth
+                  label='Holiday Name'
+                  placeholder='Republic Day'
+                  error={!!errors.name}
+                  helperText={errors.name?.message}
+                />
+              )}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <Controller
+              name='date'
+              control={control}
+              rules={{
+                required: 'Date is required'
+              }}
+              render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  fullWidth
+                  type='date'
+                  label='Date'
+                  InputLabelProps={{ shrink: true }}
+                  error={!!errors.date}
+                  helperText={errors.date?.message}
+                />
+              )}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <Controller
+              name='year'
+              control={control}
+              rules={{
+                required: 'Year required'
+              }}
+              render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  fullWidth
+                  type='number'
+                  label='Year'
+                  error={!!errors.year}
+                  helperText={errors.year?.message}
+                />
+              )}
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <Controller
+              name='type'
+              control={control}
+              render={({ field }) => (
+                <CustomTextField {...field} select fullWidth label='Holiday Type'>
+                  {HOLIDAY_TYPES.map(item => (
+                    <MenuItem key={item.value} value={item.value}>
+                      {item.label}
+                    </MenuItem>
+                  ))}
+                </CustomTextField>
+              )}
+            />
+          </Grid>
+        </Grid>
+
+        {/* Footer */}
+        <Box
+          sx={{
+            mt: 'auto',
+            pt: 5,
+            display: 'flex',
+            gap: 3,
+            justifyContent: 'flex-end'
+          }}
         >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 5, py: 4, borderBottom: t => `1px solid ${t.palette.divider}` }}>
-                <Typography variant='h6'>{isEdit ? 'Edit Holiday Calendar' : 'New Holiday Calendar'}</Typography>
-                <IconButton onClick={onClose} size='small'><Icon icon='tabler:x' /></IconButton>
-            </Box>
+          <Button
+            variant='tonal'
+            color='secondary'
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
 
-            <Box component='form' onSubmit={handleSubmit(onSubmit)}
-                sx={{ px: 5, py: 4, overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 5 }}
-            >
-                {/* Calendar Meta */}
-                <Box>
-                    <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 3 }}>Calendar Details</Typography>
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} sm={6}>
-                            <Controller name='name' control={control} rules={{ required: 'Calendar name required' }}
-                                render={({ field }) => (
-                                    <CustomTextField {...field} fullWidth label='Calendar Name *' error={!!errors.name} helperText={errors.name?.message} />
-                                )}
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                            <Controller name='location' control={control}
-                                render={({ field }) => (
-                                    <CustomTextField {...field} fullWidth label='Location / Region' placeholder='e.g. Maharashtra, Karnataka' />
-                                )}
-                            />
-                        </Grid>
-                    </Grid>
-                </Box>
-
-                <Divider />
-
-                {/* Weekly Off */}
-                <Box>
-                    <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 2 }}>Weekly Off</Typography>
-                    <Controller name='weeklyOff' control={control}
-                        render={({ field }) => (
-                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                {WEEKEND_DAYS.map(day => (
-                                    <FormControlLabel key={day} label={day}
-                                        control={
-                                            <Checkbox checked={field.value?.includes(day)}
-                                                onChange={e => {
-                                                    const cur = field.value || []
-                                                    field.onChange(e.target.checked ? [...cur, day] : cur.filter(d => d !== day))
-                                                }}
-                                            />
-                                        }
-                                    />
-                                ))}
-                            </Box>
-                        )}
-                    />
-                </Box>
-
-                <Divider />
-
-                {/* Holidays List */}
-                <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                        <Typography variant='overline' color='text.secondary'>Holidays ({fields.length})</Typography>
-                        <Button size='small' variant='tonal' startIcon={<Icon icon='tabler:plus' />}
-                            onClick={() => append({ ...defaultHoliday })}
-                        >
-                            Add Holiday
-                        </Button>
-                    </Box>
-
-                    {fields.length === 0 ? (
-                        <Alert severity='info' sx={{ mb: 2 }}>No holidays added yet.</Alert>
-                    ) : (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                            {fields.map((field, index) => (
-                                <Box key={field.id} sx={{
-                                    p: 3, border: t => `1px solid ${t.palette.divider}`,
-                                    borderRadius: 2, display: 'flex', gap: 3, alignItems: 'flex-end', flexWrap: 'wrap'
-                                }}>
-                                    <Grid container spacing={3} sx={{ flex: 1 }}>
-                                        <Grid item xs={12} sm={5}>
-                                            <Controller name={`holidays.${index}.name`} control={control}
-                                                rules={{ required: 'Name required' }}
-                                                render={({ field, fieldState }) => (
-                                                    <CustomTextField {...field} fullWidth label='Holiday Name *'
-                                                        placeholder='e.g. Republic Day'
-                                                        error={!!fieldState.error} helperText={fieldState.error?.message}
-                                                    />
-                                                )}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={12} sm={4}>
-                                            <Controller name={`holidays.${index}.date`} control={control}
-                                                rules={{ required: 'Date required' }}
-                                                render={({ field, fieldState }) => (
-                                                    <CustomTextField {...field} fullWidth type='date' label='Date *'
-                                                        InputLabelProps={{ shrink: true }}
-                                                        error={!!fieldState.error} helperText={fieldState.error?.message}
-                                                    />
-                                                )}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={6} sm={3}>
-                                            <Controller name={`holidays.${index}.type`} control={control}
-                                                render={({ field }) => (
-                                                    <CustomTextField {...field} select fullWidth label='Type'>
-                                                        <MenuItem value='public'>Public</MenuItem>
-                                                        <MenuItem value='optional'>Optional</MenuItem>
-                                                    </CustomTextField>
-                                                )}
-                                            />
-                                        </Grid>
-                                        <Grid item xs={6} sm={3} sx={{ display: 'flex', alignItems: 'center' }}>
-                                            <Controller name={`holidays.${index}.isPaid`} control={control}
-                                                render={({ field }) => (
-                                                    <FormControlLabel
-                                                        control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
-                                                        label='Paid'
-                                                    />
-                                                )}
-                                            />
-                                        </Grid>
-                                    </Grid>
-                                    <IconButton color='error' size='small' onClick={() => remove(index)}>
-                                        <Icon icon='tabler:trash' fontSize='1rem' />
-                                    </IconButton>
-                                </Box>
-                            ))}
-                        </Box>
-                    )}
-                </Box>
-
-                {/* Footer */}
-                <Box sx={{ mt: 'auto', pt: 4, display: 'flex', gap: 3, justifyContent: 'flex-end' }}>
-                    <Button variant='tonal' color='secondary' onClick={onClose} disabled={saving}>Cancel</Button>
-                    <Button type='submit' variant='contained' disabled={saving}
-                        startIcon={saving ? <CircularProgress size={16} color='inherit' /> : null}
-                    >
-                        {saving ? 'Saving...' : isEdit ? 'Update Calendar' : 'Create Calendar'}
-                    </Button>
-                </Box>
-            </Box>
-        </Drawer>
-    )
+          <Button
+            type='submit'
+            variant='contained'
+            disabled={saving}
+            startIcon={
+              saving ? <CircularProgress size={18} color='inherit' /> : null
+            }
+          >
+            {saving
+              ? 'Saving...'
+              : isEdit
+              ? 'Update Holiday'
+              : 'Create Holiday'}
+          </Button>
+        </Box>
+      </Box>
+    </Drawer>
+  )
 }
 
-// ─── TabHolidayCalendar ───────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────
+// Main Component
+// ────────────────────────────────────────────────────────────────
 
 const TabHolidayCalendar = () => {
-    const [calendars, setCalendars] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [drawerOpen, setDrawerOpen] = useState(false)
-    const [editData, setEditData] = useState(null)
-    const [expandedId, setExpandedId] = useState(null)
+  const currentYear = new Date().getFullYear()
 
-    const fetchCalendars = useCallback(async () => {
-        setLoading(true)
-        try {
-            const res = await axiosRequest.get('/holiday/calendars')
-            if (res.data?.success) setCalendars(res.data.data)
-        } catch {
-            toast.error('Failed to load holiday calendars')
-        } finally {
-            setLoading(false)
-        }
-    }, [])
+  const [holidays, setHolidays] = useState([])
+  const [loading, setLoading] = useState(true)
 
-    useEffect(() => { fetchCalendars() }, [fetchCalendars])
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [editData, setEditData] = useState(null)
 
-    const handleSuccess = (record, isEdit) => {
-        setCalendars(prev =>
-            isEdit ? prev.map(c => (c._id === record._id ? record : c)) : [...prev, record]
-        )
+  const [selectedYear, setSelectedYear] = useState(currentYear)
+
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
+    data: null
+  })
+
+  // ────────────────────────────────────────────────────────────
+  // Fetch Holidays
+  // ────────────────────────────────────────────────────────────
+
+  const fetchHolidays = useCallback(async () => {
+    setLoading(true)
+
+    try {
+      const res = await axiosRequest.get(
+        `api/v1/holidays?year=${selectedYear}`
+      )
+
+      console.log('Holiday fetch response:', res.data)
+      if (res?.success) {
+        setHolidays(res.data || [])
+      }
+    } catch (error) {
+      toast.error('Failed to load holidays')
+    } finally {
+      setLoading(false)
     }
+  }, [selectedYear])
 
-    return (
-        <Card>
-            <CardHeader
-                title='Holiday Calendars'
-                subheader='Define public and optional holidays per location or region'
-                action={
-                    <Button variant='contained' startIcon={<Icon icon='tabler:plus' />}
-                        onClick={() => { setEditData(null); setDrawerOpen(true) }}
-                    >
-                        New Calendar
-                    </Button>
-                }
-            />
-            <Divider />
-            <CardContent>
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>
-                ) : calendars.length === 0 ? (
-                    <Alert severity='info'>No holiday calendars yet. Create your first one.</Alert>
-                ) : (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {calendars.map(cal => (
-                            <Box key={cal._id} sx={{ border: t => `1px solid ${t.palette.divider}`, borderRadius: 2, overflow: 'hidden' }}>
-                                {/* Calendar header */}
-                                <Box sx={{
-                                    px: 4, py: 3,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                    backgroundColor: t => t.palette.action.hover, flexWrap: 'wrap', gap: 2
-                                }}>
-                                    <Box>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                            <Typography fontWeight={600}>{cal.name}</Typography>
-                                            {cal.location && <Chip label={cal.location} size='small' variant='tonal' />}
-                                        </Box>
-                                        <Typography variant='caption' color='text.secondary'>
-                                            {cal.holidays?.length || 0} holidays · Weekly off: {cal.weeklyOff?.join(', ')}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', gap: 1 }}>
-                                        <Button size='small' variant='tonal'
-                                            onClick={() => setExpandedId(expandedId === cal._id ? null : cal._id)}
-                                            endIcon={<Icon icon={expandedId === cal._id ? 'tabler:chevron-up' : 'tabler:chevron-down'} />}
-                                        >
-                                            {expandedId === cal._id ? 'Hide' : 'View Holidays'}
-                                        </Button>
-                                        <Tooltip title='Edit'>
-                                            <IconButton size='small' onClick={() => { setEditData(cal); setDrawerOpen(true) }}>
-                                                <Icon icon='tabler:pencil' fontSize='1.1rem' />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Box>
-                                </Box>
+  useEffect(() => {
+    fetchHolidays()
+  }, [fetchHolidays])
 
-                                {/* Holiday list (expandable) */}
-                                {expandedId === cal._id && cal.holidays?.length > 0 && (
-                                    <TableContainer>
-                                        <Table size='small'>
-                                            <TableHead>
-                                                <TableRow>
-                                                    <TableCell>Date</TableCell>
-                                                    <TableCell>Name</TableCell>
-                                                    <TableCell>Type</TableCell>
-                                                    <TableCell>Paid</TableCell>
-                                                </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                                {cal.holidays.map((h, i) => (
-                                                    <TableRow key={i}>
-                                                        <TableCell>{h.date ? new Date(h.date).toLocaleDateString('en-IN') : '—'}</TableCell>
-                                                        <TableCell>{h.name}</TableCell>
-                                                        <TableCell>
-                                                            <Chip label={h.type} size='small'
-                                                                color={h.type === 'public' ? 'primary' : 'default'} variant='tonal'
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Chip label={h.isPaid ? 'Paid' : 'Unpaid'} size='small'
-                                                                color={h.isPaid ? 'success' : 'error'} variant='tonal'
-                                                            />
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </TableContainer>
-                                )}
-                            </Box>
-                        ))}
-                    </Box>
-                )}
-            </CardContent>
+  // ────────────────────────────────────────────────────────────
+  // Create / Update Success
+  // ────────────────────────────────────────────────────────────
 
-            <HolidayCalendarDrawer
-                open={drawerOpen}
-                onClose={() => setDrawerOpen(false)}
-                editData={editData}
-                onSuccess={handleSuccess}
-            />
-        </Card>
-    )
+  const handleSuccess = (record, isEdit) => {
+    setHolidays(prev => {
+      if (isEdit) {
+        return prev.map(item =>
+          item._id === record._id ? record : item
+        )
+      }
+
+      return [record, ...prev]
+    })
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // Delete Holiday
+  // ────────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    try {
+      const id = deleteModal?.data?._id
+
+      const res = await axiosRequest.delete(`/holidays/${id}`)
+
+      if (res?.data?.success) {
+        setHolidays(prev => prev.filter(item => item._id !== id))
+
+        toast.success('Holiday deleted successfully')
+
+        setDeleteModal({
+          open: false,
+          data: null
+        })
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Delete failed')
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // Type Chip Color
+  // ────────────────────────────────────────────────────────────
+
+  const getTypeColor = type => {
+    switch (type) {
+      case 'NATIONAL':
+        return 'primary'
+
+      case 'FESTIVAL':
+        return 'success'
+
+      case 'REGIONAL':
+        return 'warning'
+
+      case 'OPTIONAL':
+        return 'secondary'
+
+      default:
+        return 'default'
+    }
+  }
+
+  return (
+    <>
+      <Card>
+        {/* Header */}
+        <CardHeader
+          title='Holiday Management'
+          subheader='Manage company holidays and holiday calendars'
+          action={
+            <Box sx={{ display: 'flex', gap: 3 }}>
+              <CustomTextField
+                select
+                size='small'
+                value={selectedYear}
+                sx={{ minWidth: 120 }}
+                onChange={e => setSelectedYear(e.target.value)}
+              >
+                {[2024, 2025, 2026, 2027, 2028].map(year => (
+                  <MenuItem key={year} value={year}>
+                    {year}
+                  </MenuItem>
+                ))}
+              </CustomTextField>
+
+              <Button
+                variant='contained'
+                startIcon={<Icon icon='tabler:plus' />}
+                onClick={() => {
+                  setEditData(null)
+                  setDrawerOpen(true)
+                }}
+              >
+                Add Holiday
+              </Button>
+            </Box>
+          }
+        />
+
+        <Divider />
+
+        {/* Content */}
+        <CardContent>
+          {loading ? (
+            <Box
+              sx={{
+                py: 10,
+                display: 'flex',
+                justifyContent: 'center'
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : holidays.length === 0 ? (
+            <Alert severity='info'>
+              No holidays found for {selectedYear}
+            </Alert>
+          ) : (
+            <TableContainer component={Paper} variant='outlined'>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Year</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell align='right'>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {holidays.map(row => (
+                    <TableRow hover key={row._id}>
+                      <TableCell>
+                        <Typography fontWeight={600}>
+                          {row.name}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell>
+                        {row.date
+                          ? new Date(row.date).toLocaleDateString('en-IN')
+                          : '-'}
+                      </TableCell>
+
+                      <TableCell>{row.year}</TableCell>
+
+                      <TableCell>
+                        <Chip
+                          size='small'
+                          label={row.type}
+                          color={getTypeColor(row.type)}
+                          variant='tonal'
+                        />
+                      </TableCell>
+
+                      <TableCell align='right'>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: 1
+                          }}
+                        >
+                          <Tooltip title='View'>
+                            <IconButton
+                              size='small'
+                              onClick={async () => {
+                                try {
+                                  const res = await axiosRequest.get(
+                                    `api/v1/holidays/${row._id}`
+                                  )
+
+                                  if (res?.data?.success) {
+                                    setEditData(res.data.data)
+                                    setDrawerOpen(true)
+                                  }
+                                } catch (error) {
+                                  toast.error('Failed to fetch holiday')
+                                }
+                              }}
+                            >
+                              <Icon icon='tabler:eye' />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip title='Edit'>
+                            <IconButton
+                              size='small'
+                              onClick={() => {
+                                setEditData(row)
+                                setDrawerOpen(true)
+                              }}
+                            >
+                              <Icon icon='tabler:pencil' />
+                            </IconButton>
+                          </Tooltip>
+
+                          <Tooltip title='Delete'>
+                            <IconButton
+                              size='small'
+                              color='error'
+                              onClick={() =>
+                                setDeleteModal({
+                                  open: true,
+                                  data: row
+                                })
+                              }
+                            >
+                              <Icon icon='tabler:trash' />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Drawer */}
+      <HolidayDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        editData={editData}
+        onSuccess={handleSuccess}
+      />
+
+      {/* Delete Dialog */}
+      <Dialog
+        open={deleteModal.open}
+        onClose={() =>
+          setDeleteModal({
+            open: false,
+            data: null
+          })
+        }
+      >
+        <DialogTitle>Delete Holiday</DialogTitle>
+
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete{' '}
+            <strong>{deleteModal?.data?.name}</strong>?
+          </Typography>
+        </DialogContent>
+
+        <DialogActions>
+          <Button
+            variant='tonal'
+            onClick={() =>
+              setDeleteModal({
+                open: false,
+                data: null
+              })
+            }
+          >
+            Cancel
+          </Button>
+
+          <Button
+            color='error'
+            variant='contained'
+            onClick={handleDelete}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  )
 }
 
 export default TabHolidayCalendar
