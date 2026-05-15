@@ -19,6 +19,10 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Tooltip from '@mui/material/Tooltip'
 import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 
 // ** Custom Components
 import CustomTextField from 'src/@core/components/mui/text-field'
@@ -76,10 +80,55 @@ const TYPES_BY_CATEGORY = Object.entries(DOC_TYPE_META).reduce((acc, [type, meta
   return acc
 }, {})
 
+// ─── Document Preview Modal ───────────────────────────────────────────────────
+const DocumentPreviewModal = ({ open, doc, onClose }) => {
+  if (!doc) return null
+  console.log("Previewing doc", doc)
+
+  const isPdf = doc.url?.toLowerCase().endsWith('.pdf')
+  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.url)
+  const meta = DOC_TYPE_META[doc.documentType] || DOC_TYPE_META.OTHER
+
+  // console.log("isImage",isImage)
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth='md' fullWidth>
+      <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Icon icon={meta.icon} fontSize={20} />
+        {meta.label}
+      </DialogTitle>
+      <DialogContent sx={{ pt: 2, display: 'flex', justifyContent: 'center', bgcolor: '#f5f5f5', minHeight: 400 }}>
+        {isPdf ? (
+          <object data={doc.url} type='application/pdf' width='100%' height='600' style={{ borderRadius: '4px' }}>
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography color='error' gutterBottom>Unable to display PDF in browser</Typography>
+              <Button variant='contained' href={doc.url} target='_blank' startIcon={<Icon icon='tabler:download' fontSize={16} />}>Download PDF</Button>
+            </Box>
+          </object>
+        ) : isImage ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+            <img src={doc.url} alt={doc.fileName || meta.label} style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain', borderRadius: '4px' }} />
+          </Box>
+        ) : (
+          <Box sx={{ p: 3, textAlign: 'center', width: '100%' }}>
+            <Icon icon='tabler:file-alert' fontSize={48} sx={{ color: 'text.disabled', mb: 2 }} />
+            <Typography color='text.disabled' gutterBottom>Preview not available for this file type</Typography>
+            <Button variant='contained' href={doc.url} target='_blank' startIcon={<Icon icon='tabler:download' fontSize={16} />} sx={{ mt: 2 }}>Download File</Button>
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ p: 2, gap: 1 }}>
+        <Button variant='tonal' color='secondary' onClick={onClose}>Close</Button>
+        <Button variant='contained' href={doc.url} target='_blank' startIcon={<Icon icon='tabler:download' fontSize={16} />}>Download</Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
 // ─── Uploaded document card ───────────────────────────────────────────────────
-const DocCard = ({ doc, onDelete, canEdit }) => {
+const DocCard = ({ doc, onDelete, canEdit, onPreview }) => {
   const meta      = DOC_TYPE_META[doc.documentType] || DOC_TYPE_META.OTHER
-  const isPdf     = doc.fileUrl?.toLowerCase().endsWith('.pdf')
+  const isPdf     = doc.url?.toLowerCase().endsWith('.pdf')
   const [deleting, setDeleting] = useState(false)
 
   const handleDelete = async () => {
@@ -148,9 +197,8 @@ const DocCard = ({ doc, onDelete, canEdit }) => {
       {/* View button */}
       <Button
         size='small' variant='tonal' color='primary' fullWidth
-        startIcon={<Icon icon={isPdf ? 'tabler:file-type-pdf' : 'tabler:eye'} fontSize={15} />}
-        href={doc.fileUrl} target='_blank' rel='noopener noreferrer'
-        component='a'
+        startIcon={<Icon icon='tabler:eye' fontSize={15} />}
+        onClick={() => onPreview(doc)}
         sx={{ mt: 'auto' }}
       >
         View
@@ -344,9 +392,11 @@ const QuickUpload = ({ employeeId, uploadedTypes, activeCategory, onUploaded }) 
 
 // ─── Main DocumentsSection ────────────────────────────────────────────────────
 const DocumentsSection = ({ employee, canEdit }) => {
-  const [activeCategory, setActiveCategory] = useState('IDENTITY')
-  const [documents,      setDocuments]      = useState([])
-  const [loading,        setLoading]        = useState(true)
+  const [activeCategory,    setActiveCategory]    = useState('IDENTITY')
+  const [documents,         setDocuments]         = useState([])
+  const [loading,           setLoading]           = useState(true)
+  const [previewDoc,        setPreviewDoc]        = useState(null)
+  const [previewOpen,       setPreviewOpen]       = useState(false)
 
   // ── Fetch all documents ────────────────────────────────────────────────────
   const fetchDocuments = useCallback(async () => {
@@ -371,6 +421,16 @@ const DocumentsSection = ({ employee, canEdit }) => {
 
   const handleDeleted = deletedId => {
     setDocuments(prev => prev.filter(d => d._id !== deletedId))
+  }
+
+  const handlePreview = doc => {
+    setPreviewDoc(doc)
+    setPreviewOpen(true)
+  }
+
+  const handleClosePreview = () => {
+    setPreviewOpen(false)
+    setPreviewDoc(null)
   }
 
   // ── Docs for active category ───────────────────────────────────────────────
@@ -470,6 +530,7 @@ const DocumentsSection = ({ employee, canEdit }) => {
                       doc={{ ...doc, employeeId: employee._id }}
                       onDelete={handleDeleted}
                       canEdit={canEdit}
+                      onPreview={handlePreview}
                     />
                   </Grid>
                 ))}
@@ -510,6 +571,13 @@ const DocumentsSection = ({ employee, canEdit }) => {
             )} */}
           </>
         )}
+
+        {/* ── Document Preview Modal ──────────────────────────────── */}
+        <DocumentPreviewModal
+          open={previewOpen}
+          doc={previewDoc}
+          onClose={handleClosePreview}
+        />
 
       </CardContent>
     </Card>

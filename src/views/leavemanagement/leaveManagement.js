@@ -1,10 +1,7 @@
-// ** React Imports
+// src/views/leavemanagement/leaveManagement.jsx
 import { useState, useEffect } from 'react'
-
-// ** Next Import
 import { useRouter } from 'next/router'
 
-// ** MUI Imports
 import Tab from '@mui/material/Tab'
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
@@ -16,20 +13,13 @@ import useMediaQuery from '@mui/material/useMediaQuery'
 import MuiTabList from '@mui/lab/TabList'
 import CircularProgress from '@mui/material/CircularProgress'
 
-// ** Icon Imports
 import Icon from 'src/@core/components/icon'
 
-// ** Tab Content Imports
 import TabLeaveRequests from './leaveRequesttab'
 import TabLeaveApproval from './leaveApproval'
 import TabLeaveTypes from './leaveTypes'
-import TabLeaveCategory from './leaveCategory'
 import TabLeaveBalance from './leaveBalance'
-import TabApplyLeave from './leaveApply'
-import ApplyLeaveDrawer from './applyleaveDrawer'
-import CreateDealWizard from '../pages/wizard-examples/create-deal'
-import LeavePolicyConfigWizard from './policyWizard'
-
+import TabLeaveInitialize from './leaveInitialize'
 
 const TabList = styled(MuiTabList)(({ theme }) => ({
   border: '0 !important',
@@ -55,17 +45,18 @@ const TabList = styled(MuiTabList)(({ theme }) => ({
 }))
 
 const TABS = [
-  { value: 'policy', label: 'Leave Policy', icon: 'tabler:clipboard-list' },
-  { value: 'requests', label: 'Leave Requests', icon: 'tabler:clipboard-list' },
-  { value: 'approval', label: 'Approval', icon: 'tabler:checks' },
-  { value: 'types', label: 'Leave Types', icon: 'tabler:category' },
-  { value: 'category', label: 'Category', icon: 'tabler:tag' },
-  { value: 'balance', label: 'Balance', icon: 'tabler:scale' },
-  { value: 'apply', label: 'Apply Leave', icon: 'tabler:calendar-plus' },
+ 
+  { value: 'types',     label: 'Leave Types',     icon: 'tabler:category'       },
+  { value: 'initialize', label: 'Initialize',       icon: 'tabler:refresh'        },
+    { value: 'balance',   label: 'Balance',          icon: 'tabler:scale'          },
+     { value: 'requests',  label: 'Leave Requests', icon: 'tabler:clipboard-list' },
+  // { value: 'approval',  label: 'Approval',        icon: 'tabler:checks'         },
+
+
 ]
 
 const LeaveManagement = ({ tab }) => {
-  const [activeTab, setActiveTab] = useState(tab)
+  const [activeTab, setActiveTab] = useState(tab || 'requests')
   const [isLoading, setIsLoading] = useState(false)
 
   const router = useRouter()
@@ -81,13 +72,11 @@ const LeaveManagement = ({ tab }) => {
   }
 
   const tabContentList = {
-    policy: <LeavePolicyConfigWizard />,
     requests: <TabLeaveRequests />,
     approval: <TabLeaveApproval />,
-    types: <TabLeaveTypes />,
-    category: <TabLeaveCategory />,
-    balance: <TabLeaveBalance />,
-    apply: <ApplyLeaveDrawer />,
+    types:    <TabLeaveTypes />,
+    balance:  <TabLeaveBalance />,
+    initialize: <TabLeaveInitialize />
   }
 
   return (

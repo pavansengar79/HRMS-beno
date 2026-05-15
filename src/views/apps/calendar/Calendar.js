@@ -17,9 +17,11 @@ import interactionPlugin from '@fullcalendar/interaction'
 // Each consuming module passes its own colorMap so Calendar stays generic.
 // Holiday module default:
 export const HOLIDAY_COLOR_MAP = {
-  'National': '#1565C0', // deep blue
-  'Restricted Holiday': '#B45309', // amber-brown
-  'Custom': '#065F46'  // dark teal
+  'NATIONAL':  '#1565C0', // deep blue
+  'REGIONAL':  '#6A1B9A', // purple
+  'RELIGIOUS': '#E65100', // orange
+  'OPTIONAL':  '#B45309', // amber
+  'COMPANY':   '#00695C', // teal
 }
 
 // Attendance module example (pass this from attendance page):

@@ -8,7 +8,7 @@ import companyReducer from './company/companySlice'
 import employeeReducer from './employee/employeeSlice'
 import customerReducer from './customer/customerSlice'
 import leaveReducer from "./leaves/leaveSlice" // ✅ import your leave reducer here
-import holidayReducer from './calendar/leaveSlice' // ✅ import your holiday reducer here
+import holidayReducer from './holiday/holidaySlice' // ✅ import your holiday reducer here
 
 // ** App reducers (used across many pages via useSelector(state => state.<key>))
 import calendarReducer from './calendar/leaveSlice'

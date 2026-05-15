@@ -20,6 +20,7 @@ const ALL_NAV_ITEMS = [
   { title: 'Departments', icon: 'mdi:office-building-outline', path: '/department', module: 'department' },
   { title: 'Employees', icon: 'mdi:account-group-outline', path: '/users', module: 'employee' },
   { title: 'Roles & Permissions', icon: 'mdi:key-outline', path: '/rolesPermission', module: 'role' },
+    { title: 'Policy', icon: 'mdi:key-outline', path: '/policy', module: 'role' },
   { title: 'Attendance', icon: 'mdi:clock-check-outline', path: '/attendance', module: 'attendance' },
   { title: 'Leaves', icon: 'mdi:calendar-account-outline', path: '/leaves', module: 'leave' },
   { title: 'Payrolls', icon: 'mdi:cash-multiple', path: '/payroll', module: 'payroll' },

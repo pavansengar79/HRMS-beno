@@ -1255,7 +1255,7 @@ const TabPayrollPolicy = () => {
       }
     } catch (err) {
         console.error(err)
-      toast.error( err ||err?.response?.message || 'Action failed')
+      toast.error( err ||  'Action failed')
     } finally {
       setActionLoading(null)
     }

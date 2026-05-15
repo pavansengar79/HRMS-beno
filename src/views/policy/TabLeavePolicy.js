@@ -1,3 +1,4 @@
+
 // ** React Imports
 import { useState, useEffect, useCallback } from 'react'
 
@@ -32,7 +33,6 @@ import Menu from '@mui/material/Menu'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
 import TablePagination from '@mui/material/TablePagination'
-import TextField from '@mui/material/TextField'
 import InputAdornment from '@mui/material/InputAdornment'
 
 // ** Icon Imports
@@ -50,60 +50,95 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const EMPLOYMENT_TYPES = ['full-time', 'contract', 'intern']
+const EMPLOYMENT_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']
 
 const STATUS_CONFIG = {
-  active:   { color: 'success', icon: 'tabler:circle-check',   label: 'Active'   },
-  inactive: { color: 'warning', icon: 'tabler:circle-pause',   label: 'Inactive' },
-  draft:    { color: 'default', icon: 'tabler:file-description', label: 'Draft'   },
-  archived: { color: 'error',   icon: 'tabler:archive',         label: 'Archived' }
+  active:   { color: 'success', icon: 'tabler:circle-check',    label: 'Active'   },
+  inactive: { color: 'warning', icon: 'tabler:circle-pause',    label: 'Inactive' },
+  draft:    { color: 'default', icon: 'tabler:file-description', label: 'Draft'    },
+  archived: { color: 'error',   icon: 'tabler:archive',          label: 'Archived' }
 }
+
+// ─── Default values aligned with backend model/validation ────────────────────
 
 const defaultPolicyLeaveEntry = {
   leaveTypeId: '',
   name: '',
   code: '',
-  colorCode: '#10B981',
+  color: '#10B981',         // ✅ backend uses 'color', not 'colorCode'
   isPaid: true,
-  accrualRatePerMonth: 0,
-  defaultDaysPerYear: 0,
-  isCarryForwardAllowed: false,
-  carryForwardLimit: 0,
-  isEncashmentAllowed: false,
-  isHalfDayAllowed: true,
-  isSandwichApplicable: false,
-  minNoticeDays: 0,
-  maxConsecutiveDays: null,
-  applicableGender: 'ALL',
-  applicableEmploymentTypes: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'],
-  requiresDocumentAfterDays: null,
   isActive: true,
-  credit: { totalPerYear: 0, frequency: 'monthly', perCycle: 0, accrualType: 'pro-rata' },
-  balance: { maxBalance: 0, allowNegative: false, maxNegative: 0 },
-  carryForward: { allowed: false, max: 0, expiryDays: 0 },
-  encashment: { allowed: false, maxDays: 0 },
-  application: { minDays: 0.5, maxDays: 30, advanceNoticeDays: 0, allowBackdated: false, allowHalfDay: true },
-  documentRule: { required: false, afterDays: 0 },
-  genderRestriction: { enabled: false, gender: '' }
+  isPublic: true,
+  genderRestriction: 'ALL', // ✅ string only, not object
+  applicableEmploymentTypes: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'],
+  minTenureMonths: 0,
+  cooldownDays: 0,
+  credit: {
+    totalPerYear: 0,
+    frequency: 'MONTHLY',
+    perCycle: 0,
+    accrualType: 'YEARLY'
+  },
+  balance: {
+    maxBalance: 0,
+    allowNegative: false,
+    maxNegative: 0
+  },
+  carryForward: {
+    allowed: false,
+    max: 0,
+    expiryDays: 0
+  },
+  encashment: {
+    allowed: false,
+    maxDays: 0
+  },
+  application: {
+    minDays: 0.5,
+    maxDays: null,
+    advanceNoticeDays: 0,
+    allowBackdated: false,
+    allowHalfDay: true
+  },
+  documentRule: {
+    required: false,
+    afterDays: 0
+  },
+  sandwichRule: {
+    override: false,
+    enabled: false,
+    includeHolidays: true,
+    includeWeekends: true
+  }
 }
 
 const defaultPolicyValues = {
   name: '',
   description: '',
   effectiveFrom: '',
+  effectiveTo: null,
   status: 'active',
   applicableFor: {
     departments: [],
     roles: [],
     locations: [],
-    employmentTypes: ['full-time', 'contract', 'intern']
+    employmentTypes: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']
+  },
+  sandwichRule: {
+    enabled: false,
+    includeHolidays: true,
+    includeWeekends: true,
+    consecutiveLeaveThreshold: 2
   },
   leaveTypes: []
 }
 
 // ─── Confirm Dialog ───────────────────────────────────────────────────────────
 
-const ConfirmDialog = ({ open, onClose, onConfirm, title, message, confirmLabel = 'Confirm', confirmColor = 'primary', loading = false }) => (
+const ConfirmDialog = ({
+  open, onClose, onConfirm, title, message,
+  confirmLabel = 'Confirm', confirmColor = 'primary', loading = false
+}) => (
   <Dialog open={open} onClose={onClose} maxWidth='xs' fullWidth>
     <DialogTitle>{title}</DialogTitle>
     <DialogContent>
@@ -149,39 +184,43 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
   const { fields, append, remove } = useFieldArray({ control, name: 'leaveTypes' })
   const [expanded, setExpanded] = useState(null)
 
+  // ✅ Map master leave type fields to backend-aligned form fields
   const handleLeaveTypeSelect = (index, leaveTypeId) => {
     const master = masterLeaveTypes.find(lt => lt._id === leaveTypeId)
     if (!master) return
     const prefix = `leaveTypes.${index}`
-    // setValue(`${prefix}.leaveTypeId`, master._id)
+
     setValue(`${prefix}.name`, master.name)
     setValue(`${prefix}.code`, master.code)
-    setValue(`${prefix}.colorCode`, master.colorCode || '#10B981')
-    setValue(`${prefix}.isPaid`, master.isPaid)
-    setValue(`${prefix}.accrualRatePerMonth`, master.accrualRatePerMonth ?? 0)
-    setValue(`${prefix}.defaultDaysPerYear`, master.defaultDaysPerYear ?? 0)
-    setValue(`${prefix}.isCarryForwardAllowed`, master.isCarryForwardAllowed ?? false)
-    setValue(`${prefix}.carryForwardLimit`, master.carryForwardLimit ?? 0)
-    setValue(`${prefix}.isEncashmentAllowed`, master.isEncashmentAllowed ?? false)
-    setValue(`${prefix}.isHalfDayAllowed`, master.isHalfDayAllowed ?? true)
-    setValue(`${prefix}.isSandwichApplicable`, master.isSandwichApplicable ?? false)
-    setValue(`${prefix}.minNoticeDays`, master.minNoticeDays ?? 0)
-    setValue(`${prefix}.maxConsecutiveDays`, master.maxConsecutiveDays ?? null)
-    setValue(`${prefix}.applicableGender`, master.applicableGender ?? 'ALL')
-    setValue(`${prefix}.applicableEmploymentTypes`, master.applicableEmploymentTypes ?? ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'])
-    setValue(`${prefix}.requiresDocumentAfterDays`, master.requiresDocumentAfterDays ?? null)
+    setValue(`${prefix}.color`, master.colorCode || master.color || '#10B981') // ✅ map to 'color'
+    setValue(`${prefix}.isPaid`, master.isPaid ?? true)
     setValue(`${prefix}.isActive`, master.isActive ?? true)
+    setValue(`${prefix}.genderRestriction`, master.applicableGender ?? 'ALL') // ✅ string only
+    setValue(`${prefix}.applicableEmploymentTypes`, master.applicableEmploymentTypes ?? ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'])
+
+    // credit — map master flat fields to nested credit object
     setValue(`${prefix}.credit.totalPerYear`, master.defaultDaysPerYear ?? 0)
     setValue(`${prefix}.credit.perCycle`, master.accrualRatePerMonth ?? 0)
+    setValue(`${prefix}.credit.frequency`, master.credit?.frequency ?? 'MONTHLY')
+    setValue(`${prefix}.credit.accrualType`, master.credit?.accrualType ?? 'YEARLY')
+
+    // carryForward
     setValue(`${prefix}.carryForward.allowed`, master.isCarryForwardAllowed ?? false)
     setValue(`${prefix}.carryForward.max`, master.carryForwardLimit ?? 0)
+
+    // encashment
     setValue(`${prefix}.encashment.allowed`, master.isEncashmentAllowed ?? false)
+
+    // application
     setValue(`${prefix}.application.allowHalfDay`, master.isHalfDayAllowed ?? true)
     setValue(`${prefix}.application.advanceNoticeDays`, master.minNoticeDays ?? 0)
+
+    // documentRule
     setValue(`${prefix}.documentRule.required`, master.requiresDocumentAfterDays != null)
     setValue(`${prefix}.documentRule.afterDays`, master.requiresDocumentAfterDays ?? 0)
-    setValue(`${prefix}.genderRestriction.enabled`, master.applicableGender !== 'ALL')
-    setValue(`${prefix}.genderRestriction.gender`, master.applicableGender !== 'ALL' ? master.applicableGender?.toLowerCase() : '')
+
+    // sandwichRule
+    setValue(`${prefix}.sandwichRule.enabled`, master.isSandwichApplicable ?? false)
   }
 
   const addLeaveType = () => {
@@ -211,13 +250,12 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
 
       {fields.map((field, index) => {
         const p = `leaveTypes.${index}`
-        const cfAllowed = watch(`${p}.carryForward.allowed`)
+        const cfAllowed  = watch(`${p}.carryForward.allowed`)
         const encAllowed = watch(`${p}.encashment.allowed`)
-        const docReq = watch(`${p}.documentRule.required`)
-        const genderEnabled = watch(`${p}.genderRestriction.enabled`)
-        const colorVal = watch(`${p}.colorCode`)
-        const nameVal = watch(`${p}.name`)
-        const codeVal = watch(`${p}.code`)
+        const docReq     = watch(`${p}.documentRule.required`)
+        const colorVal   = watch(`${p}.color`)   // ✅ 'color' not 'colorCode'
+        const nameVal    = watch(`${p}.name`)
+        const codeVal    = watch(`${p}.code`)
         const leaveTypeId = watch(`${p}.leaveTypeId`)
 
         return (
@@ -260,6 +298,7 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
 
             <AccordionDetails>
               <Grid container spacing={4}>
+
                 {/* Select master leave type */}
                 <Grid item xs={12}>
                   <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
@@ -283,7 +322,7 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                           {masterLeaveTypes.map(lt => (
                             <MenuItem key={lt._id} value={lt._id}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: lt.colorCode || '#6B7280', flexShrink: 0 }} />
+                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: lt.colorCode || lt.color || '#6B7280', flexShrink: 0 }} />
                                 <span>{lt.name}</span>
                                 <Typography variant='caption' color='text.secondary' sx={{ ml: 0.5 }}>
                                   ({lt.code}) · {lt.defaultDaysPerYear} days/yr
@@ -342,10 +381,10 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                       />
                     </Grid>
 
-                    {/* Color */}
+                    {/* Color — ✅ field name is 'color' */}
                     <Grid item xs={12}>
                       <Typography variant='body2' color='text.secondary' sx={{ mb: 1.5 }}>Color</Typography>
-                      <Controller name={`${p}.colorCode`} control={control}
+                      <Controller name={`${p}.color`} control={control}
                         render={({ field }) => (
                           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
                             {['#10B981', '#4F46E5', '#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#6B7280'].map(c => (
@@ -375,22 +414,23 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                       <Typography variant='overline' color='text.secondary'>Credit & Accrual</Typography>
                     </Grid>
                     <Grid item xs={6} sm={3}>
-                      <Controller name={`${p}.defaultDaysPerYear`} control={control}
+                      <Controller name={`${p}.credit.totalPerYear`} control={control}
                         render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Days / Year' />}
                       />
                     </Grid>
                     <Grid item xs={6} sm={3}>
-                      <Controller name={`${p}.accrualRatePerMonth`} control={control}
-                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Accrual / Month' />}
+                      <Controller name={`${p}.credit.perCycle`} control={control}
+                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Per Cycle' />}
                       />
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Controller name={`${p}.credit.frequency`} control={control}
                         render={({ field }) => (
                           <CustomTextField {...field} select fullWidth label='Frequency'>
-                            <MenuItem value='monthly'>Monthly</MenuItem>
-                            <MenuItem value='quarterly'>Quarterly</MenuItem>
-                            <MenuItem value='yearly'>Yearly</MenuItem>
+                            <MenuItem value='MONTHLY'>Monthly</MenuItem>
+                            <MenuItem value='QUARTERLY'>Quarterly</MenuItem>
+                            <MenuItem value='YEARLY'>Yearly</MenuItem>
+                            <MenuItem value='NONE'>None</MenuItem>
                           </CustomTextField>
                         )}
                       />
@@ -399,8 +439,10 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                       <Controller name={`${p}.credit.accrualType`} control={control}
                         render={({ field }) => (
                           <CustomTextField {...field} select fullWidth label='Accrual Type'>
-                            <MenuItem value='pro-rata'>Pro-Rata</MenuItem>
-                            <MenuItem value='full'>Full</MenuItem>
+                            <MenuItem value='MONTHLY'>Monthly</MenuItem>
+                            <MenuItem value='QUARTERLY'>Quarterly</MenuItem>
+                            <MenuItem value='YEARLY'>Yearly</MenuItem>
+                            <MenuItem value='NONE'>None</MenuItem>
                           </CustomTextField>
                         )}
                       />
@@ -435,31 +477,27 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
 
                     <Grid item xs={12}><Divider /></Grid>
 
-                    {/* Carry Forward */}
+                    {/* Carry Forward — ✅ directly using carryForward.allowed */}
                     <Grid item xs={12}>
                       <Typography variant='overline' color='text.secondary'>Carry Forward</Typography>
                     </Grid>
                     <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Controller name={`${p}.isCarryForwardAllowed`} control={control}
+                      <Controller name={`${p}.carryForward.allowed`} control={control}
                         render={({ field }) => (
                           <FormControlLabel
-                            control={<Switch checked={field.value} onChange={e => {
-                              field.onChange(e.target.checked)
-                              setValue(`${p}.carryForward.allowed`, e.target.checked)
-                            }} />}
+                            control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
                             label='Allow Carry Forward'
                           />
                         )}
                       />
                     </Grid>
-                    {(watch(`${p}.isCarryForwardAllowed`) || cfAllowed) && (
+                    {cfAllowed && (
                       <>
                         <Grid item xs={6} sm={4}>
-                          <Controller name={`${p}.carryForwardLimit`} control={control}
+                          {/* ✅ directly carryForward.max */}
+                          <Controller name={`${p}.carryForward.max`} control={control}
                             render={({ field }) => (
-                              <CustomTextField {...field} fullWidth type='number' label='CF Limit (days)'
-                                onChange={e => { field.onChange(e.target.value); setValue(`${p}.carryForward.max`, e.target.value) }}
-                              />
+                              <CustomTextField {...field} fullWidth type='number' label='CF Limit (days)' />
                             )}
                           />
                         </Grid>
@@ -473,24 +511,21 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
 
                     <Grid item xs={12}><Divider /></Grid>
 
-                    {/* Encashment */}
+                    {/* Encashment — ✅ directly using encashment.allowed */}
                     <Grid item xs={12}>
                       <Typography variant='overline' color='text.secondary'>Encashment</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6} sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Controller name={`${p}.isEncashmentAllowed`} control={control}
+                      <Controller name={`${p}.encashment.allowed`} control={control}
                         render={({ field }) => (
                           <FormControlLabel
-                            control={<Switch checked={field.value} onChange={e => {
-                              field.onChange(e.target.checked)
-                              setValue(`${p}.encashment.allowed`, e.target.checked)
-                            }} />}
+                            control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
                             label='Allow Encashment'
                           />
                         )}
                       />
                     </Grid>
-                    {(watch(`${p}.isEncashmentAllowed`) || encAllowed) && (
+                    {encAllowed && (
                       <Grid item xs={12} sm={6}>
                         <Controller name={`${p}.encashment.maxDays`} control={control}
                           render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Max Encashment Days' />}
@@ -500,7 +535,7 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
 
                     <Grid item xs={12}><Divider /></Grid>
 
-                    {/* Application Rules */}
+                    {/* Application Rules — ✅ all nested under application.* */}
                     <Grid item xs={12}>
                       <Typography variant='overline' color='text.secondary'>Application Rules</Typography>
                     </Grid>
@@ -511,22 +546,26 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Controller name={`${p}.application.maxDays`} control={control}
-                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Max Days' />}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <Controller name={`${p}.minNoticeDays`} control={control}
                         render={({ field }) => (
-                          <CustomTextField {...field} fullWidth type='number' label='Min Notice Days'
-                            onChange={e => { field.onChange(e.target.value); setValue(`${p}.application.advanceNoticeDays`, e.target.value) }}
+                          <CustomTextField fullWidth type='number' label='Max Days' placeholder='No limit'
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                           />
                         )}
                       />
                     </Grid>
                     <Grid item xs={6} sm={3}>
-                      <Controller name={`${p}.maxConsecutiveDays`} control={control}
+                      {/* ✅ directly application.advanceNoticeDays */}
+                      <Controller name={`${p}.application.advanceNoticeDays`} control={control}
                         render={({ field }) => (
-                          <CustomTextField fullWidth type='number' label='Max Consecutive Days' placeholder='No limit'
+                          <CustomTextField {...field} fullWidth type='number' label='Min Notice Days' />
+                        )}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Controller name={`${p}.application.maxPerMonth`} control={control}
+                        render={({ field }) => (
+                          <CustomTextField fullWidth type='number' label='Max Per Month' placeholder='No limit'
                             value={field.value ?? ''}
                             onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                           />
@@ -534,13 +573,11 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                       />
                     </Grid>
                     <Grid item xs={12} sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      <Controller name={`${p}.isHalfDayAllowed`} control={control}
+                      {/* ✅ directly application.allowHalfDay */}
+                      <Controller name={`${p}.application.allowHalfDay`} control={control}
                         render={({ field }) => (
                           <FormControlLabel
-                            control={<Switch checked={field.value} onChange={e => {
-                              field.onChange(e.target.checked)
-                              setValue(`${p}.application.allowHalfDay`, e.target.checked)
-                            }} />}
+                            control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
                             label='Allow Half Day'
                           />
                         )}
@@ -553,7 +590,8 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                           />
                         )}
                       />
-                      <Controller name={`${p}.isSandwichApplicable`} control={control}
+                      {/* ✅ directly sandwichRule.enabled */}
+                      <Controller name={`${p}.sandwichRule.enabled`} control={control}
                         render={({ field }) => (
                           <FormControlLabel
                             control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
@@ -581,15 +619,12 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                     </Grid>
                     {docReq && (
                       <Grid item xs={12} sm={6}>
-                        <Controller name={`${p}.requiresDocumentAfterDays`} control={control}
+                        {/* ✅ directly documentRule.afterDays */}
+                        <Controller name={`${p}.documentRule.afterDays`} control={control}
                           render={({ field }) => (
                             <CustomTextField fullWidth type='number' label='Required After (days)'
                               value={field.value ?? ''}
-                              onChange={e => {
-                                const val = e.target.value === '' ? null : Number(e.target.value)
-                                field.onChange(val)
-                                setValue(`${p}.documentRule.afterDays`, val ?? 0)
-                              }}
+                              onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
                             />
                           )}
                         />
@@ -602,8 +637,9 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                     <Grid item xs={12}>
                       <Typography variant='overline' color='text.secondary'>Applicability</Typography>
                     </Grid>
+                    {/* ✅ Single genderRestriction field (string), duplicate applicableGender removed */}
                     <Grid item xs={12} sm={6}>
-                      <Controller name={`${p}.applicableGender`} control={control}
+                      <Controller name={`${p}.genderRestriction`} control={control}
                         render={({ field }) => (
                           <CustomTextField {...field} select fullWidth label='Applicable Gender'>
                             <MenuItem value='ALL'>All</MenuItem>
@@ -636,34 +672,6 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                         )}
                       />
                     </Grid>
-
-                    {watch(`${p}.applicableGender`) !== 'ALL' && (
-                      <>
-                        <Grid item xs={12} sm={6} sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Controller name={`${p}.genderRestriction.enabled`} control={control}
-                            render={({ field }) => (
-                              <FormControlLabel
-                                control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
-                                label='Enable Gender Restriction'
-                              />
-                            )}
-                          />
-                        </Grid>
-                        {genderEnabled && (
-                          <Grid item xs={12} sm={6}>
-                            <Controller name={`${p}.genderRestriction.gender`} control={control}
-                              render={({ field }) => (
-                                <CustomTextField {...field} select fullWidth label='Restricted To'>
-                                  <MenuItem value='male'>Male</MenuItem>
-                                  <MenuItem value='female'>Female</MenuItem>
-                                  <MenuItem value='other'>Other</MenuItem>
-                                </CustomTextField>
-                              )}
-                            />
-                          </Grid>
-                        )}
-                      </>
-                    )}
                   </>
                 )}
               </Grid>
@@ -689,7 +697,6 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
   useEffect(() => {
     if (open) {
       if (editData) {
-        // Map API response shape → form shape
         reset({
           ...defaultPolicyValues,
           ...editData,
@@ -698,31 +705,21 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             leaveTypeId: lt.leaveTypeId || '',
             name: lt.name || '',
             code: lt.code || '',
-            colorCode: lt.color || lt.colorCode || '#10B981',
+            color: lt.color || '#10B981',                    // ✅ 'color' not 'colorCode'
             isPaid: lt.isPaid ?? true,
             isActive: lt.isActive ?? true,
-            isCarryForwardAllowed: lt.carryForward?.allowed ?? false,
-            carryForwardLimit: lt.carryForward?.max ?? 0,
-            isEncashmentAllowed: lt.encashment?.allowed ?? false,
-            isHalfDayAllowed: lt.application?.allowHalfDay ?? true,
-            isSandwichApplicable: lt.sandwichRule?.enabled ?? false,
-            minNoticeDays: lt.application?.advanceNoticeDays ?? 0,
-            maxConsecutiveDays: lt.maxConsecutiveDays ?? null,
-            applicableGender: lt.genderRestriction ?? 'ALL',
+            isPublic: lt.isPublic ?? true,
+            genderRestriction: lt.genderRestriction ?? 'ALL', // ✅ string only
             applicableEmploymentTypes: lt.applicableEmploymentTypes ?? ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'],
-            requiresDocumentAfterDays: lt.documentRule?.afterDays ?? null,
-            defaultDaysPerYear: lt.credit?.totalPerYear ?? 0,
-            accrualRatePerMonth: lt.credit?.perCycle ?? 0,
+            minTenureMonths: lt.minTenureMonths ?? 0,
+            cooldownDays: lt.cooldownDays ?? 0,
             credit: lt.credit ?? defaultPolicyLeaveEntry.credit,
             balance: lt.balance ?? defaultPolicyLeaveEntry.balance,
             carryForward: lt.carryForward ?? defaultPolicyLeaveEntry.carryForward,
             encashment: lt.encashment ?? defaultPolicyLeaveEntry.encashment,
             application: lt.application ?? defaultPolicyLeaveEntry.application,
             documentRule: lt.documentRule ?? defaultPolicyLeaveEntry.documentRule,
-            genderRestriction: {
-              enabled: lt.genderRestriction && lt.genderRestriction !== 'ALL',
-              gender: lt.genderRestriction !== 'ALL' ? (lt.genderRestriction || '').toLowerCase() : ''
-            }
+            sandwichRule: lt.sandwichRule ?? defaultPolicyLeaveEntry.sandwichRule,
           }))
         })
       } else {
@@ -731,14 +728,16 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
     }
   }, [open, editData])
 
+  // ✅ Strip internal/meta fields before sending to backend
   const stripIds = (value) => {
     if (Array.isArray(value)) return value.map(stripIds)
     if (value && typeof value === 'object') {
-      const keysToRemove = new Set([
-        '_id', 'id', 'tenantId', 'createdAt', 'updatedAt',
-        'createdBy', 'updatedBy', 'archivedAt', 'archivedBy',
-        'activatedAt', 'activatedBy', '__v','version','isActive'
-      ])
+     const keysToRemove = new Set([
+'_id', 'id', 'tenantId', 'createdAt', 'updatedAt',
+'createdBy', 'updatedBy', 'archivedAt', 'archivedBy',
+'activatedAt', 'activatedBy', '__v', 'version'
+// isActive yahan nahi — leaveType ke andar chahiye
+])
       return Object.entries(value).reduce((acc, [key, val]) => {
         if (keysToRemove.has(key)) return acc
         acc[key] = stripIds(val)
@@ -748,24 +747,50 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
     return value
   }
 
-  const onSubmit = async (data) => {
-    const payload = stripIds(data)
-    setSaving(true)
-    try {
-      const res = isEdit
-        ? await axiosRequest.put(`/api/v1/leave-policies/${editData._id}`, payload)
-        : await axiosRequest.post('/api/v1/leave-policies', payload)
-      if (res?.success) {
-        toast.success(`Policy ${isEdit ? 'updated' : 'created'} successfully`)
-        onSuccess(res.data, isEdit)
-        onClose()
-      }
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to save policy')
-    } finally {
-      setSaving(false)
+ const onSubmit = async (data) => {
+  const { leaveTypes, ...metaData } = data
+
+  // Remove top-level virtual/internal fields
+  delete metaData.isActive
+  delete metaData.totalLeaveTypesCount
+  delete metaData.activeLeaveTypes
+
+  const cleanMeta = stripIds(metaData)
+  const cleanLeaveTypes = stripIds(leaveTypes)
+
+  setSaving(true)
+  try {
+    const url = isEdit
+      ? `/api/v1/leave-policies/${editData._id}`
+      : `/api/v1/leave-policies`
+
+    // Step 1 — Create or update policy meta
+    const metaRes = isEdit
+      ? await axiosRequest.put(url, cleanMeta)
+      : await axiosRequest.post(url, cleanMeta)
+
+    if (!metaRes?.success) return
+
+    const policyId = isEdit ? editData._id : metaRes.data?._id
+
+    // Step 2 — Update leave types (only if any added)
+    if (cleanLeaveTypes?.length > 0) {
+      await axiosRequest.put(
+        `/api/v1/leave-policies/${policyId}/leave-types`,
+        { leaveTypes: cleanLeaveTypes }
+      )
     }
+
+    toast.success(`Policy ${isEdit ? 'updated' : 'created'} successfully`)
+    onSuccess(metaRes.data, isEdit)
+    onClose()
+
+  } catch (err) {
+    toast.error(err?.response?.data?.message || 'Failed to save policy')
+  } finally {
+    setSaving(false)
   }
+}
 
   return (
     <Drawer open={open} anchor='right' onClose={onClose}
@@ -807,7 +832,6 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                 render={({ field }) => (
                   <CustomTextField {...field} select fullWidth label='Status'>
                     <MenuItem value='active'>Active</MenuItem>
-                    <MenuItem value='inactive'>Inactive</MenuItem>
                     <MenuItem value='draft'>Draft</MenuItem>
                   </CustomTextField>
                 )}
@@ -832,8 +856,11 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             <Grid item xs={12} sm={6}>
               <Controller name='effectiveTo' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth type='date' label='Effective To (optional)'
+                  <CustomTextField
+                    fullWidth type='date' label='Effective To (optional)'
                     InputLabelProps={{ shrink: true }}
+                    value={field.value ?? ''}
+                    onChange={e => field.onChange(e.target.value || null)}
                   />
                 )}
               />
@@ -876,6 +903,54 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
 
         <Divider />
 
+        {/* Sandwich Rule */}
+        <Box>
+          <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 3 }}>
+            Sandwich Rule
+          </Typography>
+          <Grid container spacing={4}>
+            <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
+              <Controller name='sandwichRule.enabled' control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                    label='Enable Sandwich Rule'
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
+              <Controller name='sandwichRule.includeHolidays' control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                    label='Include Holidays'
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
+              <Controller name='sandwichRule.includeWeekends' control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                    label='Include Weekends'
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Controller name='sandwichRule.consecutiveLeaveThreshold' control={control}
+                render={({ field }) => (
+                  <CustomTextField {...field} fullWidth type='number' label='Consecutive Threshold (days)' />
+                )}
+              />
+            </Grid>
+          </Grid>
+        </Box>
+
+        <Divider />
+
         {/* Leave Types */}
         <LeaveTypesSection
           control={control}
@@ -907,9 +982,7 @@ const PolicyActionsMenu = ({ policy, onEdit, onActivate, onDeactivate, onArchive
   const status = policy.status
 
   const close = () => setAnchorEl(null)
-
   const handle = (fn) => () => { close(); fn(policy) }
-
   const isLoading = actionLoading === policy._id
 
   return (
@@ -924,39 +997,30 @@ const PolicyActionsMenu = ({ policy, onEdit, onActivate, onDeactivate, onArchive
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        {/* Edit — always available except archived */}
         {status !== 'archived' && (
           <MenuItem onClick={handle(onEdit)}>
             <ListItemIcon><Icon icon='tabler:pencil' fontSize='1rem' /></ListItemIcon>
             <ListItemText>Edit Policy</ListItemText>
           </MenuItem>
         )}
-
-        {/* Activate — draft or inactive */}
         {(status === 'draft' || status === 'inactive') && (
           <MenuItem onClick={handle(onActivate)}>
             <ListItemIcon><Icon icon='tabler:circle-check' fontSize='1rem' color='#10B981' /></ListItemIcon>
             <ListItemText>Activate</ListItemText>
           </MenuItem>
         )}
-
-        {/* Deactivate — active only */}
         {status === 'active' && (
           <MenuItem onClick={handle(onDeactivate)}>
             <ListItemIcon><Icon icon='tabler:circle-pause' fontSize='1rem' color='#F59E0B' /></ListItemIcon>
             <ListItemText>Deactivate</ListItemText>
           </MenuItem>
         )}
-
-        {/* Archive — active or inactive */}
         {(status === 'active' || status === 'inactive') && (
           <MenuItem onClick={handle(onArchive)}>
             <ListItemIcon><Icon icon='tabler:archive' fontSize='1rem' color='#6B7280' /></ListItemIcon>
             <ListItemText>Archive</ListItemText>
           </MenuItem>
         )}
-
-        {/* Delete — draft or inactive */}
         {(status === 'draft' || status === 'inactive' || status === 'archived') && (
           <MenuItem onClick={handle(onDelete)} sx={{ color: 'error.main' }}>
             <ListItemIcon><Icon icon='tabler:trash' fontSize='1rem' color='inherit' style={{ color: 'var(--mui-palette-error-main)' }} /></ListItemIcon>
@@ -975,17 +1039,17 @@ const TabLeavePolicy = () => {
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editData, setEditData] = useState(null)
-  const [actionLoading, setActionLoading] = useState(null)  // _id of policy being acted on
+  const [actionLoading, setActionLoading] = useState(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [pagination, setPagination] = useState({ total: 0, pages: 1 })
 
-  // Confirm dialog state
-  const [confirm, setConfirm] = useState({ open: false, title: '', message: '', action: null, color: 'primary', label: '' })
+  const [confirm, setConfirm] = useState({
+    open: false, title: '', message: '', action: null, color: 'primary', label: ''
+  })
 
-  // ── Fetch list ───────────────────────────────────────────────────────────────
   const fetchPolicies = useCallback(async (overridePage) => {
     setLoading(true)
     try {
@@ -996,8 +1060,6 @@ const TabLeavePolicy = () => {
       params.set('limit', rowsPerPage)
 
       const res = await axiosRequest.get(`/api/v1/leave-policies?${params.toString()}`)
-
-      // Real response: res.success, res.data.policies[], res.data.pagination
       if (res?.success) {
         setPolicies(res.data?.policies ?? [])
         setPagination(res.data?.pagination ?? { total: 0, pages: 1 })
@@ -1011,18 +1073,15 @@ const TabLeavePolicy = () => {
 
   useEffect(() => { fetchPolicies() }, [fetchPolicies])
 
-  // ── Drawer success ────────────────────────────────────────────────────────────
   const handleSuccess = (record, isEdit) => {
-    // Normalize: API may return the policy directly or inside data
     const policy = record?.policies?.[0] ?? record
     if (isEdit) {
       setPolicies(prev => prev.map(p => p._id === policy._id ? policy : p))
     } else {
-      fetchPolicies()   // refetch to get correct pagination
+      fetchPolicies()
     }
   }
 
-  // ── Generic policy action (PATCH/DELETE) ──────────────────────────────────────
   const doAction = async (policy, method, urlSuffix, successMsg, updateFn) => {
     setActionLoading(policy._id)
     try {
@@ -1041,8 +1100,6 @@ const TabLeavePolicy = () => {
       setActionLoading(null)
     }
   }
-
-  // ── Action handlers (all open confirm first) ──────────────────────────────────
 
   const openConfirm = (title, message, action, color = 'primary', label = 'Confirm') => {
     setConfirm({ open: true, title, message, action, color, label })
@@ -1092,14 +1149,14 @@ const TabLeavePolicy = () => {
     setDrawerOpen(true)
   }
 
-  // ── Confirm execute ───────────────────────────────────────────────────────────
   const execConfirm = async () => {
     if (confirm.action) await confirm.action()
     setConfirm(c => ({ ...c, open: false }))
   }
 
-  // ── Render helpers ────────────────────────────────────────────────────────────
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+  const formatDate = (d) => d
+    ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—'
 
   const StatusChip = ({ status }) => {
     const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.draft
@@ -1191,7 +1248,6 @@ const TabLeavePolicy = () => {
                 }}
               >
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  {/* Name + status + version */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1, flexWrap: 'wrap' }}>
                     <Typography fontWeight={600} variant='body1'>{policy.name}</Typography>
                     <StatusChip status={policy.status} />
@@ -1200,14 +1256,12 @@ const TabLeavePolicy = () => {
                     )}
                   </Box>
 
-                  {/* Description */}
                   {policy.description && (
                     <Typography variant='body2' color='text.secondary' sx={{ mb: 1, maxWidth: 600 }} noWrap>
                       {policy.description}
                     </Typography>
                   )}
 
-                  {/* Meta: dates, leave count */}
                   <Typography variant='caption' color='text.secondary'>
                     Effective: {formatDate(policy.effectiveFrom)}
                     {policy.effectiveTo ? ` → ${formatDate(policy.effectiveTo)}` : ''}
@@ -1216,7 +1270,6 @@ const TabLeavePolicy = () => {
                     {policy.updatedAt && ` · Updated ${formatDate(policy.updatedAt)}`}
                   </Typography>
 
-                  {/* Leave type chips — use actual API data */}
                   {policy.leaveTypes?.length > 0 && (
                     <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
                       {policy.leaveTypes.map((lt, i) => (
@@ -1229,9 +1282,9 @@ const TabLeavePolicy = () => {
                             size='small'
                             variant='outlined'
                             sx={{
-                              borderColor: lt.color || lt.colorCode || '#6B7280',
-                              color: lt.color || lt.colorCode || 'text.primary',
-                              backgroundColor: `${lt.color || lt.colorCode || '#6B7280'}18`
+                              borderColor: lt.color || '#6B7280',
+                              color: lt.color || 'text.primary',
+                              backgroundColor: `${lt.color || '#6B7280'}18`
                             }}
                           />
                         </Tooltip>
@@ -1239,16 +1292,13 @@ const TabLeavePolicy = () => {
                     </Box>
                   )}
 
-                  {/* Applicability chips */}
                   <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-                    {/* Employment types */}
                     {policy.applicableFor?.employmentTypes?.length > 0
                       ? policy.applicableFor.employmentTypes.map(type => (
                         <Chip key={type} label={type} size='small' variant='tonal' color='secondary' />
                       ))
                       : <Chip label='All employees' size='small' variant='tonal' color='secondary' />
                     }
-                    {/* Departments */}
                     {policy.applicableFor?.departments?.length > 0 && (
                       <Chip
                         label={`${policy.applicableFor.departments.length} dept${policy.applicableFor.departments.length > 1 ? 's' : ''}`}
@@ -1256,7 +1306,6 @@ const TabLeavePolicy = () => {
                         icon={<Icon icon='tabler:building' fontSize='0.75rem' />}
                       />
                     )}
-                    {/* Roles */}
                     {policy.applicableFor?.roles?.length > 0 && (
                       <Chip
                         label={`${policy.applicableFor.roles.length} role${policy.applicableFor.roles.length > 1 ? 's' : ''}`}
@@ -1264,7 +1313,6 @@ const TabLeavePolicy = () => {
                         icon={<Icon icon='tabler:user-check' fontSize='0.75rem' />}
                       />
                     )}
-                    {/* Locations */}
                     {policy.applicableFor?.locations?.length > 0 && (
                       <Chip
                         label={policy.applicableFor.locations.join(', ')}
@@ -1275,9 +1323,7 @@ const TabLeavePolicy = () => {
                   </Box>
                 </Box>
 
-                {/* Actions */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-                  {/* Quick edit button */}
                   {policy.status !== 'archived' && (
                     <Tooltip title='Edit Policy'>
                       <IconButton size='small' onClick={() => handleEdit(policy)}>
@@ -1285,7 +1331,6 @@ const TabLeavePolicy = () => {
                       </IconButton>
                     </Tooltip>
                   )}
-                  {/* Context menu for all other actions */}
                   <PolicyActionsMenu
                     policy={policy}
                     actionLoading={actionLoading}
@@ -1301,7 +1346,6 @@ const TabLeavePolicy = () => {
           </Box>
         )}
 
-        {/* Pagination */}
         {!loading && pagination.total > rowsPerPage && (
           <>
             <Divider />
@@ -1318,7 +1362,6 @@ const TabLeavePolicy = () => {
         )}
       </CardContent>
 
-      {/* Drawer */}
       <LeavePolicyDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -1326,7 +1369,6 @@ const TabLeavePolicy = () => {
         onSuccess={handleSuccess}
       />
 
-      {/* Confirm Dialog */}
       <ConfirmDialog
         open={confirm.open}
         onClose={() => setConfirm(c => ({ ...c, open: false }))}

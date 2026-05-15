@@ -4,9 +4,9 @@ import axios from 'axios'
 
 // ─── Holiday Types ────────────────────────────────────────────────────────────
 export const HOLIDAY_TYPES = {
-  NATIONAL: 'National',
-  RESTRICTED: 'Restricted Holiday',
-  CUSTOM: 'Custom'
+  NATIONAL: 'NATIONAL',
+  RESTRICTED: 'RESTRICTED',
+  CUSTOM: 'CUSTOM'
 }
 
 // ─── Async Thunks ─────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ export const HOLIDAY_TYPES = {
 export const fetchHolidays = createAsyncThunk(
   'appHoliday/fetchHolidays',
   async (params = {}) => {
-    const response = await axios.get('/apps/holiday/list', { params })
+    const response = await axios.get('/api/v1/holidays', { params })
     return response.data
   }
 )
@@ -22,27 +22,27 @@ export const fetchHolidays = createAsyncThunk(
 export const addHoliday = createAsyncThunk(
   'appHoliday/addHoliday',
   async (holiday, { dispatch, getState }) => {
-    const response = await axios.post('/apps/holiday/add', { data: { holiday } })
+    const response = await axios.post('/api/v1/holidays', holiday)
     const { selectedTypes } = getState().holiday
     await dispatch(fetchHolidays({ types: selectedTypes }))
-    return response.data.holiday
+    return response.data
   }
 )
 
 export const updateHoliday = createAsyncThunk(
   'appHoliday/updateHoliday',
   async (holiday, { dispatch, getState }) => {
-    const response = await axios.post('/apps/holiday/update', { data: { holiday } })
+    const response = await axios.put(`/api/v1/holidays/${holiday._id}`, holiday)
     const { selectedTypes } = getState().holiday
     await dispatch(fetchHolidays({ types: selectedTypes }))
-    return response.data.holiday
+    return response.data
   }
 )
 
 export const deleteHoliday = createAsyncThunk(
   'appHoliday/deleteHoliday',
   async (id, { dispatch, getState }) => {
-    await axios.delete('/apps/holiday/delete', { params: { id } })
+    await axios.delete(`/api/v1/holidays/${id}`)
     const { selectedTypes } = getState().holiday
     await dispatch(fetchHolidays({ types: selectedTypes }))
     return id

@@ -186,6 +186,7 @@ const RolesCards = () => {
     try {
       setLoadingPerms(true)
       const res = await axiosRequest.get('/api/v1/permissions/')
+      console.log('Fetched permissions:', res?.data) // Debug log to check fetched permissions
       if (res?.success && Array.isArray(res.data)) setPermissions(res.data)
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'Failed to load permissions')
@@ -431,10 +432,11 @@ const handleSelectAllCheckbox = () => {
 
   return (
     <>
+    
       <Grid container spacing={6} className='match-height'>
         {renderCards()}
-
-        <Grid item xs={12} sm={6} lg={4}>
+{isTenantAdmin &&
+<Grid item xs={12} sm={6} lg={4}>
           <Card sx={{ cursor: 'pointer' }} onClick={openAdd}>
             <Grid container sx={{ height: '100%' }}>
               <Grid item xs={5}>
@@ -455,6 +457,8 @@ const handleSelectAllCheckbox = () => {
             </Grid>
           </Card>
         </Grid>
+}
+        
       </Grid>
 
       <Dialog fullWidth maxWidth='md' scroll='body' onClose={handleClose} open={open}>

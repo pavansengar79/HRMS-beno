@@ -116,7 +116,7 @@ const HolidayDrawer = ({ open, onClose, editData, onSuccess }) => {
         onClose()
       }
     } catch (error) {
-      toast.error(error?.response?.data?.message || 'Something went wrong')
+      toast.error(error || 'Something went wrong')
     } finally {
       setSaving(false)
     }
@@ -357,7 +357,7 @@ const TabHolidayCalendar = () => {
     try {
       const id = deleteModal?.data?._id
 
-      const res = await axiosRequest.delete(`/holidays/${id}`)
+      const res = await axiosRequest.delete(`api/v1/holidays/${id}`)
 
       if (res?.data?.success) {
         setHolidays(prev => prev.filter(item => item._id !== id))

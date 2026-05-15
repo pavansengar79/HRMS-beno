@@ -1,5 +1,5 @@
 // ** React Imports
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 // ** MUI Imports
 import Box from '@mui/material/Box'
@@ -16,6 +16,7 @@ import Checkbox from '@mui/material/Checkbox'
 import Chip from '@mui/material/Chip'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Tooltip from '@mui/material/Tooltip'
+import Alert from '@mui/material/Alert'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
@@ -32,7 +33,30 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// API expects uppercase 3-letter codes: MON, TUE, WED ...
+// Valid IANA timezones accepted by the backend
+const TIMEZONES = [
+  'Asia/Kolkata',
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+]
+
+// Exactly 3-letter ISO 4217 currency codes (backend validates length === 3)
+const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'JPY', 'AUD', 'CAD']
+
+const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY']
+
+// API expects uppercase 3-letter day codes
 const WORK_WEEK_OPTIONS = [
   { value: 'MON', label: 'Mon' },
   { value: 'TUE', label: 'Tue' },
@@ -43,20 +67,7 @@ const WORK_WEEK_OPTIONS = [
   { value: 'SUN', label: 'Sun' },
 ]
 
-const TIMEZONES = [
-  'Asia/Kolkata',
-  'UTC',
-  'America/New_York',
-  'America/Los_Angeles',
-  'Europe/London',
-  'Asia/Dubai',
-  'Asia/Singapore',
-]
-
-const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD']
-
-const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY']
-
+// fiscalYearStart: 1–12 (backend rejects 13+)
 const MONTHS = [
   { value: 1, label: 'January' },
   { value: 2, label: 'February' },
@@ -72,17 +83,9 @@ const MONTHS = [
   { value: 12, label: 'December' },
 ]
 
-// ─── Default form values — maps 1:1 to POST payload ──────────────────────────
-// Required fields (backend validates these):
-//   fiscalYearStart, timezone, currency, dateFormat,
-//   workWeek, defaultWorkingHoursPerDay, payrollCutoffDay, salaryDay
-//
-// Optional / read-only from API (shown but not sent unless changed):
-//   halfDayThresholdHours, lateThresholdMinutes, overtimeThresholdHours,
-//   standardHoursPerDay, workingDaysPerWeek
-
+// ─── Default form values ──────────────────────────────────────────────────────
 const defaultValues = {
-  // ── Required (POST payload fields) ────────────────────────────────────────
+  // Required fields (POST payload)
   fiscalYearStart: 4,
   timezone: 'Asia/Kolkata',
   currency: 'INR',
@@ -90,13 +93,35 @@ const defaultValues = {
   workWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
   defaultWorkingHoursPerDay: 8,
   payrollCutoffDay: 25,
-  salaryDay: 1,                    // ← correct field name (not salaryCreditDay)
+  salaryDay: 1,
 
-  // ── Optional overrides (returned by GET, editable) ─────────────────────
+  // Optional fields (editable, returned by GET)
   halfDayThresholdHours: 4,
   lateThresholdMinutes: 15,
   overtimeThresholdHours: 9,
   standardHoursPerDay: 8,
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Deep-compare two form values objects and return only the changed keys.
+ * Used to build the partial PUT payload.
+ */
+const getDirtyFields = (current, original) => {
+  const dirty = {}
+  Object.keys(current).forEach(key => {
+    const cur = current[key]
+    const orig = original[key]
+    if (Array.isArray(cur) && Array.isArray(orig)) {
+      if (JSON.stringify([...cur].sort()) !== JSON.stringify([...orig].sort())) {
+        dirty[key] = cur
+      }
+    } else if (cur !== orig) {
+      dirty[key] = cur
+    }
+  })
+  return dirty
 }
 
 // ─── TabCompanyConfig ─────────────────────────────────────────────────────────
@@ -105,95 +130,161 @@ const TabCompanyConfig = () => {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // workingDaysPerWeek is auto-computed by backend — display only
+  /**
+   * configExists tracks whether a config record exists for this tenant.
+   *   null  → unknown (still loading)
+   *   false → no config yet  → use POST to create
+   *   true  → config exists  → use PUT to partially update
+   */
+  const [configExists, setConfigExists] = useState(null)
+
+  // workingDaysPerWeek is computed by the backend — display only
   const [workingDaysPerWeek, setWorkingDaysPerWeek] = useState(null)
+
+  // Snapshot of last-saved values used to compute the PUT diff
+  const savedValuesRef = useRef(null)
 
   const {
     control,
     handleSubmit,
     reset,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm({ defaultValues })
 
   const selectedWorkWeek = watch('workWeek')
 
   // ── GET /company/config ────────────────────────────────────────────────────
-  // Interceptor pattern: res.success + res.data (not res.data.success)
   useEffect(() => {
     const fetchConfig = async () => {
       try {
         const res = await axiosRequest.get('api/v1/company/config')
+
         if (res?.success && res.data) {
           const d = res.data
-
-          // Map all GET response fields into the form
-          reset({
-            fiscalYearStart: d.fiscalYearStart ?? defaultValues.fiscalYearStart,
-            timezone: d.timezone ?? defaultValues.timezone,
-            currency: d.currency ?? defaultValues.currency,
-            dateFormat: d.dateFormat ?? defaultValues.dateFormat,
-            workWeek: d.workWeek ?? defaultValues.workWeek,
+          const formValues = {
+            fiscalYearStart:           d.fiscalYearStart           ?? defaultValues.fiscalYearStart,
+            timezone:                  d.timezone                  ?? defaultValues.timezone,
+            currency:                  d.currency                  ?? defaultValues.currency,
+            dateFormat:                d.dateFormat                ?? defaultValues.dateFormat,
+            workWeek:                  d.workWeek                  ?? defaultValues.workWeek,
             defaultWorkingHoursPerDay: d.defaultWorkingHoursPerDay ?? defaultValues.defaultWorkingHoursPerDay,
-            payrollCutoffDay: d.payrollCutoffDay ?? defaultValues.payrollCutoffDay,
-            salaryDay: d.salaryDay ?? defaultValues.salaryDay,
-            halfDayThresholdHours: d.halfDayThresholdHours ?? defaultValues.halfDayThresholdHours,
-            lateThresholdMinutes: d.lateThresholdMinutes ?? defaultValues.lateThresholdMinutes,
-            overtimeThresholdHours: d.overtimeThresholdHours ?? defaultValues.overtimeThresholdHours,
-            standardHoursPerDay: d.standardHoursPerDay ?? defaultValues.standardHoursPerDay,
-          })
+            payrollCutoffDay:          d.payrollCutoffDay          ?? defaultValues.payrollCutoffDay,
+            salaryDay:                 d.salaryDay                 ?? defaultValues.salaryDay,
+            halfDayThresholdHours:     d.halfDayThresholdHours     ?? defaultValues.halfDayThresholdHours,
+            lateThresholdMinutes:      d.lateThresholdMinutes      ?? defaultValues.lateThresholdMinutes,
+            overtimeThresholdHours:    d.overtimeThresholdHours    ?? defaultValues.overtimeThresholdHours,
+            standardHoursPerDay:       d.standardHoursPerDay       ?? defaultValues.standardHoursPerDay,
+          }
 
-          // Display-only field from backend
+          reset(formValues)
+          savedValuesRef.current = formValues
           setWorkingDaysPerWeek(d.workingDaysPerWeek ?? null)
+          setConfigExists(true)
+        } else {
+          // GET returned success:false or null data → no config yet
+          setConfigExists(false)
         }
       } catch {
-        // No config yet — form stays with defaults, not an error
+        // 404 or network error → treat as "no config yet"
+        setConfigExists(false)
       } finally {
         setLoading(false)
       }
     }
+
     fetchConfig()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── POST /company/config ───────────────────────────────────────────────────
-  const onSubmit = async (data) => {
+  // ── POST /company/config  (create) ────────────────────────────────────────
+  const createConfig = async data => {
+    const payload = {
+      fiscalYearStart:           Number(data.fiscalYearStart),
+      timezone:                  data.timezone,
+      currency:                  data.currency,
+      dateFormat:                data.dateFormat,
+      workWeek:                  data.workWeek,
+      defaultWorkingHoursPerDay: Number(data.defaultWorkingHoursPerDay),
+      payrollCutoffDay:          Number(data.payrollCutoffDay),
+      salaryDay:                 Number(data.salaryDay),
+
+      // Optional fields — include only when present
+      ...(data.halfDayThresholdHours  != null && { halfDayThresholdHours:  Number(data.halfDayThresholdHours) }),
+      ...(data.lateThresholdMinutes   != null && { lateThresholdMinutes:   Number(data.lateThresholdMinutes) }),
+      ...(data.overtimeThresholdHours != null && { overtimeThresholdHours: Number(data.overtimeThresholdHours) }),
+      ...(data.standardHoursPerDay    != null && { standardHoursPerDay:    Number(data.standardHoursPerDay) }),
+    }
+
+    const res = await axiosRequest.post('api/v1/company/config', payload)
+
+    if (res?.success) {
+      toast.success(res.message || 'Company config created')
+      setConfigExists(true)
+      savedValuesRef.current = data
+      if (res.data?.workingDaysPerWeek != null) {
+        setWorkingDaysPerWeek(res.data.workingDaysPerWeek)
+      }
+    }
+  }
+
+  // ── PUT /company/config  (partial update) ─────────────────────────────────
+  const updateConfig = async data => {
+    const dirtyFields = getDirtyFields(data, savedValuesRef.current ?? defaultValues)
+
+    if (Object.keys(dirtyFields).length === 0) {
+      toast('No changes to save', { icon: 'ℹ️' })
+      return
+    }
+
+    // Coerce numeric fields in the diff
+    const numericKeys = [
+      'fiscalYearStart',
+      'defaultWorkingHoursPerDay',
+      'payrollCutoffDay',
+      'salaryDay',
+      'halfDayThresholdHours',
+      'lateThresholdMinutes',
+      'overtimeThresholdHours',
+      'standardHoursPerDay',
+    ]
+    const payload = {}
+    Object.entries(dirtyFields).forEach(([key, val]) => {
+      payload[key] = numericKeys.includes(key) ? Number(val) : val
+    })
+
+    const res = await axiosRequest.put('api/v1/company/config', payload)
+
+    if (res?.success) {
+      toast.success(res.message || 'Company config updated')
+      savedValuesRef.current = data
+      if (res.data?.workingDaysPerWeek != null) {
+        setWorkingDaysPerWeek(res.data.workingDaysPerWeek)
+      }
+    }
+  }
+
+  // ── onSubmit — routes to POST or PUT based on configExists ────────────────
+  const onSubmit = async data => {
     setSaving(true)
     try {
-      // Build payload matching exact POST contract
-      const payload = {
-        fiscalYearStart: Number(data.fiscalYearStart),
-        timezone: data.timezone,
-        currency: data.currency,
-        dateFormat: data.dateFormat,
-        workWeek: data.workWeek,                              // already ['MON','TUE',...]
-        defaultWorkingHoursPerDay: Number(data.defaultWorkingHoursPerDay),
-        payrollCutoffDay: Number(data.payrollCutoffDay),
-        salaryDay: Number(data.salaryDay),                   // ← correct key
-
-        // Optional fields — only include if they have values
-        ...(data.halfDayThresholdHours && { halfDayThresholdHours: Number(data.halfDayThresholdHours) }),
-        ...(data.lateThresholdMinutes && { lateThresholdMinutes: Number(data.lateThresholdMinutes) }),
-        ...(data.overtimeThresholdHours && { overtimeThresholdHours: Number(data.overtimeThresholdHours) }),
-        ...(data.standardHoursPerDay && { standardHoursPerDay: Number(data.standardHoursPerDay) }),
-      }
-
-      const res = await axiosRequest.post('/company/config', payload)
-
-      // interceptor pattern
-      if (res?.success) {
-        toast.success(res.message || 'Company config saved')
-        if (res.data?.workingDaysPerWeek) {
-          setWorkingDaysPerWeek(res.data.workingDaysPerWeek)
-        }
+      if (configExists) {
+        await updateConfig(data)
+      } else {
+        await createConfig(data)
       }
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to save config')
+      // Surface backend validation messages (400 edge cases)
+      const serverMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Failed to save configuration'
+      toast.error(serverMsg)
     } finally {
       setSaving(false)
     }
   }
 
-  // ── Loading skeleton ───────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 20 }}>
@@ -209,24 +300,52 @@ const TabCompanyConfig = () => {
         title='Company Configuration'
         subheader='Global settings applied across the entire organization'
         action={
-          <Button
-            variant='contained'
-            onClick={handleSubmit(onSubmit)}
-            disabled={saving}
-            startIcon={
-              saving
-                ? <CircularProgress size={16} color='inherit' />
-                : <Icon icon='tabler:device-floppy' />
-            }
-          >
-            {saving ? 'Saving...' : 'Save Config'}
-          </Button>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* Badge showing whether we're in create or edit mode */}
+            <Chip
+              size='small'
+              variant='tonal'
+              color={configExists ? 'success' : 'warning'}
+              icon={<Icon icon={configExists ? 'tabler:circle-check' : 'tabler:alert-circle'} />}
+              label={configExists ? 'Config Exists' : 'Not Configured'}
+            />
+
+            <Button
+              variant='contained'
+              onClick={handleSubmit(onSubmit)}
+              disabled={saving}
+              startIcon={
+                saving
+                  ? <CircularProgress size={16} color='inherit' />
+                  : <Icon icon={configExists ? 'tabler:device-floppy' : 'tabler:plus'} />
+              }
+            >
+              {saving
+                ? 'Saving…'
+                : configExists
+                  ? 'Save Changes'
+                  : 'Create Config'}
+            </Button>
+          </Box>
         }
       />
 
       <Divider />
 
-      <CardContent>
+      {/* Info banner: tell user what will happen on submit */}
+      <Box sx={{ px: 5, pt: 4 }}>
+        {configExists ? (
+          <Alert severity='info' icon={<Icon icon='tabler:info-circle' />}>
+            Only <strong>changed fields</strong> will be sent to the server .
+          </Alert>
+        ) : (
+          <Alert severity='info' icon={<Icon icon='tabler:settings-2' />}>
+            No configuration found. Fill in all required fields (*) and click <strong>Create Config</strong>.
+          </Alert>
+        )}
+      </Box>
+
+      <CardContent sx={{ pt: 4 }}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <Grid container spacing={5}>
 
@@ -237,12 +356,16 @@ const TabCompanyConfig = () => {
               </Typography>
             </Grid>
 
-            {/* Fiscal Year Start */}
+            {/* Fiscal Year Start — max 12, backend rejects 13+ */}
             <Grid item xs={12} sm={6}>
               <Controller
                 name='fiscalYearStart'
                 control={control}
-                rules={{ required: 'Fiscal year start is required' }}
+                rules={{
+                  required: 'Fiscal year start is required',
+                  min: { value: 1,  message: 'Month must be between 1 and 12' },
+                  max: { value: 12, message: 'Month must be between 1 and 12' },
+                }}
                 render={({ field }) => (
                   <CustomTextField
                     {...field}
@@ -262,12 +385,16 @@ const TabCompanyConfig = () => {
               />
             </Grid>
 
-            {/* Timezone */}
+            {/* Timezone — must be a valid IANA string */}
             <Grid item xs={12} sm={6}>
               <Controller
                 name='timezone'
                 control={control}
-                rules={{ required: 'Timezone is required' }}
+                rules={{
+                  required: 'Timezone is required',
+                  validate: val =>
+                    TIMEZONES.includes(val) || 'Invalid IANA timezone',
+                }}
                 render={({ field }) => (
                   <CustomTextField
                     {...field}
@@ -285,12 +412,17 @@ const TabCompanyConfig = () => {
               />
             </Grid>
 
-            {/* Currency */}
+            {/* Currency — must be exactly 3 chars */}
             <Grid item xs={12} sm={4}>
               <Controller
                 name='currency'
                 control={control}
-                rules={{ required: 'Currency is required' }}
+                rules={{
+                  required: 'Currency is required',
+                  validate: val =>
+                    (typeof val === 'string' && val.length === 3) ||
+                    'Currency must be exactly 3 characters',
+                }}
                 render={({ field }) => (
                   <CustomTextField
                     {...field}
@@ -331,7 +463,7 @@ const TabCompanyConfig = () => {
               />
             </Grid>
 
-            {/* Working Days Per Week — read-only from API */}
+            {/* Working Days / Week — read-only, auto-computed by backend */}
             <Grid item xs={12} sm={4}>
               <CustomTextField
                 fullWidth
@@ -352,7 +484,7 @@ const TabCompanyConfig = () => {
                 </Typography>
                 {selectedWorkWeek?.length > 0 && (
                   <Chip
-                    label={`${selectedWorkWeek.length} days selected`}
+                    label={`${selectedWorkWeek.length} day${selectedWorkWeek.length > 1 ? 's' : ''} selected`}
                     size='small'
                     color='primary'
                     variant='tonal'
@@ -361,12 +493,16 @@ const TabCompanyConfig = () => {
               </Box>
             </Grid>
 
-            {/* Work Week checkboxes — values are MON, TUE, ... (uppercase) */}
+            {/* Work Week checkboxes — at least 1 required */}
             <Grid item xs={12}>
               <Controller
                 name='workWeek'
                 control={control}
-                rules={{ validate: v => (v && v.length > 0) || 'Select at least one working day' }}
+                rules={{
+                  validate: v =>
+                    (Array.isArray(v) && v.length > 0) ||
+                    'workWeek must have at least 1 day',
+                }}
                 render={({ field }) => (
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     {WORK_WEEK_OPTIONS.map(day => (
@@ -400,7 +536,7 @@ const TabCompanyConfig = () => {
 
             <Grid item xs={12}><Divider /></Grid>
 
-            {/* ══ SECTION: Hours Config ════════════════════════════════════ */}
+            {/* ══ SECTION: Hours Configuration ═════════════════════════════ */}
             <Grid item xs={12}>
               <Typography variant='overline' color='text.secondary'>
                 Hours Configuration
@@ -413,9 +549,9 @@ const TabCompanyConfig = () => {
                 name='defaultWorkingHoursPerDay'
                 control={control}
                 rules={{
-                  required: 'Required',
-                  min: { value: 1, message: 'Min 1 hour' },
-                  max: { value: 24, message: 'Max 24 hours' },
+                  required: 'Working hours per day is required',
+                  min: { value: 1,  message: 'Minimum is 1 hour' },
+                  max: { value: 24, message: 'Maximum is 24 hours' },
                 }}
                 render={({ field }) => (
                   <CustomTextField
@@ -423,6 +559,7 @@ const TabCompanyConfig = () => {
                     fullWidth
                     type='number'
                     label='Working Hours / Day *'
+                    inputProps={{ min: 1, max: 24 }}
                     error={!!errors.defaultWorkingHoursPerDay}
                     helperText={errors.defaultWorkingHoursPerDay?.message}
                   />
@@ -435,13 +572,19 @@ const TabCompanyConfig = () => {
               <Controller
                 name='standardHoursPerDay'
                 control={control}
+                rules={{
+                  min: { value: 1,  message: 'Minimum is 1 hour' },
+                  max: { value: 24, message: 'Maximum is 24 hours' },
+                }}
                 render={({ field }) => (
                   <CustomTextField
                     {...field}
                     fullWidth
                     type='number'
                     label='Standard Hours / Day'
-                    helperText='Used for attendance calculations'
+                    inputProps={{ min: 1, max: 24 }}
+                    error={!!errors.standardHoursPerDay}
+                    helperText={errors.standardHoursPerDay?.message || 'Used for attendance calculations'}
                   />
                 )}
               />
@@ -452,15 +595,21 @@ const TabCompanyConfig = () => {
               <Controller
                 name='halfDayThresholdHours'
                 control={control}
+                rules={{
+                  min: { value: 0.5, message: 'Minimum is 0.5 hours' },
+                  max: { value: 12,  message: 'Maximum is 12 hours' },
+                }}
                 render={({ field }) => (
-                  <Tooltip title='Minimum hours to be present for a half-day mark' placement='top'>
+                  <Tooltip title='Hours below which attendance is marked as half day' placement='top'>
                     <span>
                       <CustomTextField
                         {...field}
                         fullWidth
                         type='number'
                         label='Half Day Threshold (hrs)'
-                        helperText='Hours below which marks as half day'
+                        inputProps={{ min: 0.5, max: 12, step: 0.5 }}
+                        error={!!errors.halfDayThresholdHours}
+                        helperText={errors.halfDayThresholdHours?.message || 'Hours below which marks as half day'}
                       />
                     </span>
                   </Tooltip>
@@ -473,15 +622,21 @@ const TabCompanyConfig = () => {
               <Controller
                 name='lateThresholdMinutes'
                 control={control}
+                rules={{
+                  min: { value: 0,   message: 'Minimum is 0 minutes' },
+                  max: { value: 120, message: 'Maximum is 120 minutes' },
+                }}
                 render={({ field }) => (
-                  <Tooltip title='Minutes after shift start before marking as late' placement='top'>
+                  <Tooltip title='Grace period in minutes after shift start before late mark' placement='top'>
                     <span>
                       <CustomTextField
                         {...field}
                         fullWidth
                         type='number'
                         label='Late Threshold (min)'
-                        helperText='Grace period before late mark'
+                        inputProps={{ min: 0, max: 120 }}
+                        error={!!errors.lateThresholdMinutes}
+                        helperText={errors.lateThresholdMinutes?.message || 'Grace period before late mark'}
                       />
                     </span>
                   </Tooltip>
@@ -494,15 +649,21 @@ const TabCompanyConfig = () => {
               <Controller
                 name='overtimeThresholdHours'
                 control={control}
+                rules={{
+                  min: { value: 1,  message: 'Minimum is 1 hour' },
+                  max: { value: 24, message: 'Maximum is 24 hours' },
+                }}
                 render={({ field }) => (
-                  <Tooltip title='Hours worked per day above which overtime applies' placement='top'>
+                  <Tooltip title='Daily hours beyond which overtime applies' placement='top'>
                     <span>
                       <CustomTextField
                         {...field}
                         fullWidth
                         type='number'
                         label='Overtime Threshold (hrs)'
-                        helperText='Hours beyond which overtime starts'
+                        inputProps={{ min: 1, max: 24 }}
+                        error={!!errors.overtimeThresholdHours}
+                        helperText={errors.overtimeThresholdHours?.message || 'Hours beyond which overtime starts'}
                       />
                     </span>
                   </Tooltip>
@@ -519,15 +680,17 @@ const TabCompanyConfig = () => {
               </Typography>
             </Grid>
 
-            {/* Payroll Cutoff Day */}
+            {/* Payroll Cutoff Day — backend rejects 29+ (max 28) */}
             <Grid item xs={12} sm={6}>
               <Controller
                 name='payrollCutoffDay'
                 control={control}
                 rules={{
-                  required: 'Required',
-                  min: { value: 1, message: 'Min day is 1' },
-                  max: { value: 31, message: 'Max day is 31' },
+                  required: 'Payroll cutoff day is required',
+                  min: { value: 1,  message: 'Minimum day is 1' },
+                  max: { value: 28, message: 'Maximum day is 28 (safe across all months)' },
+                  validate: val =>
+                    Number.isInteger(Number(val)) || 'Must be a whole number',
                 }}
                 render={({ field }) => (
                   <CustomTextField
@@ -535,22 +698,28 @@ const TabCompanyConfig = () => {
                     fullWidth
                     type='number'
                     label='Payroll Cutoff Day *'
+                    inputProps={{ min: 1, max: 28 }}
                     error={!!errors.payrollCutoffDay}
-                    helperText={errors.payrollCutoffDay?.message || 'Day of month payroll processing closes (e.g. 25)'}
+                    helperText={
+                      errors.payrollCutoffDay?.message ||
+                      'Day of month payroll processing closes (1–28)'
+                    }
                   />
                 )}
               />
             </Grid>
 
-            {/* Salary Day — correct field name from API */}
+            {/* Salary Day */}
             <Grid item xs={12} sm={6}>
               <Controller
                 name='salaryDay'
                 control={control}
                 rules={{
-                  required: 'Required',
-                  min: { value: 1, message: 'Min day is 1' },
-                  max: { value: 31, message: 'Max day is 31' },
+                  required: 'Salary day is required',
+                  min: { value: 1,  message: 'Minimum day is 1' },
+                  max: { value: 28, message: 'Maximum day is 28 (safe across all months)' },
+                  validate: val =>
+                    Number.isInteger(Number(val)) || 'Must be a whole number',
                 }}
                 render={({ field }) => (
                   <CustomTextField
@@ -558,8 +727,12 @@ const TabCompanyConfig = () => {
                     fullWidth
                     type='number'
                     label='Salary Day *'
+                    inputProps={{ min: 1, max: 28 }}
                     error={!!errors.salaryDay}
-                    helperText={errors.salaryDay?.message || 'Day of month salary is credited to employees (e.g. 1)'}
+                    helperText={
+                      errors.salaryDay?.message ||
+                      'Day of month salary is credited to employees (1–28)'
+                    }
                   />
                 )}
               />

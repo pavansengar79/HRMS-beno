@@ -2,7 +2,7 @@
 // Employee left panel — all sections independently editable
 // PUT /api/v1/employees/:id  (axiosRequest, res.data directly)
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 // ** MUI Imports
 import Box from '@mui/material/Box'
@@ -32,6 +32,7 @@ import { updateEmployee } from 'src/store/employee/employeeSlice'
 // ** Axios + Toast
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import toast from 'react-hot-toast'
+import { Tooltip } from '@mui/material'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const GENDERS        = ['MALE', 'FEMALE', 'OTHER']
@@ -444,18 +445,61 @@ const AboutSection = ({ employee, onUpdated }) => {
 
 // ─── Main UserViewLeft ────────────────────────────────────────────────────────
 const UserViewLeft = ({ employee: initialEmployee, canEdit = true }) => {
-  // Local employee state — updated optimistically after each section save
-  const [employee, setEmployee] = useState(initialEmployee)
+  const [employee, setEmployee]       = useState(initialEmployee)
+  const [uploading, setUploading]     = useState(false)
+  const fileInputRef                  = useRef(null)
+
+
 
   const onUpdated = updated => setEmployee(updated)
 
   if (!employee) return null
 
   const joiningFormatted = fmt(employee.joiningDate)
-  const deptName  = employee.departmentId?.name  || '—'
-  const desgName  = employee.designationId?.name || employee.employmentType || '—'
-  const managerName = employee.reportingManagerId?.name || '—'
-  const ic = { fontSize: 16 }
+  const deptName     = employee.departmentId?.name  || '—'
+  const desgName     = employee.designationId?.name || employee.employmentType || '—'
+  const managerName  = employee.reportingManagerId?.name || '—'
+  const ic           = { fontSize: 16 }
+
+  // ── Upload profile photo ───────────────────────────────────────────────────
+  const handlePhotoChange = async e => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 1. Upload the file → get back the URL (profilePhoto)
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+console.log("Ewe",employee)
+      const uploadRes = await axiosRequest.post(
+        `/api/v1/employees/${employee?.userId?._id}/upload-profile`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      )
+
+      // Interceptor returns res.data directly
+      // Expect: { profilePhoto: 'https://...' }  or  { data: { profilePhoto: '...' } }
+      const profilePhoto =
+        uploadRes?.profilePhoto ||
+        uploadRes?.data?.profilePhoto ||
+        uploadRes?.url ||
+        uploadRes?.data?.url
+
+      if (!profilePhoto) throw new Error('No URL returned from upload')
+
+      // 2. Patch the employee record with the new profilePhoto URL
+      const updated = await callUpdate(employee._id, { profilePhoto })
+      onUpdated(updated)
+      toast.success('Profile photo updated')
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'Failed to upload photo')
+    } finally {
+      setUploading(false)
+      // reset so same file can be re-selected
+      e.target.value = ''
+    }
+  }
 
   return (
     <Card sx={{ position: 'relative' }}>
@@ -464,13 +508,63 @@ const UserViewLeft = ({ employee: initialEmployee, canEdit = true }) => {
         {/* ── Avatar banner ─────────────────────────────────────── */}
         <Box sx={{ borderRadius: 2, overflow: 'hidden', mb: 3 }}>
           <Box sx={{ height: 100, bgcolor: 'primary.light' }} />
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: -7, px: 2, pb: 2 }}>
-            <Avatar
-              src={employee.profilePhoto}
-              sx={{ width: 80, height: 80, border: '4px solid', borderColor: 'background.paper', fontSize: '1.6rem', fontWeight: 600 }}
-            >
-              {!employee.profilePhoto && (employee.name?.[0] || 'U')}
-            </Avatar>
+
+          <Box sx={{ display: 'flex',flexDirection: 'column', alignItems: 'center', mt: -7, px: 2, pb: 2 }}>
+
+            {/* Avatar + upload overlay */}
+            <Box sx={{ position: 'relative' }} style={{background: 'white', borderRadius: '50%'}}>
+              <Avatar
+                src={employee.profilePhoto}
+                sx={{
+                  width: 80, height: 80,
+                  border: '4px solid', borderColor: 'background.paper',
+                  fontSize: '1.6rem', fontWeight: 600,
+                  opacity: uploading ? 0.5 : 1,
+                  transition: 'opacity .2s'
+                }}
+              >
+                {!employee.profilePhoto && (employee.name?.[0] || 'U')}
+              </Avatar>
+
+              {/* Spinner while uploading */}
+              {uploading && (
+                <Box sx={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <CircularProgress size={24} thickness={4} />
+                </Box>
+              )}
+
+              {/* Camera icon overlay — only if canEdit */}
+              {canEdit && !uploading && (
+                <Tooltip title='Change photo'>
+                  <IconButton
+                    size='small'
+                    onClick={() => fileInputRef.current?.click()}
+                    sx={{
+                      position: 'absolute',
+                      bottom: 0, right: -4,
+                      width: 26, height: 26,
+                      bgcolor: 'background.paper',
+                      border: t => `1px solid ${t.palette.divider}`,
+                      '&:hover': { bgcolor: 'action.hover' }
+                    }}
+                  >
+                    <Icon icon='tabler:camera' fontSize={14} />
+                  </IconButton>
+                </Tooltip>
+              )}
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type='file'
+                accept='image/*'
+                style={{ display: 'none' }}
+                onChange={handlePhotoChange}
+              />
+            </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1 }}>
               <Typography variant='h6' sx={{ fontWeight: 600 }}>{employee.name}</Typography>
@@ -493,21 +587,18 @@ const UserViewLeft = ({ employee: initialEmployee, canEdit = true }) => {
         {/* ── Quick info (read-only) ─────────────────────────────── */}
         <Box sx={{ mb: 3 }}>
           <Typography variant='subtitle2' sx={{ fontWeight: 600, mb: 1.5 }}>Quick Info</Typography>
-          <InfoRow icon={<Icon icon='tabler:id-badge-2' fontSize={ic.fontSize} />}   label='Employee ID'  value={employee.employeeId} />
-          <InfoRow icon={<Icon icon='tabler:mail' fontSize={ic.fontSize} />}         label='Email'        value={employee.email} isLink linkHref={`mailto:${employee.email}`} />
+          <InfoRow icon={<Icon icon='tabler:id-badge-2' fontSize={ic.fontSize} />}        label='Employee ID' value={employee.employeeId} />
+          <InfoRow icon={<Icon icon='tabler:mail' fontSize={ic.fontSize} />}              label='Email'       value={employee.email} isLink linkHref={`mailto:${employee.email}`} />
           <InfoRow icon={<Icon icon='tabler:building-community' fontSize={ic.fontSize} />} label='Department' value={deptName} />
-          <InfoRow icon={<Icon icon='tabler:calendar-event' fontSize={ic.fontSize} />} label='Joined'     value={joiningFormatted} />
-          <InfoRow icon={<Icon icon='tabler:user-circle' fontSize={ic.fontSize} />}  label='Reports to'  value={managerName} />
+          <InfoRow icon={<Icon icon='tabler:calendar-event' fontSize={ic.fontSize} />}    label='Joined'      value={joiningFormatted} />
+          <InfoRow icon={<Icon icon='tabler:user-circle' fontSize={ic.fontSize} />}       label='Reports to'  value={managerName} />
         </Box>
 
         <Divider sx={{ my: 2 }} />
 
-   
-
         {/* ── Personal info ─────────────────────────────────────── */}
         <PersonalInfoSection employee={employee} onUpdated={onUpdated} />
         <Divider sx={{ my: 2 }} />
-
 
       </CardContent>
     </Card>

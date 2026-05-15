@@ -1,161 +1,269 @@
-// ** React Imports
-import { useState } from 'react'
+// src/views/leavemanagement/TabLeaveApproval.jsx
+import { useEffect, useState, useCallback } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 
-// ** MUI Imports
-import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
-import Button from '@mui/material/Button'
-import Drawer from '@mui/material/Drawer'
-import IconButton from '@mui/material/IconButton'
-import Typography from '@mui/material/Typography'
+import Box from '@mui/material/Box'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
-import Stack from '@mui/material/Stack'
+import Drawer from '@mui/material/Drawer'
 import Divider from '@mui/material/Divider'
-import { styled } from '@mui/material/styles'
+import Typography from '@mui/material/Typography'
+import IconButton from '@mui/material/IconButton'
+import Chip from '@mui/material/Chip'
+import Tooltip from '@mui/material/Tooltip'
+import CircularProgress from '@mui/material/CircularProgress'
+import Alert from '@mui/material/Alert'
 import { DataGrid } from '@mui/x-data-grid'
 
-// ** Icon Imports
 import Icon from 'src/@core/components/icon'
-import LeaveStatusChip from './leaveStatusChip'
 
-// ** Components
+import { fetchAllLeaves, fetchLeaveById } from 'src/store/leaves/leaveSlice'
 
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  padding: theme.spacing(6),
-  justifyContent: 'space-between'
-}))
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const mockRows = [
-  { id: 1, employee: 'John Doe', type: 'Annual', from: '2024-07-01', to: '2024-07-05', days: 5, status: 'pending', reason: 'Family vacation' },
-  { id: 2, employee: 'Alice K.', type: 'Sick',   from: '2024-07-08', to: '2024-07-09', days: 2, status: 'pending', reason: 'Fever and cold' },
-]
+const STATUS_COLOR = {
+  pending:   'warning',
+  approved:  'success',
+  rejected:  'error',
+  cancelled: 'default',
+}
+
+const fmt = date => date
+  ? new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+  : '—'
+
+const LeaveStatusChip = ({ status = '' }) => (
+  <Chip
+    size='small'
+    label={status.charAt(0).toUpperCase() + status.slice(1)}
+    color={STATUS_COLOR[status.toLowerCase()] || 'default'}
+    variant='tonal'
+  />
+)
+
+// ─── Detail Row ───────────────────────────────────────────────────────────────
+
+const DetailRow = ({ label, children }) => (
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', py: 1.5 }}>
+    <Typography variant='body2' color='text.secondary' sx={{ minWidth: 140 }}>{label}</Typography>
+    <Box sx={{ textAlign: 'right' }}>{children}</Box>
+  </Box>
+)
+
+// ─── Leave Detail Drawer (read-only) ─────────────────────────────────────────
+
+const LeaveDetailDrawer = ({ open, onClose, leaveId }) => {
+  const dispatch = useDispatch()
+  const { leaveDetail: leave, leaveDetailLoading } = useSelector(state => state.leaves)
+
+  useEffect(() => {
+    if (open && leaveId) dispatch(fetchLeaveById(leaveId))
+  }, [open, leaveId, dispatch])
+
+  return (
+    <Drawer open={open} anchor='right' onClose={onClose} PaperProps={{ sx: { width: { xs: '100%', sm: 500 } } }}>
+      {/* Header */}
+      <Box sx={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        px: 5, py: 4, borderBottom: theme => `1px solid ${theme.palette.divider}`
+      }}>
+        <Typography variant='h6'>Leave Request Detail</Typography>
+        <IconButton onClick={onClose} size='small'><Icon icon='tabler:x' /></IconButton>
+      </Box>
+
+      {/* Body */}
+      <Box sx={{ px: 5, py: 4, flex: 1, overflow: 'auto' }}>
+        {leaveDetailLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>
+        ) : !leave ? (
+          <Alert severity='error'>Failed to load leave details.</Alert>
+        ) : (
+          <>
+            {/* Status banner */}
+            <Box sx={{ mb: 4, p: 3, borderRadius: 2, backgroundColor: 'action.hover', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <Box sx={{
+                width: 42, height: 42, borderRadius: 1.5, flexShrink: 0,
+                backgroundColor: leave.leaveTypeId?.colorCode || '#6B7280',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Typography variant='caption' fontWeight={700} color='white' fontSize='0.65rem'>
+                  {leave.leaveTypeId?.code || '?'}
+                </Typography>
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography fontWeight={600}>{leave.leaveTypeId?.name || '—'}</Typography>
+                <Typography variant='caption' color='text.secondary'>{leave.duration}</Typography>
+              </Box>
+              <LeaveStatusChip status={leave.status?.toLowerCase()} />
+            </Box>
+
+            {/* Employee */}
+            <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 1 }}>Employee</Typography>
+            <Box sx={{ mb: 3, p: 3, borderRadius: 2, border: theme => `1px solid ${theme.palette.divider}` }}>
+              <Typography fontWeight={600}>{leave.employeeId?.name || '—'}</Typography>
+              <Typography variant='caption' color='text.secondary'>{leave.employeeId?.employeeId}</Typography>
+            </Box>
+
+            {/* Leave Details */}
+            <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 1 }}>Leave Details</Typography>
+            <Card variant='outlined' sx={{ mb: 3 }}>
+              <CardContent sx={{ py: '8px !important', px: 3 }}>
+                <DetailRow label='From'><Typography variant='body2'>{fmt(leave.startDate)}</Typography></DetailRow>
+                <Divider />
+                <DetailRow label='To'><Typography variant='body2'>{fmt(leave.endDate)}</Typography></DetailRow>
+                <Divider />
+                <DetailRow label='Total Days'>
+                  <Chip label={`${leave.totalDays} day(s)`} size='small' color='primary' variant='tonal' />
+                </DetailRow>
+                <Divider />
+                <DetailRow label='Half Day'>
+                  <Typography variant='body2'>{leave.isHalfDay ? `Yes${leave.session ? ` (${leave.session})` : ''}` : 'No'}</Typography>
+                </DetailRow>
+                <Divider />
+                <DetailRow label='Reason'>
+                  <Typography variant='body2' sx={{ maxWidth: 220, textAlign: 'right' }}>{leave.reason}</Typography>
+                </DetailRow>
+                <Divider />
+                <DetailRow label='Applied On'>
+                  <Typography variant='body2'>{fmt(leave.createdAt)}</Typography>
+                </DetailRow>
+              </CardContent>
+            </Card>
+
+            {/* Approval History */}
+            {leave.approvalHistory?.length > 0 && (
+              <>
+                <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 1 }}>Approval History</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
+                  {leave.approvalHistory.map((h, i) => (
+                    <Box key={i} sx={{ p: 3, borderRadius: 2, border: theme => `1px solid ${theme.palette.divider}` }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant='body2' fontWeight={600}>{h.approverName || h.approverId}</Typography>
+                        <LeaveStatusChip status={h.status?.toLowerCase()} />
+                      </Box>
+                      {h.comment && <Typography variant='caption' color='text.secondary'>{h.comment}</Typography>}
+                      <Typography variant='caption' color='text.disabled' sx={{ display: 'block', mt: 0.5 }}>{fmt(h.actionAt)}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </>
+            )}
+          </>
+        )}
+      </Box>
+      {/* No footer actions — read-only */}
+    </Drawer>
+  )
+}
+
+// ─── Main Tab ─────────────────────────────────────────────────────────────────
 
 const TabLeaveApproval = () => {
-  const [rows, setRows]         = useState(mockRows)
-  const [selected, setSelected] = useState(null)
-  const [open, setOpen]         = useState(false)
+  const dispatch = useDispatch()
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
 
-  const handleView = row => {
-    setSelected(row)
-    setOpen(true)
-  }
+  // Detail drawer state
+  const [detailOpen,    setDetailOpen]    = useState(false)
+  const [detailLeaveId, setDetailLeaveId] = useState(null)
 
-  const handleAction = (id, action) => {
-    setRows(prev => prev.map(r => r.id === id ? { ...r, status: action } : r))
-    setOpen(false)
-  }
+  const { allLeavesRows: rows, allLeavesTotal: total, allLeavesLoading: loading } =
+    useSelector(state => state.leaves)
+
+  const loadLeaves = useCallback(() => {
+    dispatch(fetchAllLeaves({ page: paginationModel.page + 1, limit: paginationModel.pageSize }))
+  }, [dispatch, paginationModel])
+
+  useEffect(() => { loadLeaves() }, [loadLeaves])
+
+  const openDetail = (id) => { setDetailLeaveId(id); setDetailOpen(true) }
 
   const columns = [
-    { field: 'id',       headerName: '#',       width: 60 },
-    { field: 'employee', headerName: 'Employee', flex: 1  },
-    { field: 'type',     headerName: 'Type',     flex: 1  },
-    { field: 'from',     headerName: 'From',     flex: 1  },
-    { field: 'to',       headerName: 'To',       flex: 1  },
-    { field: 'days',     headerName: 'Days',     width: 80 },
     {
-      field: 'status', headerName: 'Status', flex: 1,
-      renderCell: ({ row }) => <LeaveStatusChip status={row.status} />
+      field: '_id', headerName: '#', width: 80,
+      renderCell: params => (
+        <Typography variant='body2' color='text.secondary'>
+          {String(params.row._id).slice(-6).toUpperCase()}
+        </Typography>
+      )
     },
     {
-      field: 'actions', headerName: 'Actions', flex: 1,
+      field: 'employee', headerName: 'Employee', flex: 1.2,
       renderCell: ({ row }) => (
-        <Button size='small' variant='outlined' onClick={() => handleView(row)}
-          startIcon={<Icon icon='tabler:eye' />}>
-          Review
-        </Button>
+        <Box>
+          <Typography variant='body2' fontWeight={600}>
+            {row.employeeId?.name || '—'}
+          </Typography>
+          <Typography variant='caption' color='text.secondary'>
+            {row.employeeId?.employeeId || ''}
+          </Typography>
+        </Box>
       )
-    }
+    },
+    {
+      field: 'leaveType', headerName: 'Type', flex: 1,
+      renderCell: ({ row }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: row.leaveTypeId?.colorCode || '#6B7280', flexShrink: 0 }} />
+          <Typography variant='body2'>{row.leaveTypeId?.name || '—'}</Typography>
+        </Box>
+      )
+    },
+    {
+      field: 'startDate', headerName: 'From', flex: 1,
+      renderCell: ({ row }) => fmt(row.startDate)
+    },
+    {
+      field: 'endDate', headerName: 'To', flex: 1,
+      renderCell: ({ row }) => fmt(row.endDate)
+    },
+    {
+      field: 'totalDays', headerName: 'Days', width: 80,
+      renderCell: ({ row }) => <Chip label={`${row.totalDays}d`} size='small' variant='tonal' color='primary' />
+    },
+    {
+      field: 'status', headerName: 'Status', flex: 1,
+      renderCell: ({ row }) => <LeaveStatusChip status={row.status?.toLowerCase()} />
+    },
+    {
+      // View detail only — no approve/reject
+      field: 'actions', headerName: 'Actions', width: 80, sortable: false,
+      renderCell: ({ row }) => (
+        <Tooltip title='View Detail'>
+          <IconButton size='small' onClick={() => openDetail(row._id)}>
+            <Icon icon='tabler:eye' fontSize='1.1rem' />
+          </IconButton>
+        </Tooltip>
+      )
+    },
   ]
 
   return (
     <>
       <Card>
-        <CardHeader title='Leave Approvals' subheader='Review and action pending leave requests' />
+        <CardHeader title='Leave Approval History' />
         <CardContent>
           <DataGrid
             autoHeight
-            rows={rows}
+            rows={rows || []}
             columns={columns}
-            pageSizeOptions={[10, 25]}
-            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+            getRowId={row => row._id}
+            loading={loading}
+            rowCount={total}
+            paginationMode='server'
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[10, 25, 50]}
             disableRowSelectionOnClick
           />
         </CardContent>
       </Card>
 
-      {/* Review Drawer */}
-      <Drawer
-        open={open}
-        anchor='right'
-        variant='temporary'
-        onClose={() => setOpen(false)}
-        ModalProps={{ keepMounted: true }}
-        sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 400 } } }}
-      >
-        <Header>
-          <Typography variant='h5'>Review Leave</Typography>
-          <IconButton
-            size='small'
-            onClick={() => setOpen(false)}
-            sx={{
-              p: '0.438rem', borderRadius: 1,
-              color: 'text.primary', backgroundColor: 'action.selected',
-              '&:hover': { backgroundColor: theme => `rgba(${theme.palette.customColors.main}, 0.16)` }
-            }}
-          >
-            <Icon icon='tabler:x' fontSize='1.125rem' />
-          </IconButton>
-        </Header>
-
-        {selected && (
-          <Box sx={{ p: theme => theme.spacing(0, 6, 6) }}>
-            {[
-              { label: 'Employee', value: selected.employee },
-              { label: 'Leave Type', value: selected.type },
-              { label: 'From',     value: selected.from },
-              { label: 'To',       value: selected.to },
-              { label: 'Days',     value: selected.days },
-              { label: 'Reason',   value: selected.reason },
-            ].map(({ label, value }) => (
-              <Box key={label} sx={{ mb: 3 }}>
-                <Typography variant='caption' color='text.disabled'>{label}</Typography>
-                <Typography variant='body1' fontWeight={500}>{value}</Typography>
-                <Divider sx={{ mt: 2 }} />
-              </Box>
-            ))}
-
-            <Box sx={{ mt: 2 }}>
-              <LeaveStatusChip status={selected.status} />
-            </Box>
-
-            {selected.status === 'pending' && (
-              <Stack direction='row' spacing={3} sx={{ mt: 6 }}>
-                <Button
-                  fullWidth
-                  variant='contained'
-                  color='success'
-                  startIcon={<Icon icon='tabler:check' />}
-                  onClick={() => handleAction(selected.id, 'approved')}
-                >
-                  Approve
-                </Button>
-                <Button
-                  fullWidth
-                  variant='outlined'
-                  color='error'
-                  startIcon={<Icon icon='tabler:x' />}
-                  onClick={() => handleAction(selected.id, 'rejected')}
-                >
-                  Reject
-                </Button>
-              </Stack>
-            )}
-          </Box>
-        )}
-      </Drawer>
+      <LeaveDetailDrawer
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        leaveId={detailLeaveId}
+      />
     </>
   )
 }
