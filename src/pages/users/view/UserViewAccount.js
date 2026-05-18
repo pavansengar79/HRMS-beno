@@ -515,11 +515,11 @@ const ExperienceSection = ({ employee, canEdit, onUpdated }) => {
 }
 
 // ─── Main UserViewAccount ─────────────────────────────────────────────────────
-const UserViewAccount = ({ employee: initialEmployee }) => {
+const UserViewAccount = ({ employee: initialEmployee, isPermitted }) => {
   const permissions = useSelector(selectPermissions)
   const roleSlug = useSelector(selectRoleSlug)
 
-  const canEdit = permissions.includes('employee.update')
+  const canEdit = isPermitted
   const isTenantAdmin = roleSlug === 'tenent_admin'
 
   // ── Local employee state — each section updates this after save ────────────

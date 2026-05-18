@@ -488,11 +488,11 @@ const EmployeeList = () => {
   const permissions = useSelector(selectPermissions)
   const userRole    = useSelector(selectRoleSlug) ?? ''
 
-  const canCreate       = permissions.includes('employee.create')
-  const canEdit         = permissions.includes('employee.update')
+  const canCreate       = permissions.includes('employee.create')&& userRole === 'tenant_admin' || userRole === 'hr_manager'
+  const canEdit         = permissions.includes('employee.update') && userRole === 'tenant_admin' || userRole === 'hr_manager'
   const canDelete       = permissions.includes('employee.delete')
   const canApprove      = canEdit && userRole === 'tenant_admin'
-  const canChangeStatus = canEdit || userRole === 'tenant_admin'
+  const canChangeStatus = canEdit
 
   const [search, setSearch]               = useState('')
   const [typeFilter, setTypeFilter]       = useState('')
@@ -603,7 +603,8 @@ const EmployeeList = () => {
 
           <Divider sx={{ m: '0 !important' }} />
 
-          <TableHeader value={search} handleFilter={handleFilter} toggle={canCreate ? handleOpenAdd : undefined}  onInviteSuccess={() => dispatch(fetchAllUsers())} />
+{canCreate &&  <TableHeader value={search} handleFilter={handleFilter}  toggle={canCreate ? handleOpenAdd : undefined}  onInviteSuccess={() => dispatch(fetchAllUsers())} /> }
+         
 
           <DataGrid
             autoHeight rowHeight={62} loading={loading}

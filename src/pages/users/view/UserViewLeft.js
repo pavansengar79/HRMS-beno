@@ -76,7 +76,7 @@ const InfoRow = ({ icon, label, value, isLink, linkHref }) => (
 )
 
 // Section header with independent edit/save/cancel icons
-const SectionHeader = ({ title, editing, saving, onEdit, onSave, onCancel, canEdit = true }) => (
+const SectionHeader = ({ title, editing, saving, onEdit, onSave, onCancel, canEdit  }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
     <Typography variant='subtitle2' sx={{ fontWeight: 600 }}>{title}</Typography>
     {canEdit && (
@@ -101,7 +101,7 @@ const SectionHeader = ({ title, editing, saving, onEdit, onSave, onCancel, canEd
 )
 
 // ─── Section: Personal Info ───────────────────────────────────────────────────
-const PersonalInfoSection = ({ employee, onUpdated }) => {
+const PersonalInfoSection = ({ employee, onUpdated, canEdit }) => {
   const [editing, setEditing] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [form,    setForm]    = useState({})
@@ -149,7 +149,7 @@ const PersonalInfoSection = ({ employee, onUpdated }) => {
   return (
     <Box sx={{ mb: 3 }}>
       <SectionHeader title='Personal Information' editing={editing} saving={saving}
-        onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)} />
+        onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)}  canEdit={canEdit} />
 
       {editing ? (
         <Grid container spacing={2}>
@@ -444,7 +444,7 @@ const AboutSection = ({ employee, onUpdated }) => {
 }
 
 // ─── Main UserViewLeft ────────────────────────────────────────────────────────
-const UserViewLeft = ({ employee: initialEmployee, canEdit = true }) => {
+const UserViewLeft = ({ employee: initialEmployee, canEdit = true ,role,isPermitted  }) => {
   const [employee, setEmployee]       = useState(initialEmployee)
   const [uploading, setUploading]     = useState(false)
   const fileInputRef                  = useRef(null)
@@ -597,7 +597,7 @@ console.log("Ewe",employee)
         <Divider sx={{ my: 2 }} />
 
         {/* ── Personal info ─────────────────────────────────────── */}
-        <PersonalInfoSection employee={employee} onUpdated={onUpdated} />
+        <PersonalInfoSection employee={employee} onUpdated={onUpdated} canEdit={isPermitted} />
         <Divider sx={{ my: 2 }} />
 
       </CardContent>

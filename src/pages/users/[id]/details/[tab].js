@@ -22,6 +22,7 @@ import {
 // ** View Components
 import UserViewLeft from '../../view/UserViewLeft'
 import UserViewRight from '../../view/UserViewRight'
+import { selectPermissions, selectRoleSlug, selectUser } from 'src/store/auth/authSlice'
 
 const UserDetails = () => {
   const router   = useRouter()
@@ -32,6 +33,13 @@ const UserDetails = () => {
 
   const employee = useSelector(selectSelectedEmployee)
   const loading  = useSelector(selectEmployeeDetailLoading)
+const current_user = useSelector(selectUser)
+  const permissions = useSelector(selectPermissions)
+  
+  console.log('Current user:', current_user.id)
+  // 
+  const isPermitted =  permissions.includes('employee.create') || permissions.includes('employee.update') 
+  const userRole    = useSelector(selectRoleSlug) ?? ''
 
   useEffect(() => {
     if (id) {
@@ -55,11 +63,13 @@ const UserDetails = () => {
   return (
     <Grid container spacing={6}>
       <Grid item xs={12} md={5} lg={4}>
-        
-        <UserViewLeft employee={employee} />
+        {/* {current_user?.id}
+        <br/>
+        {id} */}
+        <UserViewLeft employee={employee}  role={userRole} isPermitted={ isPermitted} />
       </Grid>
       <Grid item xs={12} md={7} lg={8}>
-        <UserViewRight tab={activeTab} employee={employee} />
+        <UserViewRight tab={activeTab} employee={employee}  isPermitted={ isPermitted}/>
       </Grid>
     </Grid>
   )
