@@ -1,72 +1,43 @@
-// ** MUI Import
-import Grid from '@mui/material/Grid'
+import { useSelector } from 'react-redux'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 
-// ** Demo Component Imports
-import AnalyticsProject from 'src/views/dashboards/analytics/AnalyticsProject'
-import AnalyticsOrderVisits from 'src/views/dashboards/analytics/AnalyticsOrderVisits'
-import AnalyticsTotalEarning from 'src/views/dashboards/analytics/AnalyticsTotalEarning'
-import AnalyticsSourceVisits from 'src/views/dashboards/analytics/AnalyticsSourceVisits'
-import AnalyticsEarningReports from 'src/views/dashboards/analytics/AnalyticsEarningReports'
-import AnalyticsSupportTracker from 'src/views/dashboards/analytics/AnalyticsSupportTracker'
-import AnalyticsSalesByCountries from 'src/views/dashboards/analytics/AnalyticsSalesByCountries'
-import AnalyticsMonthlyCampaignState from 'src/views/dashboards/analytics/AnalyticsMonthlyCampaignState'
-import AnalyticsWebsiteAnalyticsSlider from 'src/views/dashboards/analytics/AnalyticsWebsiteAnalyticsSlider'
+import EmployeeDashboard     from './employeeDashboard'
+import HRDashboard           from './hrDashboard'
+import SuperAdminDashboard   from './superAdminDashboard'
+import CompanyAdminDashboard from './companyAdminDashboard'
 
-// ** Custom Component Import
-import KeenSliderWrapper from 'src/@core/styles/libs/keen-slider'
-import ApexChartWrapper from 'src/@core/styles/libs/react-apexcharts'
-import CardStatsWithAreaChart from 'src/@core/components/card-statistics/card-stats-with-area-chart'
-import AuditLogTimeline from 'src/views/dashboards/analytics/AuditLogsSuperAdmin'
+// ── Role slug → component map ─────────────────────────────────────────────────
+// Add or rename keys here to match whatever slugs your auth slice returns
+const DASHBOARD_MAP = {
+  employee:       EmployeeDashboard,
+  hr:             HRDashboard,
+  hr_manager:     HRDashboard,
+  super_admin:    SuperAdminDashboard,
+  superadmin:     SuperAdminDashboard,
+  tenant_admin:   CompanyAdminDashboard,
+  companyadmin:   CompanyAdminDashboard,
+  admin:          CompanyAdminDashboard,
+}
 
 const AnalyticsDashboard = () => {
+  const roleSlug = useSelector(selectRoleSlug)
 
+  // Normalise: lowercase + trim so 'HR_Manager' → 'hr_manager'
+  const key = String(roleSlug || '').toLowerCase().trim()
 
-  return (
-    <ApexChartWrapper>
-      <KeenSliderWrapper>
-        <Grid container spacing={6}>
-          <Grid item xs={12} lg={6}>
-            <AnalyticsWebsiteAnalyticsSlider />
-          </Grid>
-          <Grid item xs={12} sm={6} lg={3}>
-            <AnalyticsOrderVisits />
-          </Grid>
-          <Grid item xs={12} sm={6} lg={3}>
-            <CardStatsWithAreaChart
-              stats='97.5k'
-              chartColor='success'
-              avatarColor='success'
-              title='Revenue Generated'
-              avatarIcon='tabler:credit-card'
-              chartSeries={[{ data: [6, 35, 25, 61, 32, 84, 70] }]}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <AnalyticsEarningReports />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <AnalyticsSupportTracker />
-          </Grid>
-          <Grid item xs={12} md={6} lg={4}>
-            <AnalyticsSalesByCountries />
-          </Grid>
-          <Grid item xs={12} md={6} lg={4}>
-            <AnalyticsTotalEarning />
-          </Grid>
-          <Grid item xs={12} md={6} lg={4}>
-            <AnalyticsMonthlyCampaignState />
-          </Grid>
-          <Grid item xs={12} md={6} lg={4}>
-            <AnalyticsSourceVisits />
-          </Grid>
-          <Grid item xs={12} lg={8}>
-            {/* <AnalyticsProject /> */}
-            <AuditLogTimeline />
-          </Grid>
-        </Grid>
-      </KeenSliderWrapper>
-    </ApexChartWrapper>
-  )
+  const DashboardComponent = DASHBOARD_MAP[key]
+
+  if (!DashboardComponent) {
+    // Unrecognised role — show a neutral fallback instead of crashing
+    return (
+      <div style={{ padding: 32, textAlign: 'center', color: '#64748b', fontFamily: 'sans-serif' }}>
+        <p style={{ fontSize: 16, fontWeight: 700 }}>No dashboard available for role: <code>{roleSlug}</code></p>
+        <p style={{ fontSize: 13, marginTop: 8 }}>Contact your administrator if this seems incorrect.</p>
+      </div>
+    )
+  }
+
+  return <DashboardComponent />
 }
 
 export default AnalyticsDashboard

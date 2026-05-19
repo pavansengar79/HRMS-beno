@@ -7,14 +7,14 @@ import {
 } from 'src/store/auth/authSlice'
 
 // ❌ These modules only for super_admin
-const SUPER_ADMIN_ONLY_MODULES = ['company', 'organisation', 'plans', 'customers', 'policy']
+const SUPER_ADMIN_ONLY_MODULES = ['company', 'organisation', 'plans', 'customers', '']
 
 const ALL_NAV_ITEMS = [
   { title: 'Dashboard', icon: 'mdi:view-dashboard-outline', path: '/dashboards/analytics', module: null },
-  { title: 'Customers', icon: 'mdi:user-group-outline', path: '/customers', module: 'customers' },
+  // { title: 'Customers', icon: 'mdi:user-group-outline', path: '/customers', module: 'customers' },
 
-  { title: 'Plans', icon: 'mdi:wrench', path: '/pages/pricing/', module: 'plans' },
-  { title: 'Organisation', icon: 'mdi:mdi-bank', path: '/organisation', module: 'organisation' },
+  // { title: 'Plans', icon: 'mdi:wrench', path: '/pages/pricing/', module: 'plans' },
+  // { title: 'Organisation', icon: 'mdi:mdi-bank', path: '/organisation', module: 'organisation' },
   { title: 'Company', icon: 'mdi:domain', path: '/company', module: 'company' },
 
   { title: 'Departments', icon: 'mdi:office-building-outline', path: '/department', module: 'department' },
@@ -25,9 +25,9 @@ const ALL_NAV_ITEMS = [
   { title: 'Leaves', icon: 'mdi:calendar-account-outline', path: '/leaves', module: 'leave' },
   { title: 'Payrolls', icon: 'mdi:cash-multiple', path: '/payroll', module: 'payroll' },
 
-  { title: 'Holidays', icon: 'mdi:calendar-star', path: '/holidays', module: null },
+  { title: 'Holidays', icon: 'mdi:calendar-star', path: '/holidays', module: "holiday" },
   { title: 'Policy', icon: 'mdi:shield-outline', path: '/policy', module: 'policy' },
-  { title: 'Settings', icon: 'mdi:cog-outline', path: '/settings', module: 'company' }
+  // { title: 'Settings', icon: 'mdi:cog-outline', path: '/settings', module: 'company' }
 ]
 
 const VerticalNavItems = () => {

@@ -62,7 +62,7 @@ export const updateLeaveStatus = createAsyncThunk(
   'leaves/updateLeaveStatus',
   async ({ id, status, comment }, { rejectWithValue }) => {
     try {
-      const res = await axiosRequest.patch(`/api/v1/leave/requests/${id}/action`, { status, comment })
+      const res = await axiosRequest.patch(`/api/v1/leave/requests/${id}/action`, { action: status, comment })
       return res.data ?? res
     } catch (err) {
       return rejectWithValue(err?.response?.data?.message || 'Failed to update leave status')

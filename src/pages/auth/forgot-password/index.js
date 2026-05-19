@@ -86,7 +86,7 @@ const ForgotPassword = () => {
     try {
       // axios returns the actual response body inside `.data`
       const { data } = await axios.post(
-        'https://2c6q0jsk-3000.inc1.devtunnels.ms/api/v1/auth/forgot-password',
+        'https://s0380lsz-3000.inc1.devtunnels.ms/api/v1/auth/forgot-password',
         { email },
         { headers: { 'Content-Type': 'application/json' } }
       )
