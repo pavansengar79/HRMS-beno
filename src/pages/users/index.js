@@ -440,9 +440,13 @@ const buildColumns = (canEdit, canDelete, canApprove, canChangeStatus, onEdit, o
   {
     flex: 0.15, minWidth: 140, field: 'departmentId', headerName: 'Department',
     renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary' }}>{row.departmentId?.name || '—'}</Typography>
+      <Typography noWrap sx={{ color: 'text.secondary' }}>{row.departmentId?.name || '—'} <CustomChip rounded skin='light' size='small'
+        label={(row.role.name || '—')}
+        color={EMPLOYMENT_TYPE_COLOR[row.employmentType] || 'primary'}
+        sx={{ textTransform: 'capitalize' }} /></Typography>
     )
   },
+  
   {
     flex: 0.13, minWidth: 120, field: 'phone', headerName: 'Phone',
     renderCell: ({ row }) => (

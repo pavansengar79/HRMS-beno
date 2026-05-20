@@ -133,7 +133,7 @@ const ResetPasswordV2 = () => {
   setLoading(true)
   try {
     const res = await axios.post(
-      `https://s0380lsz-3000.inc1.devtunnels.ms/api/v1/auth/reset-password`,
+      `https://s0380lsz-4000.inc1.devtunnels.ms/api/v1/auth/reset-password`,
       { password: values.newPassword, token },
       { headers: { 'Content-Type': 'application/json' } }
     )

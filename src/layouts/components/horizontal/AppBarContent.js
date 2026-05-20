@@ -123,7 +123,7 @@ const AppBarContent = props => {
       {auth.user && (
         <>
           <ShortcutsDropdown settings={settings} shortcuts={shortcuts} />
-          <NotificationDropdown settings={settings} notifications={notifications} />
+          {/* <NotificationDropdown settings={settings} notifications={notifications} /> */}
           <UserDropdown settings={settings} />
         </>
       )}

@@ -203,7 +203,7 @@ const RegisterV2 = () => {
   //   Case A: ?token=xxx&user=yyy     → direct store + onboarding check
   //   Case B: ?code=xxx (Google code) → backend exchange + store + onboarding check
   const callbackUrl = `${window.location.origin}/auth/google/callback`
-  const backendUrl =  `https://s0380lsz-3000.inc1.devtunnels.ms`
+  const backendUrl =  `https://s0380lsz-4000.inc1.devtunnels.ms`
  
   const oauthUrl = new URL(`${backendUrl}/api/v1/auth/google`)
   oauthUrl.searchParams.set('returnUrl', callbackUrl)

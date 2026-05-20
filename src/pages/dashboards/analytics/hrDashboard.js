@@ -213,10 +213,10 @@ export default function HRDashboard() {
             <div style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)" }}>HR Dashboard</div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{d.today.date} · Real-time data</div>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {/* <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button style={{ background: "var(--surface)", border: "1.5px solid var(--border)", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", cursor: "pointer" }}>📊 Reports</button>
             <button className="btn-primary">+ Add Employee</button>
-          </div>
+          </div> */}
         </div>
 
         {/* Payroll Alert Banner */}

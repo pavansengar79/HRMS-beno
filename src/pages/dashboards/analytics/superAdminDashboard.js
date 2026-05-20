@@ -210,8 +210,8 @@ const totalTenants =
 
   // ── Chart: Revenue Trend ────────────────────────────────────────────────────
   const revenueData = data?.revenueMonthly || [
-    { x: 'Jan', y: 310000 }, { x: 'Feb', y: 345000 },
-    { x: 'Mar', y: 298000 }, { x: 'Apr', y: 421800 },
+    { x: 'Jan', y: 0 }, { x: 'Feb', y: 0 },
+    { x: 'Mar', y: 0 }, { x: 'Apr', y: 0 },
   ];
   const revOptions = {
     chart: { type: 'area', background: 'transparent', toolbar: { show: false } },
@@ -284,7 +284,7 @@ const totalTenants =
             {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Live data
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        {/* <Box sx={{ display: 'flex', gap: 1.5 }}>
           <Button variant="outlined" size="small"
             sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600, fontSize: 12, borderColor: divider, color: textSec }}>
             Export Report
@@ -293,7 +293,7 @@ const totalTenants =
             sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700, fontSize: 12, bgcolor: primary, '&:hover': { bgcolor: pDark } }}>
             + Add Tenant
           </Button>
-        </Box>
+        </Box> */}
       </Box>
 
       {/* ── System KPI Bar ───────────────────────────────────────────────────── */}
@@ -369,7 +369,7 @@ const totalTenants =
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    {['COMPANY', 'PLAN', 'EMPLOYEES', 'SIGNED UP', 'STATUS'].map(h => (
+                    {['COMPANY', 'PLAN', 'SIGNED UP', 'STATUS'].map(h => (
                       <TableCell key={h} sx={{
                         color: textSec, fontSize: 10, fontWeight: 700, letterSpacing: '0.5px',
                         borderBottom: `1px solid ${divider}`, py: 1, px: 2,
@@ -400,9 +400,9 @@ const totalTenants =
                       <TableCell sx={{ borderBottom: 'none', px: 2 }}>
                         <PlanBadge plan={t.plan} />
                       </TableCell>
-                      <TableCell sx={{ borderBottom: 'none', color: textSec, fontSize: 13, px: 2 }}>
+                      {/* <TableCell sx={{ borderBottom: 'none', color: textSec, fontSize: 13, px: 2 }}>
                         {t.employees || t.employeeCount || 0}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell sx={{ borderBottom: 'none', color: textSec, fontSize: 12, px: 2 }}>
                         {new Date(t.joinedAt).toLocaleDateString('en-IN') || (t.createdAt ? new Date(t.joinedAt).toLocaleDateString('en-IN') : '—')}
                       </TableCell>

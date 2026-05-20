@@ -128,6 +128,38 @@ const defaultLeaveTypeValues = {
     isActive: true
 }
 
+
+const predefinedLeaveTypes = [
+  {
+    name: "Annual Leave",
+    code: "AL",
+  },
+  {
+    name: "Sick Leave",
+    code: "SL",
+  },
+  {
+    name: "Casual Leave",
+    code: "CL",
+  },
+  {
+    name: "Maternity Leave",
+    code: "ML",
+  },
+  {
+    name: "Paternity Leave",
+    code: "PL",
+  },
+  {
+    name: "Loss of Pay",
+    code: "LOP",
+  },
+  {
+    name: "Compensatory Off",
+    code: "COMP",
+  },
+]
+
 // ─── Leave Type Drawer ────────────────────────────────────────────────────────
 
 const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
@@ -235,78 +267,63 @@ const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
                     <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 3 }}>
                         Basic Info
                     </Typography>
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} sm={8}>
-                            <Controller
-                                name='name'
-                                control={control}
-                                rules={{ required: 'Leave type name is required' }}
-                                render={({ field }) => (
-                                    <CustomTextField
-                                        {...field}
-                                        fullWidth
-                                        label='Leave Type Name *'
-                                        placeholder='e.g. Earned Leave'
-                                        error={!!errors.name}
-                                        helperText={errors.name?.message}
-                                    />
-                                )}
-                            />
-                        </Grid>
-                        <Grid item xs={12} sm={4}>
-                            <Controller
-                                name='code'
-                                control={control}
-                                rules={{ required: 'Code is required' }}
-                                render={({ field }) => (
-                                    <CustomTextField
-                                        {...field}
-                                        fullWidth
-                                        label='Code *'
-                                        placeholder='EL'
-                                        onChange={e => field.onChange(e.target.value.toUpperCase())}
-                                        error={!!errors.code}
-                                        helperText={errors.code?.message}
-                                    />
-                                )}
-                            />
-                        </Grid>
+                   <Grid item xs={12} sm={8}>
+    <Controller
+        name='name'
+        control={control}
+        rules={{ required: 'Leave type name is required' }}
+        render={({ field }) => (
+            <CustomTextField
+                select
+                fullWidth
+                label='Leave Type Name *'
+                value={field.value}
+                onChange={e => {
+                    const selected = predefinedLeaveTypes.find(
+                        item => item.name === e.target.value
+                    )
 
-                        {/* Color picker */}
-                        <Grid item xs={12}>
-                            <Typography variant='body2' color='text.secondary' sx={{ mb: 2 }}>Color</Typography>
-                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-                                {COLOR_PRESETS.map(c => (
-                                    <Box
-                                        key={c}
-                                        onClick={() => setValue('colorCode', c)}
-                                        sx={{
-                                            width: 28, height: 28, borderRadius: '50%', backgroundColor: c,
-                                            cursor: 'pointer', transition: 'transform 0.15s',
-                                            border: selectedColor === c ? '3px solid white' : '2px solid transparent',
-                                            outline: selectedColor === c ? `2px solid ${c}` : 'none',
-                                            '&:hover': { transform: 'scale(1.2)' }
-                                        }}
-                                    />
-                                ))}
-                                <Controller
-                                    name='colorCode'
-                                    control={control}
-                                    render={({ field }) => (
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <input
-                                                type='color'
-                                                value={field.value}
-                                                onChange={e => field.onChange(e.target.value)}
-                                                style={{ width: 28, height: 28, border: 'none', borderRadius: '50%', cursor: 'pointer', padding: 0 }}
-                                            />
-                                            <Typography variant='caption' color='text.secondary'>Custom</Typography>
-                                        </Box>
-                                    )}
-                                />
-                            </Box>
-                        </Grid>
-                    </Grid>
+                    field.onChange(e.target.value)
+
+                    if (selected) {
+                        setValue('code', selected.code)
+                    }
+                }}
+                error={!!errors.name}
+                helperText={errors.name?.message}
+            >
+                <MenuItem value=''>
+                    Select Leave Type
+                </MenuItem>
+
+                {predefinedLeaveTypes.map(item => (
+                    <MenuItem key={item.code} value={item.name}>
+                        {item.name}
+                    </MenuItem>
+                ))}
+            </CustomTextField>
+        )}
+    />
+</Grid>
+
+<Grid item xs={12} sm={4}>
+    <Controller
+        name='code'
+        control={control}
+        rules={{ required: 'Code is required' }}
+        render={({ field }) => (
+            <CustomTextField
+                {...field}
+                fullWidth
+                label='Code *'
+                placeholder='EL'
+                disabled
+                error={!!errors.code}
+                helperText={errors.code?.message}
+            />
+        )}
+    />
+</Grid>
                 </Box>
 
                 <Divider />

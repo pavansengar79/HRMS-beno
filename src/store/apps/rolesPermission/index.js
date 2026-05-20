@@ -6,7 +6,7 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 
 export const fetchAdmin = createAsyncThunk('rolesPermission/fetchAdmin', async params => {
   const response = await axiosRequest({
-    url: `/api/admindash/admin/getAllAdmins?page=${params?.paginationModel?.page + 1 || ''}&limit=${
+    url: `/api/v1/admindash/admin/getAllAdmins?page=${params?.paginationModel?.page + 1 || ''}&limit=${
       params?.paginationModel?.pageSize || ''
     }&search=${params?.search || ''}`,
     method: 'GET'
@@ -71,7 +71,7 @@ export const admin = createSlice({
       .addCase(fetchAdmin.rejected, (state, action) => {
         state.adminLoading = 'FAILED'
         state.adminError = action?.payload
-        toast.error('Somethign went wrong', { duration: 2000 })
+        // toast.error('Somethign went wrong', { duration: 2000 })
       })
       .addCase(updateAdmin.fulfilled, (state, action) => {
         state.shouldFetchData = true

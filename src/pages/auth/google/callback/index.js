@@ -190,7 +190,7 @@ import BlankLayout from 'src/@core/layouts/BlankLayout'
 import authConfig from 'src/configs/auth'
 import { setCredentials } from 'src/store/auth/authSlice'
 
-const BACKEND_BASE_URL = 'https://s0380lsz-3000.inc1.devtunnels.ms/'
+const BACKEND_BASE_URL = 'https://s0380lsz-4000.inc1.devtunnels.ms/'
 
 const GoogleCallbackPage = () => {
 const router = useRouter()

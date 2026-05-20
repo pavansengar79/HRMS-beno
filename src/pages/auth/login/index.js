@@ -59,7 +59,7 @@ const RightWrapper = styled(Box)(({ theme }) => ({
 
 const LinkStyled = styled(Link)(({ theme }) => ({
   textDecoration: 'none',
-  color: `${theme.palette.primary.main} !important`
+  color: `${theme.palette.info.main} !important`
 }))
 
 const FormControlLabel = styled(MuiFormControlLabel)(({ theme }) => ({
@@ -102,7 +102,7 @@ const LoginPage = () => {
   // ✅ Full frontend URL hardcode karo
   const frontendUrl =  'https://hrms-beno.vercel.app'
   const callbackUrl = `${frontendUrl}/auth/google/callback`
-  const backendUrl = `https://s0380lsz-3000.inc1.devtunnels.ms`
+  const backendUrl = `https://s0380lsz-4000.inc1.devtunnels.ms`
 
   const oauthUrl = new URL(`${backendUrl}/api/v1/auth/google`)
   oauthUrl.searchParams.set('returnUrl', callbackUrl)
@@ -151,7 +151,7 @@ console.log("oauthUrl.toString",oauthUrl.toString)
             alignItems: 'center',
             borderRadius: '20px',
             justifyContent: 'center',
-            background: `url("/images/pages/${imageSource}-${theme.palette.mode}.png")`,
+            background: `url("/images/pages/auth-v2-login-illustration-bordered-dark.svg")`,
             backgroundSize: '100% 100%',
             backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',
@@ -203,10 +203,12 @@ console.log("oauthUrl.toString",oauthUrl.toString)
               <Box sx={{ mb: 4 }}>
                 <Controller
                   name='email'
+                  
                   control={control}
                   render={({ field: { value, onChange, onBlur } }) => (
                     <CustomTextField
                       fullWidth
+                      color='info'
                       autoFocus
                       label='Email'
                       value={value}
@@ -229,6 +231,7 @@ console.log("oauthUrl.toString",oauthUrl.toString)
                     <CustomTextField
                       fullWidth
                       value={value}
+                      color='info'
                       onBlur={onBlur}
                       label='Password'
                       onChange={onChange}
@@ -272,6 +275,7 @@ console.log("oauthUrl.toString",oauthUrl.toString)
                   label='Remember Me'
                   control={
                     <Checkbox
+                    color='info'
                       checked={rememberMe}
                       onChange={e => setRememberMe(e.target.checked)}
                     />
@@ -279,6 +283,7 @@ console.log("oauthUrl.toString",oauthUrl.toString)
                 />
                 <Button
                   variant='text'
+                  color='info'
                   onClick={() => router.push('/auth/forgot-password')}
                 >
                   Forgot Password?
@@ -290,6 +295,7 @@ console.log("oauthUrl.toString",oauthUrl.toString)
                 fullWidth
                 type='submit'
                 variant='contained'
+                color='info'
                 disabled={isLoading}
                 sx={{ mb: 4, my: 2 }}
               >
@@ -304,6 +310,7 @@ console.log("oauthUrl.toString",oauthUrl.toString)
               <Button
                 fullWidth
                 variant='outlined'
+                color='info'
                 onClick={handleGoogleLogin}
                 startIcon={<Icon icon='mdi:google' />}
               >

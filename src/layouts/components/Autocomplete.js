@@ -30,7 +30,7 @@ import CustomAutocomplete from 'src/@core/components/mui/autocomplete'
 
 // ** Configs Imports
 import themeConfig from 'src/configs/themeConfig'
-import dealer from 'src/store/apps/dealer'
+
 
 const categoryTitle = {
   file: 'File',
@@ -334,12 +334,12 @@ const AutocompleteComponent = ({ hidden, settings }) => {
         onClick={() => !openDialog && setOpenDialog(true)}
         sx={{ display: 'flex', cursor: 'pointer', alignItems: 'center' }}
       >
-        <IconButton color='inherit' sx={!hidden && layout === 'vertical' ? { mr: 0.5, ml: -2.75 } : {}}>
+        {/* <IconButton color='inherit' sx={!hidden && layout === 'vertical' ? { mr: 0.5, ml: -2.75 } : {}}>
           <Icon fontSize='1.625rem' icon='tabler:search' />
         </IconButton>
         {!hidden && layout === 'vertical' ? (
           <Typography sx={{ userSelect: 'none', color: 'text.disabled' }}>Search (Ctrl+/)</Typography>
-        ) : null}
+        ) : null} */}
         {openDialog && (
           <Dialog fullWidth open={openDialog} fullScreen={fullScreenDialog} onClose={() => setOpenDialog(false)}>
             <Box sx={{ top: 0, width: '100%', position: 'sticky' }}>

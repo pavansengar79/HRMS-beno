@@ -349,11 +349,11 @@ const Company = () => {
 
           <Divider sx={{ m: '0 !important' }} />
 
-          <TableHeader
+          {/* <TableHeader
             value={value}
             handleFilter={handleFilter}
             toggle={toggleDrawer}
-          />
+          /> */}
 
           <DataGrid
             autoHeight

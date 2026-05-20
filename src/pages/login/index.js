@@ -137,7 +137,7 @@ const LoginPage = () => {
             alignItems: 'center',
             borderRadius: '20px',
             justifyContent: 'center',
-            background: `url("/images/pages/${imageSource}-${theme.palette.mode}.png")`,
+            background: `url("/images/pages/${imageSource}-${theme.palette.mode}.svg")`,
             backgroundSize: '100% 100%',
             backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',

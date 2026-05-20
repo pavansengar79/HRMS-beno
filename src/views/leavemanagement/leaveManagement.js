@@ -20,6 +20,8 @@ import TabLeaveApproval from './leaveApproval'
 import TabLeaveTypes from './leaveTypes'
 import TabLeaveBalance from './leaveBalance'
 import TabLeaveInitialize from './leaveInitialize'
+import { useSelector } from 'react-redux'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 
 const TabList = styled(MuiTabList)(({ theme }) => ({
   border: '0 !important',
@@ -61,6 +63,7 @@ const LeaveManagement = ({ tab }) => {
 
   const router = useRouter()
   const hideText = useMediaQuery(theme => theme.breakpoints.down('md'))
+  const roleSlug = useSelector(selectRoleSlug) || ''
 
   useEffect(() => {
     if (tab && tab !== activeTab) setActiveTab(tab)
@@ -70,6 +73,17 @@ const LeaveManagement = ({ tab }) => {
     setIsLoading(true)
     router.push(`/leaves/${value}`).then(() => setIsLoading(false))
   }
+
+  // Only show initialize tab to users with role 'hr'
+  const visibleTabs = TABS.filter(t => {
+    if (t.value === 'initialize') return roleSlug === 'hr_manager'
+    return true
+  })
+
+  // If the current active tab is not allowed for this role, redirect to 'requests'
+  useEffect(() => {
+    if (activeTab === 'initialize' && roleSlug !== 'hr_manager') setActiveTab('requests')
+  }, [roleSlug, activeTab])
 
   const tabContentList = {
     requests: <TabLeaveRequests />,
@@ -91,7 +105,7 @@ const LeaveManagement = ({ tab }) => {
                 onChange={handleChange}
                 aria-label='leave management tabs'
               >
-                {TABS.map(t => (
+                {visibleTabs.map(t => (
                   <Tab
                     key={t.value}
                     value={t.value}

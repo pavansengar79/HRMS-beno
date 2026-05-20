@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import axiosRequest from 'src/utils/AxiosInterceptor';
+import InviteDrawer from 'src/views/apps/user/list/inviteDrawer';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 import PeopleAltOutlinedIcon    from '@mui/icons-material/PeopleAltOutlined';
@@ -144,22 +145,25 @@ export default function CompanyAdminDashboard() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        // Response shape: { success, message, data: { setup, employees, departments, pendingInvites, recentUsers, recentActivity } }
-        const res = await axiosRequest.get('api/v1/dashboard/company');
-        // axiosRequest interceptor may unwrap to res.data or res directly
-        setData(res?.data || res || null);
-      } catch (err) {
-        setError(err?.response?.data?.message || 'Failed to load dashboard');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+
+  // fetch dashboard data (exposed so child actions can refresh)
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      // Response shape: { success, message, data: { setup, employees, departments, pendingInvites, recentUsers, recentActivity } }
+      const res = await axiosRequest.get('api/v1/dashboard/company');
+      // axiosRequest interceptor may unwrap to res.data or res directly
+      setData(res?.data || res || null);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadData(); }, []);
 
   if (loading) return (
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: bg }}>
@@ -285,6 +289,7 @@ export default function CompanyAdminDashboard() {
             Export
           </Button>
           <Button variant="contained" size="small" startIcon={<PersonAddAltOutlinedIcon fontSize="small" />}
+            onClick={() => setInviteOpen(true)}
             sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700, fontSize: 12, bgcolor: primary, '&:hover': { bgcolor: pDark } }}>
             + Invite User
           </Button>
@@ -624,6 +629,9 @@ export default function CompanyAdminDashboard() {
           </Box>
         )}
       </SCard>
+
+      {/* Invite drawer for inviting users */}
+      <InviteDrawer open={inviteOpen} onClose={() => setInviteOpen(false)} onSuccess={() => { setInviteOpen(false); loadData(); }} />
 
     </Box>
   );

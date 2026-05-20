@@ -591,7 +591,7 @@ console.log("Ewe",employee)
           <InfoRow icon={<Icon icon='tabler:mail' fontSize={ic.fontSize} />}              label='Email'       value={employee.email} isLink linkHref={`mailto:${employee.email}`} />
           <InfoRow icon={<Icon icon='tabler:building-community' fontSize={ic.fontSize} />} label='Department' value={deptName} />
           <InfoRow icon={<Icon icon='tabler:calendar-event' fontSize={ic.fontSize} />}    label='Joined'      value={joiningFormatted} />
-          <InfoRow icon={<Icon icon='tabler:user-circle' fontSize={ic.fontSize} />}       label='Reports to'  value={managerName} />
+          {/* <InfoRow icon={<Icon icon='tabler:user-circle' fontSize={ic.fontSize} />}       label='Reports to'  value={managerName} /> */}
         </Box>
 
         <Divider sx={{ my: 2 }} />

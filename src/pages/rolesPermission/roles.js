@@ -28,9 +28,9 @@ const RolesComponent = () => {
       <Grid item xs={12}>
         <RoleCards />
       </Grid>
-      <Grid item xs={12}>
+      {/* <Grid item xs={12}>
         <Table />
-      </Grid>
+      </Grid> */}
     </Grid>
   )
 }
