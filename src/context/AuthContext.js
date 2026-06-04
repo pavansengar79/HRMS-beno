@@ -1,223 +1,94 @@
-// src/context/AuthContext.jsx
-
 import { createContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { useDispatch, useSelector } from 'react-redux'
-
-// NOTE: Login uses plain axios (no token needed yet).
-// All other API calls use axiosInstance (auto-attaches token).
 import axios from 'axios'
-
-import {
-  setCredentials,
-  clearCredentials,
-  setLoading,
-  setError,
-  rehydrateAuth,
-  selectUser,
-  selectToken,
-  selectIsAuthenticated
-} from 'src/store/auth/authSlice'
-
+import { setCredentials, clearCredentials, setLoading, setError, rehydrateAuth, selectUser, selectToken, selectIsAuthenticated } from 'src/store/auth/authSlice'
 import authConfig from 'src/configs/auth'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
-const BACKEND_BASE_URL = 'https://s0380lsz-4000.inc1.devtunnels.ms'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+const STORAGE  = { TOKEN: authConfig.storageTokenKeyName, USER: 'userData', MFA_TOKEN: 'mfaToken' }
 
-// ─── Storage Keys ─────────────────────────────
-const STORAGE = {
-  TOKEN:     authConfig.storageTokenKeyName, // 'accessToken'
-  USER:      'userData',
-  MFA_TOKEN: 'mfaToken'
-}
-
-// ─── Context Defaults ─────────────────────────
 const defaultProvider = {
-  user:            null,
-  token:           null,
-  loading:         true,
-  isAuthenticated: false,
-  login:           () => Promise.resolve(),
-  logout:          () => Promise.resolve(),
-  verifyMfa:       () => Promise.resolve()
+  user: null, token: null, loading: true, isAuthenticated: false,
+  login: () => Promise.resolve(), logout: () => Promise.resolve(), verifyMfa: () => Promise.resolve()
 }
 
 const AuthContext = createContext(defaultProvider)
 
-// ─── Provider ─────────────────────────────────
 const AuthProvider = ({ children }) => {
   const [loading, setLoadingState] = useState(true)
-
   const router   = useRouter()
   const dispatch = useDispatch()
-
   const user            = useSelector(selectUser)
   const token           = useSelector(selectToken)
   const isAuthenticated = useSelector(selectIsAuthenticated)
 
-  // ── On app init: re-hydrate Redux from localStorage ───────
   useEffect(() => {
     const initAuth = () => {
       const storedToken = window.localStorage.getItem(STORAGE.TOKEN)
       const storedUser  = window.localStorage.getItem(STORAGE.USER)
-
       if (storedToken && storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser)
-          dispatch(rehydrateAuth({ user: parsedUser, token: storedToken }))
-        } catch {
-          _clearStorage()
-        }
+        try { dispatch(rehydrateAuth({ user: JSON.parse(storedUser), token: storedToken })) }
+        catch { _clear() }
       }
-
       setLoadingState(false)
     }
-
     initAuth()
-
-    // Listen for 401 logout event fired by AxiosInterceptor
-    const handleForceLogout = () => {
-      dispatch(clearCredentials())
-    }
-
-    window.addEventListener('auth:logout', handleForceLogout)
-
-    return () => {
-      window.removeEventListener('auth:logout', handleForceLogout)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const onLogout = () => { dispatch(clearCredentials()); _clear(); router.push('/auth/login') }
+    window.addEventListener('auth:logout', onLogout)
+    return () => window.removeEventListener('auth:logout', onLogout)
   }, [])
 
-  // ── Login ─────────────────────────────────────────────────
-  const handleLogin = async (params, errorCallback) => {
-    dispatch(setLoading(true))
+  const _clear = () => {
+    window.localStorage.removeItem(STORAGE.TOKEN)
+    window.localStorage.removeItem(STORAGE.USER)
+    window.localStorage.removeItem(STORAGE.MFA_TOKEN)
+  }
 
+  const login = async ({ email, password }, errorCallback) => {
     try {
-      const { data } = await axios.post(
-        `${BACKEND_BASE_URL}/api/v1/auth/login`,
-        { email: params.email, password: params.password },
-        { headers: { 'Content-Type': 'application/json' } }
-      )
+      dispatch(setLoading(true))
+      const res = await axios.post(`${BASE_URL}/api/v1/auth/login`, { email, password })
+      const { token, user, subscription, is_first_login, mfaRequired, mfaToken } = res.data?.data || {}
 
-      const { token, mfaToken, user } = data?.data ?? data
-
-      // ── MFA required ──────────────────────────────────────
-      if (mfaToken) {
+      if (mfaRequired && mfaToken) {
         window.localStorage.setItem(STORAGE.MFA_TOKEN, mfaToken)
         router.push('/auth/two-factor')
         return
       }
 
-      // ── Normal login (no MFA) ─────────────────────────────
-      _persistSession({ token, user, rememberMe: params.rememberMe })
-      dispatch(setCredentials({ user, token }))
-
-      const returnUrl   = router.query.returnUrl
-      const redirectURL = returnUrl && returnUrl !== '/' ? returnUrl : '/dashboards/analytics'
-      router.replace(redirectURL)
-
-    } catch (error) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Login failed. Please check your credentials.'
-
-      dispatch(setError(message))
-      if (errorCallback) errorCallback(message)
-    }
-  }
-
-  // ── Verify MFA (called from two-factor page) ──────────────
-  const handleVerifyMfa = async (otpToken, errorCallback) => {
-    const mfaToken = window.localStorage.getItem(STORAGE.MFA_TOKEN)
-
-    if (!mfaToken) {
-      const msg = 'Session expired. Please login again.'
-      if (errorCallback) errorCallback(msg)
-      router.push('/auth/login')
-      return
-    }
-
-    dispatch(setLoading(true))
-
-    try {
-      const { data } = await axios.post(
-        `${BACKEND_BASE_URL}/api/v1/auth/mfa/challenge`,
-        { mfaToken, token: otpToken },
-        { headers: { 'Content-Type': 'application/json' } }
-      )
-
-      const { token } = data?.data ?? data
-
-      // Fetch full user profile with the real token
-      const meRes = await axios.get(`${BACKEND_BASE_URL}/api/v1/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      const user = meRes.data?.data?.user || meRes.data?.user || meRes.data?.data
-
-      // Clean up mfaToken — no longer needed
-      window.localStorage.removeItem(STORAGE.MFA_TOKEN)
-
-      // Persist & set Redux (default rememberMe: true after MFA)
-      _persistSession({ token, user, rememberMe: true })
-      dispatch(setCredentials({ user, token }))
-
-      router.replace('/dashboards/analytics')
-
-    } catch (error) {
-      const message =
-        error?.response?.data?.message ||
-        error?.message ||
-        'Invalid code. Please try again.'
-
-      dispatch(setError(message))
-      if (errorCallback) errorCallback(message)
-    }
-  }
-
-  // ── Logout ────────────────────────────────────────────────
-  const handleLogout = () => {
-    dispatch(clearCredentials())
-    _clearStorage()
-    router.push('/auth/login')
-  }
-
-  // ── Helpers ───────────────────────────────────────────────
-  const _persistSession = ({ token, user, rememberMe }) => {
-    if (rememberMe) {
       window.localStorage.setItem(STORAGE.TOKEN, token)
-      window.localStorage.setItem(STORAGE.USER, JSON.stringify(user))
-    } else {
-      window.sessionStorage.setItem(STORAGE.TOKEN, token)
-      window.sessionStorage.setItem(STORAGE.USER, JSON.stringify(user))
-    }
+      const userToStore = { ...user, subscription }
+      window.localStorage.setItem(STORAGE.USER, JSON.stringify(userToStore))
+      dispatch(setCredentials({ user: userToStore, token, subscription }))
+
+      if (is_first_login) router.push('/auth/set-password')
+      else router.push('/')
+    } catch (err) {
+      dispatch(setError(err?.response?.data?.message || 'Login failed'))
+      if (errorCallback) errorCallback(err?.response?.data?.message || 'Invalid credentials')
+    } finally { dispatch(setLoading(false)) }
   }
 
-  const _clearStorage = () => {
-    window.localStorage.removeItem(STORAGE.TOKEN)
-    window.localStorage.removeItem(STORAGE.USER)
-    window.localStorage.removeItem(STORAGE.MFA_TOKEN)
-    window.sessionStorage.removeItem(STORAGE.TOKEN)
-    window.sessionStorage.removeItem(STORAGE.USER)
-  }
+  const logout = () => { dispatch(clearCredentials()); _clear(); router.push('/auth/login') }
 
-  // ── Context Value ─────────────────────────────────────────
-  const values = {
-    user,
-    token,
-    isAuthenticated,
-    loading,
-    login:      handleLogin,
-    logout:     handleLogout,
-    verifyMfa:  handleVerifyMfa,
-
-    // Legacy compat
-    setUser:    () => {},
-    setLoading: setLoadingState
+  const verifyMfa = async ({ token: code }, errorCallback) => {
+    try {
+      const mfaToken = window.localStorage.getItem(STORAGE.MFA_TOKEN)
+      const res = await axiosRequest.post('/api/v1/auth/mfa/verify-login', { token: code, mfaToken })
+      const { token, user, subscription } = res.data || {}
+      window.localStorage.setItem(STORAGE.TOKEN, token)
+      window.localStorage.removeItem(STORAGE.MFA_TOKEN)
+      const userToStore = { ...user, subscription }
+      window.localStorage.setItem(STORAGE.USER, JSON.stringify(userToStore))
+      dispatch(setCredentials({ user: userToStore, token, subscription }))
+      router.push('/')
+    } catch (err) { if (errorCallback) errorCallback(err?.response?.data?.message || 'MFA failed') }
   }
 
   return (
-    <AuthContext.Provider value={values}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, login, logout, verifyMfa }}>
       {children}
     </AuthContext.Provider>
   )

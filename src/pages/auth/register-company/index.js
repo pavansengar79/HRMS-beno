@@ -38,15 +38,14 @@ const LeftWrapper = styled(Box)(({ theme }) => ({
 }))
 
 const RightWrapper = styled(Box)(({ theme }) => ({
-  flex: 1,
+  // width: '100%',
   display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: theme.spacing(6),
+  // padding: theme.spacing(6),
   backgroundColor: theme.palette.background.paper,
-  [theme.breakpoints.up('sm')]: {
-    padding: theme.spacing(12)
-  }
+
+  // [theme.breakpoints.up('sm')]: {
+  //   padding: theme.spacing(12)
+  // }
 }))
 
 const RegisterMultiSteps = () => {
@@ -55,7 +54,7 @@ const RegisterMultiSteps = () => {
   const hidden = useMediaQuery(theme.breakpoints.down('lg'))
 
   return (
-    <Box className='content-right' sx={{ backgroundColor: 'customColors.bodyBg' }}>
+    <Box  sx={{ backgroundColor: 'customColors.bodyBg' ,display: 'flex' }}>
       {!hidden ? (
         <LeftWrapper>
           <Box sx={{ top: 26, left: 26, display: 'flex', position: 'absolute', alignItems: 'center' }}>
@@ -102,8 +101,8 @@ const RegisterMultiSteps = () => {
           />
         </LeftWrapper>
       ) : null}
-      <RightWrapper>
-        <Box sx={{ maxWidth: 700 }}>
+      <RightWrapper >
+        <Box >
           <RegisterMultiStepsWizard />
         </Box>
       </RightWrapper>

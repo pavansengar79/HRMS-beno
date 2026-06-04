@@ -440,8 +440,8 @@ const buildColumns = (canEdit, canDelete, canApprove, canChangeStatus, onEdit, o
   {
     flex: 0.15, minWidth: 140, field: 'departmentId', headerName: 'Department',
     renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary' }}>{row.departmentId?.name || '—'} <CustomChip rounded skin='light' size='small'
-        label={(row.role.name || '—')}
+      <Typography noWrap sx={{ color: 'text.secondary' }}> <CustomChip rounded skin='light' size='small'
+        label={(row.departmentId.name || '—')}
         color={EMPLOYMENT_TYPE_COLOR[row.employmentType] || 'primary'}
         sx={{ textTransform: 'capitalize' }} /></Typography>
     )
@@ -492,10 +492,10 @@ const EmployeeList = () => {
   const permissions = useSelector(selectPermissions)
   const userRole    = useSelector(selectRoleSlug) ?? ''
 
-  const canCreate       = permissions.includes('employee.create')&& userRole === 'tenant_admin' || userRole === 'hr_manager'
-  const canEdit         = permissions.includes('employee.update') && userRole === 'tenant_admin' || userRole === 'hr_manager'
+  const canCreate       = permissions.includes('employee.create')&& userRole === 'unit_admin' || userRole === 'hr_manager'
+  const canEdit         = permissions.includes('employee.update') && userRole === 'unit_admin' || userRole === 'hr_manager'
   const canDelete       = permissions.includes('employee.delete')
-  const canApprove      = canEdit && userRole === 'tenant_admin'
+  const canApprove      = canEdit && userRole === 'unit_admin'
   const canChangeStatus = canEdit
 
   const [search, setSearch]               = useState('')

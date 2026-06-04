@@ -43,9 +43,32 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 // ** Third Party
 import toast from 'react-hot-toast'
 
-// ✅ Interceptor
+// ** Axios + Auth
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import { selectUser, selectRole, selectRoleSlug } from 'src/store/auth/authSlice'
+
+// ---------------------------------------------------------------------------
+// Scope mapping — maps role slug → which scope value to filter permissions by
+//
+// API permission object shape:
+//   { _id, name, label, module, scope: ["org" | "company" | "unit"], slug }
+//
+// Rules:
+//   org_admin      → can see permissions whose scope includes "org"
+//   tenent_admin   → can see permissions whose scope includes "company"
+//   (anything else) → unit-level: can see permissions whose scope includes "unit"
+//
+// A permission is visible if its scope array contains the user's resolved scope.
+// ---------------------------------------------------------------------------
+const ROLE_SLUG_TO_SCOPE = {
+org_admin: 'org',
+company_admin: 'company',
+tenant_admin: 'company',
+unit_admin: 'unit'
+}
+
+
+const getScopeForSlug = slug => ROLE_SLUG_TO_SCOPE[slug] ?? 'unit'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -74,7 +97,9 @@ const ConfirmDialog = ({ open, roleName, onConfirm, onCancel, deleting }) => (
       }}
     >
       <Typography variant='h3'>Delete Role</Typography>
-      <Typography color='text.secondary'>Are you sure you want to delete <strong>{roleName}</strong>?</Typography>
+      <Typography color='text.secondary'>
+        Are you sure you want to delete <strong>{roleName}</strong>?
+      </Typography>
     </DialogTitle>
     <DialogActions
       sx={{
@@ -85,7 +110,9 @@ const ConfirmDialog = ({ open, roleName, onConfirm, onCancel, deleting }) => (
     >
       <Box className='demo-space-x'>
         <Button
-          variant='contained' color='error' disabled={deleting}
+          variant='contained'
+          color='error'
+          disabled={deleting}
           startIcon={deleting ? <CircularProgress size={16} color='inherit' /> : null}
           onClick={onConfirm}
         >
@@ -103,90 +130,97 @@ const ConfirmDialog = ({ open, roleName, onConfirm, onCancel, deleting }) => (
 // RolesCards
 // ---------------------------------------------------------------------------
 const RolesCards = () => {
-  // const userRole = useSelector(
-  //   state => state.auth?.user?.role?.slug ?? state.auth?.userData?.role?.slug ?? ''
-  // )
-
   const user     = useSelector(selectUser)
   const role     = useSelector(selectRole)
-  const userRole = useSelector(selectRoleSlug)?? ''
- 
-// console.log('User Role:', userRole) // Debug log to check the role slug
-  const isTenantAdmin = userRole === 'tenant_admin'
+  const userRole = useSelector(selectRoleSlug) ?? ''
+
+  // Resolved scope for the logged-in user — drives all permission filtering
+  const userScope = getScopeForSlug(userRole)
+
+  // org_admin is the only one who can manage roles / see "Add New Role"
+  // const isRoleManager = userRole === 'company_admin'
+  const isRoleManager =
+['org_admin', 'company_admin', 'unit_admin'].includes(userRole)
+
 
   // ── Data state ────────────────────────────────────────────────────────────
   const [roles, setRoles]               = useState([])
-  const [permissions, setPermissions]   = useState([])
+  const [permissions, setPermissions]   = useState([])   // raw full list from API
   const [loadingRoles, setLoadingRoles] = useState(true)
   const [loadingPerms, setLoadingPerms] = useState(true)
 
   // ── Dialog state ──────────────────────────────────────────────────────────
-  const [open, setOpen]                           = useState(false)
-  const [dialogTitle, setDialogTitle]             = useState('Add')
-  const [dialogMode, setDialogMode]               = useState('add')
-  const [editingRole, setEditingRole]             = useState(null)
-  const [roleName, setRoleName]                   = useState('')
-  const [roleNameError, setRoleNameError]         = useState('')
-  const [selectedCheckbox, setSelectedCheckbox]   = useState([])
+  const [open, setOpen]                 = useState(false)
+  const [dialogTitle, setDialogTitle]   = useState('Add')
+  const [dialogMode, setDialogMode]     = useState('add')
+  const [editingRole, setEditingRole]   = useState(null)
+  const [roleName, setRoleName]         = useState('')
+  const [roleNameError, setRoleNameError] = useState('')
+  const [selectedCheckbox, setSelectedCheckbox] = useState([])
   const [isIndeterminateCheckbox, setIsIndeterminateCheckbox] = useState(false)
-  const [submitting, setSubmitting]               = useState(false)
+  const [submitting, setSubmitting]     = useState(false)
 
   // ── Delete confirm state ───────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting]         = useState(false)
 
-  // ── Derived ───────────────────────────────────────────────────────────────
-  const groupedPerms = useMemo(() => groupByModule(permissions), [permissions])
-
-  const modules = useMemo(() =>
-    Object.keys(groupedPerms)
-      .filter(module => isTenantAdmin ? true : module.toLowerCase() !== 'company')
-      .sort(),
-    [groupedPerms, isTenantAdmin]
+  // ── Scope-filtered permissions ────────────────────────────────────────────
+  // Only show permissions whose `scope` array contains the user's resolved scope.
+  // Example: org_admin (scope="org") sees only permissions where scope includes "org"
+  const scopedPermissions = useMemo(
+    () => permissions.filter(p => Array.isArray(p.scope) && p.scope.includes(userScope)),
+    [permissions, userScope]
   )
 
-  // ── FIX 1: visiblePerms — only permissions whose module is shown in the table
+
+  // ── Group scoped permissions by module ────────────────────────────────────
+  const groupedPerms = useMemo(() => groupByModule(scopedPermissions), [scopedPermissions])
+
+  // ── Sorted module list ────────────────────────────────────────────────────
+  const modules = useMemo(
+    () => Object.keys(groupedPerms).sort(),
+    [groupedPerms]
+  )
+
+  // ── Flat list of visible permissions (for select-all logic) ───────────────
   const visiblePerms = useMemo(
     () => modules.flatMap(mod => groupedPerms[mod] || []),
     [modules, groupedPerms]
   )
 
-  // ── FIX 1 (cont): totalPerms based on visible only, not full permissions array
   const totalPerms = visiblePerms.length
-
   const isViewOnly = dialogMode === 'view'
 
-  // ── Indeterminate — keyed to visiblePerms count ───────────────────────────
+  // ── Indeterminate checkbox state ───────────────────────────────────────────
   useEffect(() => {
     const visibleSelected = selectedCheckbox.filter(id =>
       visiblePerms.some(p => p._id === id)
     ).length
 
-    if (visibleSelected > 0 && visibleSelected < totalPerms) {
-      setIsIndeterminateCheckbox(true)
-    } else {
-      setIsIndeterminateCheckbox(false)
-    }
+    setIsIndeterminateCheckbox(visibleSelected > 0 && visibleSelected < totalPerms)
   }, [selectedCheckbox, visiblePerms, totalPerms])
 
-  // ── Fetch helpers ─────────────────────────────────────────────────────────
+  // ── Fetch helpers ──────────────────────────────────────────────────────────
   const fetchRoles = useCallback(async () => {
     try {
       setLoadingRoles(true)
       const res = await axiosRequest.get('/api/v1/roles/')
-      if (res?.success && Array.isArray(res.data)) setRoles(res.data)
+      if (res?.success && Array.isArray(res.data)) {
+        // Only show roles whose level exactly matches the user's scope
+        const filtered = res.data.filter(r => !r.level || r.level === userScope)
+        setRoles(filtered)
+      }
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'Failed to load roles')
     } finally {
       setLoadingRoles(false)
     }
-  }, [])
+  }, [userScope])
 
   const fetchPermissions = useCallback(async () => {
     try {
       setLoadingPerms(true)
-      const res = await axiosRequest.get('/api/v1/permissions/')
-      console.log('Fetched permissions:', res?.data) // Debug log to check fetched permissions
+      const res = await axiosRequest.get('/api/v1/roles/assignable-permissions/')
       if (res?.success && Array.isArray(res.data)) setPermissions(res.data)
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'Failed to load permissions')
@@ -200,7 +234,7 @@ const RolesCards = () => {
     fetchPermissions()
   }, [fetchRoles, fetchPermissions])
 
-  // ── Dialog open helpers ───────────────────────────────────────────────────
+  // ── Dialog helpers ────────────────────────────────────────────────────────
   const handleClickOpen = () => setOpen(true)
 
   const handleClose = () => {
@@ -224,6 +258,8 @@ const RolesCards = () => {
     handleClickOpen()
   }
 
+  // When editing: only pre-select the role's permissions that are visible
+  // in the current user's scope — don't surface perms the user can't assign
   const openEdit = role => {
     setDialogMode('edit')
     setDialogTitle('Edit')
@@ -231,7 +267,8 @@ const RolesCards = () => {
     setRoleName(role.name)
     setRoleNameError('')
     const existingIds = role.permissions.map(p => (typeof p === 'object' ? p._id : p))
-    setSelectedCheckbox(existingIds)
+    const scopedIds   = existingIds.filter(id => visiblePerms.some(p => p._id === id))
+    setSelectedCheckbox(scopedIds)
     handleClickOpen()
   }
 
@@ -242,38 +279,36 @@ const RolesCards = () => {
     setRoleName(role.name)
     setRoleNameError('')
     const existingIds = role.permissions.map(p => (typeof p === 'object' ? p._id : p))
-    setSelectedCheckbox(existingIds)
+    const scopedIds   = existingIds.filter(id => visiblePerms.some(p => p._id === id))
+    setSelectedCheckbox(scopedIds)
     handleClickOpen()
   }
 
-  // ── Permission toggle ─────────────────────────────────────────────────────
+  // ── Permission toggle ──────────────────────────────────────────────────────
   const togglePermission = id => {
     if (isViewOnly) return
-    const arr = [...selectedCheckbox]
-    if (arr.includes(id)) {
-      arr.splice(arr.indexOf(id), 1)
-      setSelectedCheckbox(arr)
-    } else {
-      setSelectedCheckbox([...arr, id])
-    }
+    setSelectedCheckbox(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
   }
 
-  // ── FIX 2: Select All uses visiblePerms only ──────────────────────────────
-const handleSelectAllCheckbox = () => {
-  if (isViewOnly) return
-  const allSelected = visiblePerms.every(p => selectedCheckbox.includes(p._id))
-  if (allSelected) {
-    setSelectedCheckbox([])                          // all selected → deselect all
-  } else {
-    setSelectedCheckbox(visiblePerms.map(p => p._id)) // some or none → select all
+  // ── Select All — scoped to visiblePerms only ───────────────────────────────
+  const handleSelectAllCheckbox = () => {
+    if (isViewOnly) return
+    const allSelected = visiblePerms.every(p => selectedCheckbox.includes(p._id))
+    setSelectedCheckbox(allSelected ? [] : visiblePerms.map(p => p._id))
   }
-}
-  
 
-  // ── Validate ──────────────────────────────────────────────────────────────
+  // ── Validation ────────────────────────────────────────────────────────────
   const validate = () => {
-    if (!roleName.trim()) { setRoleNameError('Role name is required'); return false }
-    if (roleName.trim().length < 2) { setRoleNameError('Role name must be at least 2 characters'); return false }
+    if (!roleName.trim()) {
+      setRoleNameError('Role name is required')
+      return false
+    }
+    if (roleName.trim().length < 2) {
+      setRoleNameError('Role name must be at least 2 characters')
+      return false
+    }
     setRoleNameError('')
     return true
   }
@@ -283,11 +318,17 @@ const handleSelectAllCheckbox = () => {
     if (!validate()) return
     try {
       setSubmitting(true)
-      const res = await axiosRequest.post('/api/v1/roles/create/roles', {
+      const res = await axiosRequest.post('/api/v1/roles', {
         name:        roleName.trim(),
         slug:        roleName.trim().toLowerCase().replace(/\s+/g, '_'),
         description: `${roleName.trim()} role`,
-        permissions: selectedCheckbox
+       level:
+userRole === 'org_admin'
+    ? 'org'
+    : userRole === 'company_admin'
+     ? 'company'
+     : 'unit',// default to 50 if not set — in real app, backend should handle this
+        permissions: selectedCheckbox,
       })
       if (res?.success) {
         toast.success(`Role "${roleName.trim()}" created successfully`)
@@ -312,7 +353,8 @@ const handleSelectAllCheckbox = () => {
         name:        roleName.trim(),
         slug:        editingRole.slug,
         description: editingRole.description,
-        permissions: selectedCheckbox
+        level:       userScope,
+        permissions: selectedCheckbox,
       })
       if (res?.success) {
         toast.success(`Role "${roleName.trim()}" updated successfully`)
@@ -353,10 +395,10 @@ const handleSelectAllCheckbox = () => {
     if (dialogMode === 'edit') handleUpdate()
   }
 
-  const canEdit   = role => isTenantAdmin && !role.isSystem
-  const canDelete = role => isTenantAdmin && !role.isSystem
+  const canEditRole   = role => isRoleManager && !role.isSystem
+  const canDeleteRole = role => isRoleManager && !role.isSystem
 
-  // ── Render cards ──────────────────────────────────────────────────────────
+  // ── Render role cards ─────────────────────────────────────────────────────
   const renderCards = () => {
     if (loadingRoles) {
       return (
@@ -374,12 +416,17 @@ const handleSelectAllCheckbox = () => {
           <CardContent>
             <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography sx={{ color: 'text.secondary' }}>
-                {`Total ${role.permissions?.length ?? 0} permissions`} 
+                {`Total ${role.permissions?.length ?? 0} permissions`}
               </Typography>
               <AvatarGroup
                 max={4}
                 className='pull-up'
-                sx={{ '& .MuiAvatar-root': { width: 32, height: 32, fontSize: theme => theme.typography.body2.fontSize } }}
+                sx={{
+                  '& .MuiAvatar-root': {
+                    width: 32, height: 32,
+                    fontSize: theme => theme.typography.body2.fontSize,
+                  },
+                }}
               >
                 {Array.from({ length: Math.min(role.permissions?.length ?? 0, 4) }).map((_, i) => (
                   <Avatar key={i} alt={role.name} src={`/images/avatars/${i + 1}.png`} />
@@ -393,7 +440,10 @@ const handleSelectAllCheckbox = () => {
                   {role.name}
                   {role.isSystem && (
                     <Chip
-                      label='System' size='small' color='primary' variant='tonal'
+                      label='System'
+                      size='small'
+                      color='primary'
+                      variant='tonal'
                       sx={{ ml: 2, height: 20, fontSize: '0.7rem', verticalAlign: 'middle' }}
                     />
                   )}
@@ -404,17 +454,21 @@ const handleSelectAllCheckbox = () => {
                   sx={{ color: 'primary.main', textDecoration: 'none' }}
                   onClick={e => {
                     e.preventDefault()
-                    if (role.isSystem) { openView(role) }
-                    else if (canEdit(role)) { openEdit(role) }
+                    if (role.isSystem) openView(role)
+                    else if (canEditRole(role)) openEdit(role)
                   }}
                 >
                   {role.isSystem ? 'View Role' : 'Edit Role'}
                 </Typography>
               </Box>
 
-              {canDelete(role) ? (
+              {canDeleteRole(role) ? (
                 <Tooltip title='Delete role' placement='top'>
-                  <IconButton size='small' sx={{ color: 'text.disabled' }} onClick={() => setDeleteTarget(role)}>
+                  <IconButton
+                    size='small'
+                    sx={{ color: 'text.disabled' }}
+                    onClick={() => setDeleteTarget(role)}
+                  >
                     <Icon icon='tabler:trash' />
                   </IconButton>
                 </Tooltip>
@@ -430,58 +484,67 @@ const handleSelectAllCheckbox = () => {
     ))
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-    
       <Grid container spacing={6} className='match-height'>
         {renderCards()}
-{isTenantAdmin &&
-<Grid item xs={12} sm={6} lg={4}>
-          <Card sx={{ cursor: 'pointer' }} onClick={openAdd}>
-            <Grid container sx={{ height: '100%' }}>
-              <Grid item xs={5}>
-                <Box sx={{ height: '100%', minHeight: 140, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-                  <img height={122} alt='add-role' src='/images/pages/add-new-role-illustration.png' />
-                </Box>
-              </Grid>
-              <Grid item xs={7}>
-                <CardContent sx={{ pl: 0, height: '100%' }}>
-                  <Box sx={{ textAlign: 'right' }}>
-                    <Button variant='contained' sx={{ mb: 3, whiteSpace: 'nowrap' }} onClick={openAdd}>
-                      Add New Role
-                    </Button>
-                    <Typography sx={{ color: 'text.secondary' }}>Add role, if it doesn't exist.</Typography>
+
+        {isRoleManager && (
+          <Grid item xs={12} sm={6} lg={4}>
+            <Card sx={{ cursor: 'pointer' }} onClick={openAdd}>
+              <Grid container sx={{ height: '100%' }}>
+                <Grid item xs={5}>
+                  <Box sx={{
+                    height: '100%', minHeight: 140,
+                    display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+                  }}>
+                    <img height={122} alt='add-role' src='/images/pages/add-new-role-illustration.png' />
                   </Box>
-                </CardContent>
+                </Grid>
+                <Grid item xs={7}>
+                  <CardContent sx={{ pl: 0, height: '100%' }}>
+                    <Box sx={{ textAlign: 'right' }}>
+                      <Button variant='contained' sx={{ mb: 3, whiteSpace: 'nowrap' }} onClick={openAdd}>
+                        Add New Role
+                      </Button>
+                      <Typography sx={{ color: 'text.secondary' }}>
+                        Add role, if it doesn't exist.
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Grid>
               </Grid>
-            </Grid>
-          </Card>
-        </Grid>
-}
-        
+            </Card>
+          </Grid>
+        )}
       </Grid>
 
+      {/* ── Add / Edit / View dialog ───────────────────────────────────────── */}
       <Dialog fullWidth maxWidth='md' scroll='body' onClose={handleClose} open={open}>
         <DialogTitle
           component='div'
           sx={{
             textAlign: 'center',
             px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`],
-            pt: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`]
+            pt: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`],
           }}
         >
           <Typography variant='h3'>{`${dialogTitle} Role`}</Typography>
           <Typography color='text.secondary'>
-            {isViewOnly ? 'System role permissions (read-only)' : 'Set Role Permissions'}
+            {isViewOnly
+              ? 'System role permissions (read-only)'
+              : `Set Role Permissions — showing ${cap(userScope)}-level permissions`}
           </Typography>
         </DialogTitle>
 
         <DialogContent
           sx={{
             pb: theme => `${theme.spacing(5)} !important`,
-            px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`]
+            px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`],
           }}
         >
+          {/* Role name input */}
           <Box sx={{ my: 4 }}>
             <FormControl fullWidth>
               <CustomTextField
@@ -517,9 +580,10 @@ const handleSelectAllCheckbox = () => {
                       <Box
                         sx={{
                           display: 'flex', whiteSpace: 'nowrap', alignItems: 'center',
-                          textTransform: 'capitalize', '& svg': { ml: 1, cursor: 'pointer' },
+                          textTransform: 'capitalize',
                           color: theme => theme.palette.text.secondary,
-                          fontSize: theme => theme.typography.h6.fontSize
+                          fontSize: theme => theme.typography.h6.fontSize,
+                          '& svg': { ml: 1, cursor: 'pointer' },
                         }}
                       >
                         Administrator Access
@@ -539,7 +603,6 @@ const handleSelectAllCheckbox = () => {
                             size='small'
                             onChange={handleSelectAllCheckbox}
                             indeterminate={isIndeterminateCheckbox}
-                            // ── FIX 3: checked based on visiblePerms.every(), not count ──
                             checked={
                               totalPerms > 0 &&
                               visiblePerms.every(p => selectedCheckbox.includes(p._id))
@@ -556,10 +619,20 @@ const handleSelectAllCheckbox = () => {
                   {modules.map(module => {
                     const modulePerms = groupedPerms[module]
                     return (
-                      <TableRow key={module} sx={{ '& .MuiTableCell-root:first-of-type': { pl: '0 !important' } }}>
-                        <TableCell sx={{ fontWeight: 600, whiteSpace: 'nowrap', fontSize: theme => theme.typography.h6.fontSize }}>
+                      <TableRow
+                        key={module}
+                        sx={{ '& .MuiTableCell-root:first-of-type': { pl: '0 !important' } }}
+                      >
+                        <TableCell
+                          sx={{
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                            fontSize: theme => theme.typography.h6.fontSize,
+                          }}
+                        >
                           {cap(module)}
                         </TableCell>
+
                         {modulePerms.map(perm => {
                           const action = perm.name.split('.')[1] ?? perm.name
                           return (
@@ -593,26 +666,36 @@ const handleSelectAllCheckbox = () => {
           sx={{
             display: 'flex', justifyContent: 'center',
             px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`],
-            pb: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`]
+            pb: theme => [`${theme.spacing(8)} !important`, `${theme.spacing(12.5)} !important`],
           }}
         >
           <Box className='demo-space-x'>
             {!isViewOnly && (
               <Button
-                type='submit' variant='contained' disabled={submitting}
+                type='submit'
+                variant='contained'
+                disabled={submitting}
                 startIcon={submitting ? <CircularProgress size={16} color='inherit' /> : null}
                 onClick={handleSubmit}
               >
-                {submitting ? (dialogMode === 'add' ? 'Creating…' : 'Saving…') : 'Submit'}
+                {submitting
+                  ? dialogMode === 'add' ? 'Creating…' : 'Saving…'
+                  : 'Submit'}
               </Button>
             )}
-            <Button color='secondary' variant='tonal' onClick={handleClose} disabled={submitting}>
+            <Button
+              color='secondary'
+              variant='tonal'
+              onClick={handleClose}
+              disabled={submitting}
+            >
               {isViewOnly ? 'Close' : 'Cancel'}
             </Button>
           </Box>
         </DialogActions>
       </Dialog>
 
+      {/* ── Delete confirm ─────────────────────────────────────────────────── */}
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         roleName={deleteTarget?.name ?? ''}

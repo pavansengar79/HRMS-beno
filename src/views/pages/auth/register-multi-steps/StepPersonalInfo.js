@@ -1,10 +1,14 @@
+// ** React Imports
+import { useState } from 'react'
+
 // ** MUI Components
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
 import Button from '@mui/material/Button'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
-import FormControl from '@mui/material/FormControl'
+import Paper from '@mui/material/Paper'
+import Chip from '@mui/material/Chip'
+import Alert from '@mui/material/Alert'
 import InputAdornment from '@mui/material/InputAdornment'
 
 // ** Custom Component Import
@@ -13,435 +17,396 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
 
+// ** Custom Radio
+import CustomRadioIcons from 'src/@core/components/custom-radio/icons'
+
 // ** React Hook Form + Yup
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, Controller, useWatch } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 
-// ─── Validation Schema ───────────────────────
+// ─── Plan Definitions ─────────────────────────
+export const PLAN_META = {
+  basic: {
+    label: 'Basic',
+    icon: 'tabler:rocket',
+    price: '₹0',
+    period: '/month',
+    desc: 'For freelancers & solo operators',
+    isCustom: false,
+    isEnterprise: false,
+    color: '#6EE7B7',
+    badge: null
+  },
+  standard: {
+    label: 'Standard',
+    icon: 'tabler:building-store',
+    price: '₹2,499',
+    period: '/month',
+    desc: 'For small to mid-size businesses',
+    isCustom: false,
+    isEnterprise: false,
+    color: '#60A5FA',
+    badge: 'Popular'
+  },
+  professional: {
+    label: 'Professional',
+    icon: 'tabler:building',
+    price: '₹7,999',
+    period: '/month',
+    desc: 'For growing companies with multi-units',
+    isCustom: false,
+    isEnterprise: false,
+    color: '#A78BFA',
+    badge: null
+  },
+  enterprise: {
+    label: 'Enterprise',
+    icon: 'tabler:building-skyscraper',
+    price: 'Custom',
+    period: 'pricing',
+    desc: 'For large organisations with multiple companies & LOBs',
+    isCustom: true,
+    isEnterprise: true,
+    color: '#F59E0B',
+    badge: 'Custom'
+  }
+}
+
+const planRadioData = [
+  {
+    value: 'basic',
+    isSelected: false,
+    title: <Typography variant='h6' sx={{ mb: 0.5 }}>Basic</Typography>,
+    content: (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+        <Typography variant='caption' sx={{ color: 'text.secondary', textAlign: 'center' }}>Freelancers & solo operators</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+          <Typography component='sup' sx={{ mt: 1, fontSize: 12, color: 'primary.main' }}>₹</Typography>
+          <Typography variant='h4' sx={{ color: 'primary.main', lineHeight: 1 }}>0</Typography>
+          <Typography component='sub' sx={{ mb: 0.5, alignSelf: 'flex-end', color: 'text.disabled', fontSize: 11 }}>/mo</Typography>
+        </Box>
+      </Box>
+    )
+  },
+  {
+    value: 'standard',
+    isSelected: true,
+    title: <Typography variant='h6' sx={{ mb: 0.5 }}>Standard</Typography>,
+    content: (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+        <Typography variant='caption' sx={{ color: 'text.secondary', textAlign: 'center' }}>Small to mid-size businesses</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+          <Typography component='sup' sx={{ mt: 1, fontSize: 12, color: 'primary.main' }}>₹</Typography>
+          <Typography variant='h4' sx={{ color: 'primary.main', lineHeight: 1 }}>2,499</Typography>
+          <Typography component='sub' sx={{ mb: 0.5, alignSelf: 'flex-end', color: 'text.disabled', fontSize: 11 }}>/mo</Typography>
+        </Box>
+      </Box>
+    )
+  },
+  {
+    value: 'professional',
+    isSelected: false,
+    title: <Typography variant='h6' sx={{ mb: 0.5 }}>Professional</Typography>,
+    content: (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+        <Typography variant='caption' sx={{ color: 'text.secondary', textAlign: 'center' }}>Growing multi-unit companies</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+          <Typography component='sup' sx={{ mt: 1, fontSize: 12, color: 'primary.main' }}>₹</Typography>
+          <Typography variant='h4' sx={{ color: 'primary.main', lineHeight: 1 }}>7,999</Typography>
+          <Typography component='sub' sx={{ mb: 0.5, alignSelf: 'flex-end', color: 'text.disabled', fontSize: 11 }}>/mo</Typography>
+        </Box>
+      </Box>
+    )
+  },
+  {
+    value: 'enterprise',
+    isSelected: false,
+    title: <Typography variant='h6' sx={{ mb: 0.5 }}>Enterprise</Typography>,
+    content: (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+        <Typography variant='caption' sx={{ color: 'text.secondary', textAlign: 'center' }}>Organisations & multi-companies</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+          <Typography variant='h4' sx={{ color: 'info.main', lineHeight: 1 }}>Custom</Typography>
+        </Box>
+      </Box>
+    )
+  }
+]
+
+// ─── Validation Schema ─────────────────────────
 const schema = yup.object().shape({
-  companyName: yup.string().required('Company Name is required'),
-  companyLegalName: yup.string().required('Company Legal Name is required'),
-  companyRegNumber: yup.string().required('Registration Number is required'),
-  gstTaxId: yup.string().required('GST / Tax ID is required'),
-  industryType: yup.string().required('Industry Type is required'),
-  companySize: yup
-    .number()
-    .typeError('Must be a number')
-    .positive('Must be a positive number')
-    .integer('Must be a whole number')
-    .required('Company Size is required'),
-  companyEmail: yup.string().email('Invalid email format').required('Company Email is required'),
-  companyPhone: yup
+  firstName: yup.string().required('First Name is required'),
+  lastName: yup.string().required('Last Name is required'),
+  email: yup.string().email('Invalid email format').required('Email is required'),
+  phone: yup
     .string()
     .matches(/^[0-9+\-\s()]{7,15}$/, 'Invalid phone number')
-    .required('Company Phone is required'),
-  companyWebsite: yup
+    .required('Phone is required'),
+  password: yup
     .string()
-    .url('Must be a valid URL (e.g. https://example.com)')
-    .nullable()
-    .transform(val => (val === '' ? null : val)),
-  country: yup.string().required('Country is required'),
-  state: yup.string().required('State is required'),
-  city: yup.string().required('City is required'),
-  zipCode: yup.string().required('Zip Code is required'),
-  fullAddress: yup.string().required('Full Address is required'),
-  hrContactName: yup.string().required('HR Contact Name is required'),
-  hrContactEmail: yup.string().email('Invalid email format').required('HR Contact Email is required'),
-  hrContactPhone: yup
+    .min(8, 'Password must be at least 8 characters')
+    .required('Password is required'),
+  confirmPassword: yup
     .string()
-    .matches(/^[0-9+\-\s()]{7,15}$/, 'Invalid phone number')
-    .required('HR Contact Phone is required')
+    .oneOf([yup.ref('password')], 'Passwords do not match')
+    .required('Confirm Password is required'),
+  subscriptionPlan: yup.string().required('Please select a plan')
 })
 
 // ─── Component ───────────────────────────────
-const StepPersonalInfo = ({ handleNext, handlePrev }) => {
+const StepPersonalInfo = ({ handleNext, onFormData, formData }) => {
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors }
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      companyName: '',
-      companyLegalName: '',
-      companyRegNumber: '',
-      gstTaxId: '',
-      industryType: '',
-      companySize: '',
-      companyEmail: '',
-      companyPhone: '',
-      companyWebsite: '',
-      country: '',
-      state: '',
-      city: '',
-      zipCode: '',
-      fullAddress: '',
-      hrContactName: '',
-      hrContactEmail: '',
-      hrContactPhone: ''
+      firstName: formData?.firstName || '',
+      lastName: formData?.lastName || '',
+      email: formData?.email || '',
+      phone: formData?.phone || '',
+      password: '',
+      confirmPassword: '',
+      subscriptionPlan: formData?.subscriptionPlan || 'standard'
     }
   })
 
-  const onNext = handleSubmit(() => handleNext())
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const subscriptionPlan = useWatch({ control, name: 'subscriptionPlan' })
+  const isEnterprise = subscriptionPlan === 'enterprise'
+
+  const onNext = handleSubmit(data => {
+    onFormData?.(data)
+    handleNext()
+  })
 
   return (
     <>
       <Box sx={{ mb: 6 }}>
         <Typography variant='h3' sx={{ mb: 1.5 }}>
-          Personal Information
+          Account Setup
         </Typography>
-        <Typography sx={{ color: 'text.secondary' }}>Enter Your Company Information</Typography>
+        <Typography sx={{ color: 'text.secondary' }}>
+          Create your account and choose a plan to get started
+        </Typography>
       </Box>
 
       <Grid container spacing={5}>
 
-        {/* Company Name */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='companyName'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='Company Name'
-                placeholder='Acme Inc.'
-                error={!!errors.companyName}
-                helperText={errors.companyName?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Company Legal Name */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='companyLegalName'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='Company Legal Name'
-                placeholder='Acme Incorporated Pvt Ltd'
-                error={!!errors.companyLegalName}
-                helperText={errors.companyLegalName?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Registration Number */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='companyRegNumber'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='Company Registration Number'
-                placeholder='CIN123456789'
-                error={!!errors.companyRegNumber}
-                helperText={errors.companyRegNumber?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* GST / Tax ID */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='gstTaxId'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='GST / Tax ID'
-                placeholder='22AAAAA0000A1Z5'
-                error={!!errors.gstTaxId}
-                helperText={errors.gstTaxId?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Industry Type */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='industryType'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                select
-                fullWidth
-                label='Industry Type'
-                error={!!errors.industryType}
-                helperText={errors.industryType?.message}
-              >
-                <MenuItem value='technology'>Technology</MenuItem>
-                <MenuItem value='finance'>Finance & Banking</MenuItem>
-                <MenuItem value='healthcare'>Healthcare</MenuItem>
-                <MenuItem value='retail'>Retail & E-commerce</MenuItem>
-                <MenuItem value='manufacturing'>Manufacturing</MenuItem>
-                <MenuItem value='education'>Education</MenuItem>
-                <MenuItem value='logistics'>Logistics & Supply Chain</MenuItem>
-                <MenuItem value='realestate'>Real Estate</MenuItem>
-                <MenuItem value='media'>Media & Entertainment</MenuItem>
-                <MenuItem value='other'>Other</MenuItem>
-              </CustomTextField>
-            )}
-          />
-        </Grid>
-
-        {/* Company Size */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='companySize'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                type='number'
-                label='Company Size (No. of Employees)'
-                placeholder='150'
-                error={!!errors.companySize}
-                helperText={errors.companySize?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Company Email */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='companyEmail'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                type='email'
-                label='Company Email'
-                placeholder='info@company.com'
-                error={!!errors.companyEmail}
-                helperText={errors.companyEmail?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Company Phone */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='companyPhone'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='Company Phone Number'
-                placeholder='+91 98765 43210'
-                InputProps={{
-                  startAdornment: <InputAdornment position='start'>IN (+91)</InputAdornment>
-                }}
-                error={!!errors.companyPhone}
-                helperText={errors.companyPhone?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Company Website */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='companyWebsite'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='Company Website'
-                placeholder='https://www.company.com'
-                error={!!errors.companyWebsite}
-                helperText={errors.companyWebsite?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Country */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='country'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                select
-                fullWidth
-                label='Country'
-                error={!!errors.country}
-                helperText={errors.country?.message}
-              >
-                <MenuItem value='india'>India</MenuItem>
-                <MenuItem value='us'>United States</MenuItem>
-                <MenuItem value='uk'>United Kingdom</MenuItem>
-                <MenuItem value='canada'>Canada</MenuItem>
-                <MenuItem value='australia'>Australia</MenuItem>
-                <MenuItem value='uae'>UAE</MenuItem>
-              </CustomTextField>
-            )}
-          />
-        </Grid>
-
-        {/* State */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='state'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                select
-                fullWidth
-                label='State'
-                error={!!errors.state}
-                helperText={errors.state?.message}
-              >
-                <MenuItem value='maharashtra'>Maharashtra</MenuItem>
-                <MenuItem value='karnataka'>Karnataka</MenuItem>
-                <MenuItem value='delhi'>Delhi</MenuItem>
-                <MenuItem value='gujarat'>Gujarat</MenuItem>
-                <MenuItem value='telangana'>Telangana</MenuItem>
-                <MenuItem value='tamilnadu'>Tamil Nadu</MenuItem>
-              </CustomTextField>
-            )}
-          />
-        </Grid>
-
-        {/* City */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='city'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='City'
-                placeholder='Mumbai'
-                error={!!errors.city}
-                helperText={errors.city?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Zip Code */}
-        <Grid item xs={12} sm={6}>
-          <Controller
-            name='zipCode'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                label='Zip Code'
-                placeholder='400001'
-                error={!!errors.zipCode}
-                helperText={errors.zipCode?.message}
-              />
-            )}
-          />
-        </Grid>
-
-        {/* Full Address */}
+        {/* ── Plan Selection ── */}
         <Grid item xs={12}>
-          <FormControl fullWidth>
-            <Controller
-              name='fullAddress'
-              control={control}
-              render={({ field }) => (
-                <CustomTextField
-                  {...field}
-                  fullWidth
-                  label='Full Company Address'
-                  placeholder='123, Business Park, Andheri East'
-                  error={!!errors.fullAddress}
-                  helperText={errors.fullAddress?.message}
-                />
-              )}
-            />
-          </FormControl>
+          <Typography variant='h5' sx={{ mb: 1 }}>Choose your plan</Typography>
+          <Typography variant='body2' sx={{ color: 'text.secondary', mb: 3 }}>
+            Your plan determines how your organisation is structured during onboarding.
+          </Typography>
         </Grid>
 
-        {/* HR Contact Name */}
+        {planRadioData.map((item, index) => (
+          <CustomRadioIcons
+            key={index}
+            data={planRadioData[index]}
+            selected={subscriptionPlan}
+            name='custom-radios-plan'
+            gridProps={{ sm: 3, xs: 12 }}
+            handleChange={val =>
+              setValue('subscriptionPlan', typeof val === 'string' ? val : val.target.value, { shouldValidate: true })
+            }
+          />
+        ))}
+
+        {errors.subscriptionPlan && (
+          <Grid item xs={12}>
+            <Typography color='error' variant='body2'>{errors.subscriptionPlan.message}</Typography>
+          </Grid>
+        )}
+
+        {/* Enterprise notice */}
+        {isEnterprise && (
+          <Grid item xs={12}>
+            <Alert
+              severity='info'
+              icon={<Icon icon='tabler:building-skyscraper' />}
+              sx={{ borderRadius: 2,color: 'text.primary' }}
+            >
+              <strong>Enterprise Plan selected.</strong> You will onboard as an Organisation — you can add multiple companies, Lines of Business and Units under your organisation.
+            </Alert>
+          </Grid>
+        )}
+
+        {/* Non-enterprise notice */}
+        {!isEnterprise && (
+          <Grid item xs={12}>
+            <Alert
+              severity='info'
+              icon={<Icon icon='tabler:info-circle' />}
+              sx={{ borderRadius: 2 ,color: 'text.primary'  }}
+            >
+              You will be onboarded as a <strong>single unit</strong>. Your company name will also serve as your unit name. This can be expanded later.
+            </Alert>
+          </Grid>
+        )}
+
+        {/* ── Personal Info ── */}
+        <Grid item xs={12} sx={{ pt: theme => `${theme.spacing(6)} !important` }}>
+          <Typography variant='h5' sx={{ mb: 1 }}>Your Information</Typography>
+          <Typography variant='body2' sx={{ color: 'text.secondary', mb: 1 }}>
+            This will be your primary admin account
+          </Typography>
+        </Grid>
+
         <Grid item xs={12} sm={6}>
           <Controller
-            name='hrContactName'
+            name='firstName'
             control={control}
             render={({ field }) => (
               <CustomTextField
                 {...field}
                 fullWidth
-                label='HR Contact Person Name'
-                placeholder='Rahul Sharma'
-                error={!!errors.hrContactName}
-                helperText={errors.hrContactName?.message}
+                label='First Name'
+                placeholder='John'
+                error={!!errors.firstName}
+                helperText={errors.firstName?.message}
               />
             )}
           />
         </Grid>
 
-        {/* HR Contact Email */}
         <Grid item xs={12} sm={6}>
           <Controller
-            name='hrContactEmail'
+            name='lastName'
+            control={control}
+            render={({ field }) => (
+              <CustomTextField
+                {...field}
+                fullWidth
+                label='Last Name'
+                placeholder='Doe'
+                error={!!errors.lastName}
+                helperText={errors.lastName?.message}
+              />
+            )}
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <Controller
+            name='email'
             control={control}
             render={({ field }) => (
               <CustomTextField
                 {...field}
                 fullWidth
                 type='email'
-                label='HR Contact Email'
-                placeholder='hr@company.com'
-                error={!!errors.hrContactEmail}
-                helperText={errors.hrContactEmail?.message}
+                label='Email Address'
+                placeholder='john@company.com'
+                error={!!errors.email}
+                helperText={errors.email?.message}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position='start'>
+                      <Icon icon='tabler:mail' fontSize='1.25rem' />
+                    </InputAdornment>
+                  )
+                }}
               />
             )}
           />
         </Grid>
 
-        {/* HR Contact Phone */}
         <Grid item xs={12} sm={6}>
           <Controller
-            name='hrContactPhone'
+            name='phone'
             control={control}
             render={({ field }) => (
               <CustomTextField
                 {...field}
                 fullWidth
-                label='HR Contact Phone'
+                label='Phone Number'
                 placeholder='+91 98765 43210'
-                error={!!errors.hrContactPhone}
-                helperText={errors.hrContactPhone?.message}
+                error={!!errors.phone}
+                helperText={errors.phone?.message}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position='start'>
+                      <Icon icon='tabler:phone' fontSize='1.25rem' />
+                    </InputAdornment>
+                  )
+                }}
               />
             )}
           />
         </Grid>
 
-        {/* Navigation — same layout as original */}
+        <Grid item xs={12} sm={6}>
+          <Controller
+            name='password'
+            control={control}
+            render={({ field }) => (
+              <CustomTextField
+                {...field}
+                fullWidth
+                label='Password'
+                placeholder='Min. 8 characters'
+                type={showPassword ? 'text' : 'password'}
+                error={!!errors.password}
+                helperText={errors.password?.message}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position='end'>
+                      <Box
+                        component='span'
+                        onClick={() => setShowPassword(!showPassword)}
+                        sx={{ cursor: 'pointer', display: 'flex' }}
+                      >
+                        <Icon icon={showPassword ? 'tabler:eye-off' : 'tabler:eye'} fontSize='1.25rem' />
+                      </Box>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            )}
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <Controller
+            name='confirmPassword'
+            control={control}
+            render={({ field }) => (
+              <CustomTextField
+                {...field}
+                fullWidth
+                label='Confirm Password'
+                placeholder='Re-enter password'
+                type={showConfirm ? 'text' : 'password'}
+                error={!!errors.confirmPassword}
+                helperText={errors.confirmPassword?.message}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position='end'>
+                      <Box
+                        component='span'
+                        onClick={() => setShowConfirm(!showConfirm)}
+                        sx={{ cursor: 'pointer', display: 'flex' }}
+                      >
+                        <Icon icon={showConfirm ? 'tabler:eye-off' : 'tabler:eye'} fontSize='1.25rem' />
+                      </Box>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            )}
+          />
+        </Grid>
+
+        {/* Navigation */}
         <Grid item xs={12} sx={{ pt: theme => `${theme.spacing(6)} !important` }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Button color='secondary' variant='tonal' onClick={handlePrev} sx={{ '& svg': { mr: 2 } }}>
-              <Icon fontSize='1.125rem' icon='tabler:arrow-left' />
-              Previous
-            </Button>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button variant='contained' onClick={onNext} sx={{ '& svg': { ml: 2 } }}>
               Next
               <Icon fontSize='1.125rem' icon='tabler:arrow-right' />

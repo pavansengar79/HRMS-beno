@@ -1,0 +1,926 @@
+
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:transparent}
+:root{
+  --ink:var(--color-text-primary);
+  --ink2:var(--color-text-secondary);
+  --ink3:var(--color-text-tertiary);
+  --surf:var(--color-background-primary);
+  --surf2:var(--color-background-secondary);
+  --surf3:var(--color-background-tertiary);
+  --border:var(--color-border-tertiary);
+  --border2:var(--color-border-secondary);
+  --teal:#0F6E56;--teal-bg:#E1F5EE;--teal-border:#5DCAA5;
+  --blue:#185FA5;--blue-bg:#E6F1FB;--blue-border:#85B7EB;
+  --purple:#534AB7;--purple-bg:#EEEDFE;--purple-border:#AFA9EC;
+  --amber:#854F0B;--amber-bg:#FAEEDA;--amber-border:#EF9F27;
+  --red:#A32D2D;--red-bg:#FCEBEB;
+  --green:#3B6D11;--green-bg:#EAF3DE;--green-border:#97C459;
+  --rad:var(--border-radius-md);--radlg:var(--border-radius-lg);
+}
+.wrap{padding:1rem 0;max-width:860px;margin:0 auto}
+
+/* top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:0.5px solid var(--border)}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;border-radius:var(--rad);background:var(--color-text-primary);display:flex;align-items:center;justify-content:center;color:var(--color-background-primary);font-weight:500;font-size:15px;flex-shrink:0}
+.logo-name{font-size:15px;font-weight:500;color:var(--ink)}
+.logo-sub{font-size:12px;color:var(--ink3)}
+.flow-tabs{display:flex;gap:6px}
+.flow-tab{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:500;border:0.5px solid var(--border2);background:var(--surf);color:var(--ink2);cursor:pointer;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:5px}
+.flow-tab.active-super{background:var(--teal-bg);border-color:var(--teal-border);color:var(--teal)}
+.flow-tab.active-tenant{background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)}
+.flow-tab.active-unit{background:var(--purple-bg);border-color:var(--purple-border);color:var(--purple)}
+
+/* progress */
+.progress{display:flex;align-items:flex-start;gap:0;margin-bottom:2rem}
+.prog-item{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+.prog-num{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;border:0.5px solid var(--border2);background:var(--surf2);color:var(--ink3);z-index:1;position:relative;flex-shrink:0}
+.prog-num.done{background:var(--teal-bg);border-color:var(--teal-border);color:var(--teal)}
+.prog-num.active{background:var(--teal);border-color:var(--teal);color:#fff}
+.prog-num.done-blue{background:var(--blue-bg);border-color:var(--blue-border);color:var(--blue)}
+.prog-num.active-blue{background:var(--blue);border-color:var(--blue);color:#fff}
+.prog-num.done-pur{background:var(--purple-bg);border-color:var(--purple-border);color:var(--purple)}
+.prog-num.active-pur{background:var(--purple);border-color:var(--purple);color:#fff}
+.prog-label{font-size:11px;color:var(--ink3);margin-top:5px;text-align:center;line-height:1.3}
+.prog-label.active-l{color:var(--teal);font-weight:500}
+.prog-label.active-lb{color:var(--blue);font-weight:500}
+.prog-label.active-lp{color:var(--purple);font-weight:500}
+.prog-connector{height:1px;flex:1;background:var(--border);margin-top:15px;flex-shrink:0}
+.prog-connector.filled{background:var(--teal)}
+.prog-connector.filled-blue{background:var(--blue)}
+.prog-connector.filled-pur{background:var(--purple)}
+
+/* card */
+.card{background:var(--surf);border:0.5px solid var(--border);border-radius:var(--radlg);padding:1.25rem}
+.card+.card{margin-top:12px}
+
+/* step header */
+.step-tag{display:inline-block;font-size:11px;font-weight:500;letter-spacing:.04em;padding:3px 10px;border-radius:20px;margin-bottom:.75rem}
+.tag-teal{background:var(--teal-bg);color:var(--teal)}
+.tag-blue{background:var(--blue-bg);color:var(--blue)}
+.tag-pur{background:var(--purple-bg);color:var(--purple)}
+.step-title{font-size:22px;font-weight:500;color:var(--ink);margin-bottom:.4rem}
+.step-sub{font-size:14px;color:var(--ink2);line-height:1.65;margin-bottom:1.5rem}
+
+/* form */
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:13px;color:var(--ink2);margin-bottom:5px;font-weight:500}
+.field input,.field select{width:100%;font-family:inherit;font-size:14px}
+.field .hint{font-size:12px;color:var(--ink3);margin-top:4px}
+.err{border-color:var(--red) !important}
+.err-msg{font-size:12px;color:var(--red);margin-top:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
+
+/* buttons */
+.btn{padding:10px 22px;border-radius:var(--rad);font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;border:0.5px solid var(--border2);background:var(--surf);color:var(--ink2)}
+.btn:hover{background:var(--surf2)}
+.btn-primary{background:var(--teal);color:#fff;border-color:var(--teal)}
+.btn-primary:hover{opacity:.9}
+.btn-primary:disabled,.btn-primary[disabled]{background:var(--surf2);color:var(--ink3);border-color:var(--border);cursor:not-allowed}
+.btn-blue{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-blue:hover{opacity:.9}
+.btn-pur{background:var(--purple);color:#fff;border-color:var(--purple)}
+.btn-pur:hover{opacity:.9}
+.nav-row{display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;padding-top:1rem;border-top:0.5px solid var(--border)}
+
+/* plan cards */
+.plan-card{border:0.5px solid var(--border2);border-radius:var(--radlg);padding:16px 14px;cursor:pointer;transition:all .15s;position:relative}
+.plan-card.sel{border-color:var(--teal-border);border-width:1.5px;background:var(--teal-bg)}
+.plan-card-name{font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px}
+.plan-card-price{font-size:20px;font-weight:500;color:var(--ink);margin-bottom:2px}
+.plan-card-seats{font-size:12px;color:var(--ink3);margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border)}
+.popular-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;font-size:10px;font-weight:500;padding:2px 10px;border-radius:20px;white-space:nowrap}
+
+/* pill toggle */
+.pill-row{display:flex;gap:6px;margin-bottom:1.25rem}
+.pill{padding:7px 18px;border-radius:20px;font-size:13px;border:0.5px solid var(--border2);background:var(--surf);color:var(--ink2);cursor:pointer;font-family:inherit;transition:all .15s}
+.pill.active{border-color:var(--teal-border);background:var(--teal-bg);color:var(--teal)}
+
+/* module card */
+.mod-card{border:0.5px solid var(--border);border-radius:var(--rad);padding:13px 15px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:12px;position:relative}
+.mod-card.on{border-color:var(--teal-border);background:var(--teal-bg)}
+.mod-card.locked-off{opacity:.4;cursor:default}
+.mod-icon{font-size:20px;flex-shrink:0}
+.mod-name{font-size:13px;font-weight:500;color:var(--ink)}
+.mod-desc{font-size:12px;color:var(--ink2);margin-top:2px}
+.check-box{width:18px;height:18px;border-radius:4px;border:0.5px solid var(--border2);background:var(--surf);flex-shrink:0;margin-left:auto;display:flex;align-items:center;justify-content:center;font-size:12px}
+.check-box.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.upgrade-badge{position:absolute;top:8px;right:10px;font-size:10px;color:var(--ink3);font-weight:500}
+
+/* info box */
+.info-box{border-radius:var(--rad);padding:11px 14px;font-size:13px;line-height:1.6;margin-bottom:1rem}
+.info-blue{background:var(--blue-bg);border:0.5px solid var(--blue-border);color:var(--blue)}
+.info-amber{background:var(--amber-bg);border:0.5px solid var(--amber-border);color:var(--amber)}
+.info-teal{background:var(--teal-bg);border:0.5px solid var(--teal-border);color:var(--teal)}
+.info-green{background:var(--green-bg);border:0.5px solid var(--green-border);color:var(--green)}
+
+/* accordion tenant/unit */
+.acc-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;border-radius:var(--radlg)}
+.acc-body{padding:0 18px 18px;border-top:0.5px solid var(--border)}
+.acc-num{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0}
+.ready-tag{background:var(--teal-bg);color:var(--teal);font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500}
+.ready-tag-blue{background:var(--blue-bg);color:var(--blue);font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500}
+.add-btn{width:100%;padding:13px;border:1px dashed var(--border2);border-radius:var(--radlg);background:transparent;cursor:pointer;color:var(--ink3);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;font-family:inherit;margin-bottom:1rem}
+.add-btn:hover{background:var(--surf2)}
+.rem-btn{background:none;border:none;cursor:pointer;color:var(--red-bg);font-size:16px;padding:0 4px;color:var(--red)}
+
+/* leave type cards */
+.leave-card{border:0.5px solid var(--border);border-radius:var(--rad);padding:13px 15px;cursor:pointer;transition:all .15s}
+.leave-card.on{border-color:var(--teal-border);background:var(--teal-bg)}
+.leave-card-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.tag-sm{font-size:11px;padding:2px 8px;border-radius:12px;font-weight:500}
+.tag-blue-sm{background:var(--blue-bg);color:var(--blue)}
+.tag-gray-sm{background:var(--surf2);color:var(--ink3)}
+.tag-pur-sm{background:var(--purple-bg);color:var(--purple)}
+
+/* payroll slider */
+.slider-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.slider-label{font-size:13px;color:var(--ink2);width:120px;flex-shrink:0}
+.slider-pct{width:44px;text-align:center;font-size:14px;font-weight:500;color:var(--teal);background:var(--teal-bg);padding:4px 6px;border-radius:var(--rad)}
+.slider-row input[type=range]{flex:1;accent-color:var(--teal)}
+
+/* day toggle */
+.day-btn{padding:8px 14px;border-radius:var(--rad);cursor:pointer;font-size:13px;border:0.5px solid var(--border2);background:var(--surf);color:var(--ink2);transition:all .15s;font-family:inherit}
+.day-btn.on{border-color:var(--teal-border);background:var(--teal-bg);color:var(--teal);font-weight:500}
+
+/* toggle switch */
+.toggle-wrap{display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:14px}
+.toggle{width:42px;height:22px;border-radius:11px;background:var(--border2);position:relative;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--teal)}
+.toggle-knob{width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left .2s}
+.toggle.on .toggle-knob{left:23px}
+.toggle-label{font-size:14px;color:var(--ink)}
+
+/* done screen */
+.done-wrap{text-align:center;padding:2.5rem 0}
+.done-icon{font-size:56px;margin-bottom:1rem}
+.done-title{font-size:24px;font-weight:500;color:var(--ink);margin-bottom:.5rem}
+.done-sub{font-size:14px;color:var(--ink2);max-width:440px;margin:0 auto 1.5rem;line-height:1.65}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:460px;margin:0 auto 1.5rem}
+.stat-card{background:var(--surf2);border-radius:var(--rad);padding:14px 12px;text-align:center}
+.stat-icon{font-size:22px;margin-bottom:4px}
+.stat-label{font-size:11px;color:var(--ink3)}
+.stat-val{font-size:15px;font-weight:500;color:var(--ink)}
+
+/* billing */
+.card-logos{display:flex;align-items:center;gap:8px;margin-bottom:1.25rem;flex-wrap:wrap}
+.card-logo-tag{font-size:11px;color:var(--ink3);background:var(--surf2);padding:3px 8px;border-radius:4px;border:0.5px solid var(--border)}
+.ssl-tag{margin-left:auto;font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:5px}
+.order-row{display:flex;justify-content:space-between;margin-bottom:10px;font-size:13px}
+.order-total{border-top:0.5px solid var(--border);padding-top:12px;margin-top:6px}
+.checkbox-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-top:.75rem}
+.cb-box{width:18px;height:18px;border-radius:4px;border:0.5px solid var(--border2);background:var(--surf);flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s}
+.cb-box.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.cb-label{font-size:13px;color:var(--ink2);line-height:1.6}
+
+/* stat bar */
+.mod-summary{background:var(--surf2);border-radius:var(--rad);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;font-size:13px;color:var(--ink2)}
+
+.hidden{display:none}
+</style>
+
+<h2 class="sr-only">Enterprise HRMS multi-tier onboarding wizard with three role-based flows: super admin, tenant admin, and unit admin</h2>
+
+<div class="wrap" id="app">
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">B</div>
+    <div>
+      <div class="logo-name">BenoSupport</div>
+      <div class="logo-sub">Enterprise HRMS</div>
+    </div>
+  </div>
+  <div class="flow-tabs">
+    <button class="flow-tab active-super" onclick="switchFlow('super')" id="tab-super"><i class="ti ti-settings" aria-hidden="true"></i> Super admin</button>
+    <button class="flow-tab" onclick="switchFlow('tenant')" id="tab-tenant"><i class="ti ti-building" aria-hidden="true"></i> Tenant admin</button>
+    <button class="flow-tab" onclick="switchFlow('unit')" id="tab-unit"><i class="ti ti-building-factory-2" aria-hidden="true"></i> Unit admin</button>
+  </div>
+</div>
+
+<div id="progress-bar"></div>
+<div id="step-content"></div>
+
+</div>
+
+<script>
+const STATE = {
+  flow: 'super',
+  step: 0,
+  data: {}
+};
+
+// тФАтФАтФА Plan / module data тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+const PLANS = [
+  {id:'starter', name:'Starter', monthly:999, annual:799, seats:50, icon:'ЁЯМ▒'},
+  {id:'growth', name:'Growth', monthly:2499, annual:1999, seats:200, icon:'ЁЯЪА', popular:true},
+  {id:'pro', name:'Pro', monthly:5999, annual:4799, seats:500, icon:'тЪб'},
+  {id:'enterprise', name:'Enterprise', monthly:null, annual:null, seats:null, icon:'ЁЯПв'},
+];
+
+const MODULES = [
+  {id:'core',name:'Core platform',icon:'тмб',desc:'Auth, RBAC, audit logs',required:true,plans:['starter','growth','pro','enterprise']},
+  {id:'employee',name:'Employee mgmt',icon:'ЁЯСд',desc:'Profiles, lifecycle',required:true,plans:['starter','growth','pro','enterprise']},
+  {id:'attendance',name:'Attendance',icon:'ЁЯХР',desc:'Check-in, biometric, WFH',required:false,plans:['growth','pro','enterprise']},
+  {id:'leave',name:'Leave mgmt',icon:'ЁЯМ┤',desc:'Policy, approvals, balance',required:false,plans:['growth','pro','enterprise']},
+  {id:'payroll',name:'Payroll',icon:'ЁЯТ│',desc:'Salary, pay runs, slips',required:false,plans:['growth','pro','enterprise']},
+  {id:'appraisal',name:'Performance',icon:'тнР',desc:'Goals, reviews, ratings',required:false,plans:['pro','enterprise']},
+  {id:'recruitment',name:'Recruitment',icon:'ЁЯОп',desc:'Jobs, pipeline, offers',required:false,plans:['pro','enterprise']},
+  {id:'training',name:'Training & LMS',icon:'ЁЯОУ',desc:'Courses, certifications',required:false,plans:['pro','enterprise']},
+  {id:'expenses',name:'Expenses',icon:'ЁЯз╛',desc:'Claims, reimbursement',required:false,plans:['enterprise']},
+  {id:'analytics',name:'Analytics',icon:'ЁЯУК',desc:'Custom dashboards, BI',required:false,plans:['enterprise']},
+];
+
+const FLOW_LABELS = {
+  super: ['Plan','Modules','Billing','Organisation','Tenants','Done'],
+  tenant: ['Welcome','LOBs','Units','Done'],
+  unit: ['Welcome','Company','Leave','Payroll','Working days','Done'],
+};
+
+const LEAVE_TYPES = [
+  {id:'annual',name:'Annual leave',icon:'ЁЯМ┤',days:21,accrual:'monthly',cf:true},
+  {id:'sick',name:'Sick leave',icon:'ЁЯПе',days:10,accrual:'monthly',cf:false},
+  {id:'casual',name:'Casual leave',icon:'тШХ',days:8,accrual:'upfront',cf:false},
+  {id:'maternity',name:'Maternity leave',icon:'ЁЯС╢',days:182,accrual:'upfront',cf:false},
+  {id:'paternity',name:'Paternity leave',icon:'ЁЯСитАНЁЯСз',days:15,accrual:'upfront',cf:false},
+  {id:'comp',name:'Compensatory off',icon:'ЁЯТ╝',days:0,accrual:'earned',cf:true},
+];
+
+// тФАтФАтФА Utilities тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+function v(id){ return document.getElementById(id); }
+function val(id){ const el=v(id); return el ? el.value.trim() : ''; }
+
+function validate(rules){
+  let ok=true;
+  rules.forEach(({id,check,msg})=>{
+    const el=v(id); if(!el)return;
+    const pass = check(el.value.trim());
+    el.classList.toggle('err',!pass);
+    let em=el.parentElement.querySelector('.err-msg');
+    if(!pass){ if(!em){em=document.createElement('p');em.className='err-msg';el.parentElement.appendChild(em);} em.textContent=msg; ok=false; }
+    else if(em) em.remove();
+  });
+  return ok;
+}
+
+function isEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s); }
+
+// тФАтФАтФА Progress bar тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+function renderProgress(){
+  const labels = FLOW_LABELS[STATE.flow];
+  const step = STATE.step;
+  const f = STATE.flow;
+  const doneClass = f==='tenant'?'done-blue':f==='unit'?'done-pur':'done';
+  const activeClass = f==='tenant'?'active-blue':f==='unit'?'active-pur':'active';
+  const activeLClass = f==='tenant'?'active-lb':f==='unit'?'active-lp':'active-l';
+  const connFilled = f==='tenant'?'filled-blue':f==='unit'?'filled-pur':'filled';
+
+  let html='<div class="progress">';
+  labels.forEach((l,i)=>{
+    const done=i<step, active=i===step;
+    const nc = done?doneClass:active?activeClass:'';
+    const lc = active?activeLClass:'';
+    if(i>0) html+=`<div class="prog-connector ${i<=step?connFilled:''}"></div>`;
+    html+=`<div class="prog-item"><div class="prog-num ${nc}">${done?'<i class="ti ti-check" style="font-size:13px" aria-hidden="true"></i>':i+1}</div><div class="prog-label ${lc}">${l}</div></div>`;
+  });
+  html+='</div>';
+  v('progress-bar').innerHTML=html;
+}
+
+// тФАтФАтФА SUPER ADMIN FLOW тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+
+function renderStepPlan(){
+  const d=STATE.data;
+  const billing=d.billing||'monthly';
+  const plan=d.plan||'growth';
+  let html=`
+  <div class="step-tag tag-teal">Step 1 of 5</div>
+  <h1 class="step-title">Choose your plan</h1>
+  <p class="step-sub">Every plan includes a 14-day free trial. Customise modules in the next step.</p>
+  <div class="pill-row">
+    <button class="pill ${billing==='monthly'?'active':''}" onclick="setBilling('monthly')">Monthly</button>
+    <button class="pill ${billing==='annual'?'active':''}" onclick="setBilling('annual')">Annual <span style="color:var(--teal);font-weight:500">тИТ20%</span></button>
+  </div>
+  <div class="grid4" style="margin-bottom:1.5rem">`;
+  PLANS.forEach(p=>{
+    const sel=plan===p.id;
+    const price=billing==='annual'?p.annual:p.monthly;
+    html+=`<div class="plan-card ${sel?'sel':''}" onclick="setPlan('${p.id}')">
+      ${p.popular?`<div class="popular-badge">Most popular</div>`:''}
+      <div style="font-size:20px;margin-bottom:6px">${p.icon}</div>
+      <div class="plan-card-name">${p.name}</div>
+      <div class="plan-card-price">${price?`тВ╣${price.toLocaleString()}`:' Custom'}</div>
+      ${price?`<div style="font-size:11px;color:var(--ink3)">/ mo${billing==='annual'?' (annual)':''}</div>`:''}
+      <div class="plan-card-seats">${p.seats?`Up to ${p.seats} employees`:'Unlimited'}</div>
+    </div>`;
+  });
+  html+=`</div>
+  <div class="nav-row"><span></span><button class="btn btn-primary" onclick="planNext()">Select modules <i class="ti ti-arrow-right" aria-hidden="true"></i></button></div>`;
+  v('step-content').innerHTML=html;
+}
+
+function setBilling(b){ STATE.data.billing=b; renderStepPlan(); }
+function setPlan(p){ STATE.data.plan=p; renderStepPlan(); }
+function planNext(){ STATE.data.plan=STATE.data.plan||'growth'; STATE.data.billing=STATE.data.billing||'monthly'; next(); }
+
+function renderStepModules(){
+  const d=STATE.data;
+  const plan=d.plan||'growth';
+  const sel=d.modules||MODULES.filter(m=>m.required||m.plans.includes(plan)).map(m=>m.id);
+  STATE.data.modules=sel;
+  let html=`
+  <div class="step-tag tag-teal">Step 2 of 5</div>
+  <h1 class="step-title">Customise your modules</h1>
+  <p class="step-sub">You're on the <strong>${PLANS.find(p=>p.id===plan)?.name}</strong> plan. Toggle to add or remove modules.</p>
+  <div class="grid2" style="margin-bottom:.75rem">`;
+  MODULES.forEach(m=>{
+    const inPlan=m.plans.includes(plan);
+    const on=sel.includes(m.id);
+    html+=`<div class="mod-card ${on&&inPlan?'on':''} ${!inPlan?'locked-off':''}" onclick="toggleModule('${m.id}')">
+      ${!inPlan?`<div class="upgrade-badge">Upgrade</div>`:''}
+      <span class="mod-icon">${m.icon}</span>
+      <div style="flex:1">
+        <div class="mod-name">${m.name} ${m.required?`<span class="tag-sm tag-blue-sm" style="margin-left:4px">Required</span>`:''}</div>
+        <div class="mod-desc">${m.desc}</div>
+      </div>
+      <div class="check-box ${on&&inPlan?'on':''}">${on&&inPlan?'<i class="ti ti-check" aria-hidden="true"></i>':''}</div>
+    </div>`;
+  });
+  html+=`</div>
+  <div class="mod-summary"><span><strong style="color:var(--ink)">${sel.length} modules</strong> selected</span><span class="step-tag tag-teal" style="margin:0">${PLANS.find(p=>p.id===plan)?.name}</span></div>
+  <div class="nav-row">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+    <button class="btn btn-primary" onclick="next()">Continue to billing <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>`;
+  v('step-content').innerHTML=html;
+}
+
+function toggleModule(id){
+  const m=MODULES.find(x=>x.id===id);
+  if(!m||m.required)return;
+  const plan=STATE.data.plan||'growth';
+  if(!m.plans.includes(plan))return;
+  const sel=STATE.data.modules||[];
+  STATE.data.modules=sel.includes(id)?sel.filter(x=>x!==id):[...sel,id];
+  renderStepModules();
+}
+
+function renderStepBilling(){
+  const d=STATE.data;
+  const plan=PLANS.find(p=>p.id===(d.plan||'growth'));
+  const price=d.billing==='annual'?plan?.annual:plan?.monthly;
+  const agreed=d.billingAgreed||false;
+  let html=`
+  <div class="step-tag tag-teal">Step 3 of 5</div>
+  <h1 class="step-title">Secure payment</h1>
+  <p class="step-sub">Your card won't be charged until your 14-day trial ends. Cancel anytime.</p>
+  <div class="grid2" style="align-items:start">
+    <div class="card">
+      <div class="card-logos">
+        ${['Visa','Mastercard','Amex','RuPay'].map(x=>`<span class="card-logo-tag">${x}</span>`).join('')}
+        <span class="ssl-tag"><i class="ti ti-lock" style="font-size:14px" aria-hidden="true"></i> 256-bit SSL</span>
+      </div>
+      <div class="field"><label>Cardholder name</label><input id="card-name" type="text" placeholder="Vibhav Singh" value="${d.cardName||''}"></div>
+      <div class="field"><label>Card number</label><input id="card-num" type="text" placeholder="1234 5678 9012 3456" maxlength="19" value="${d.cardNum||''}"></div>
+      <div class="grid2">
+        <div class="field"><label>Expiry</label><input id="card-exp" type="text" placeholder="MM/YY" maxlength="5" value="${d.cardExp||''}"></div>
+        <div class="field"><label>CVC</label><input id="card-cvc" type="text" placeholder="123" maxlength="3" value="${d.cardCvc||''}"></div>
+      </div>
+      <div class="checkbox-row" onclick="toggleAgreed()">
+        <div class="cb-box ${agreed?'on':''}" id="cb-agree">${agreed?'<i class="ti ti-check" aria-hidden="true"></i>':''}</div>
+        <span class="cb-label">I agree to the <a href="#">Terms of Service</a> and authorise BenoSupport to charge my card after the 14-day trial.</span>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:500;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Order summary</div>
+        <div class="order-row"><span style="color:var(--ink2)">${plan?.name} plan</span><span style="font-weight:500;color:var(--ink)">${price?`тВ╣${price.toLocaleString()}/mo`:'Custom'}</span></div>
+        <div class="order-row"><span style="color:var(--ink2)">Modules</span><span style="font-weight:500;color:var(--ink)">${d.modules?.length||0}</span></div>
+        <div class="order-row"><span style="color:var(--ink2)">Billing</span><span style="font-weight:500;color:var(--ink);text-transform:capitalize">${d.billing||'monthly'}</span></div>
+        <div class="order-total">
+          <div class="order-row" style="margin:0"><span style="font-size:15px;font-weight:500;color:var(--ink)">Due today</span><span style="font-size:18px;font-weight:500;color:var(--teal)">тВ╣0.00</span></div>
+          <p style="font-size:12px;color:var(--ink3);margin-top:6px">First charge after 14-day trial: ${price?`тВ╣${price.toLocaleString()}`:'Custom pricing'}</p>
+        </div>
+      </div>
+      <div class="info-box info-teal" style="margin-bottom:10px"><strong>14-day free trial</strong> тАФ full access to all selected modules. Reminder sent 3 days before trial ends.</div>
+      <button class="btn btn-primary" style="width:100%" id="pay-btn" onclick="billingNext()">Start free trial <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+    </div>
+  </div>
+  <div class="nav-row" style="border:none;padding:0;margin-top:.75rem">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button><span></span>
+  </div>`;
+  v('step-content').innerHTML=html;
+  updatePayBtn();
+  v('card-num').addEventListener('input',e=>{ e.target.value=e.target.value.replace(/\D/g,'').slice(0,16).replace(/(.{4})/g,'$1 ').trim(); STATE.data.cardNum=e.target.value; updatePayBtn(); });
+  v('card-exp').addEventListener('input',e=>{ let val=e.target.value.replace(/\D/g,'').slice(0,4); if(val.length>2)val=val.slice(0,2)+'/'+val.slice(2); e.target.value=val; STATE.data.cardExp=val; updatePayBtn(); });
+  v('card-cvc').addEventListener('input',e=>{ e.target.value=e.target.value.replace(/\D/g,'').slice(0,3); STATE.data.cardCvc=e.target.value; updatePayBtn(); });
+  v('card-name').addEventListener('input',e=>{ STATE.data.cardName=e.target.value; updatePayBtn(); });
+}
+
+function toggleAgreed(){ STATE.data.billingAgreed=!STATE.data.billingAgreed; renderStepBilling(); }
+function updatePayBtn(){
+  const d=STATE.data;
+  const ok=d.billingAgreed&&d.cardName&&(d.cardNum||'').replace(/\s/g,'').length===16&&(d.cardExp||'').length===5&&(d.cardCvc||'').length===3;
+  const btn=v('pay-btn'); if(btn){btn.disabled=!ok; btn.className='btn btn-primary'+(ok?'':' disabled'); if(!ok) btn.style.cssText='width:100%;background:var(--surf2);color:var(--ink3);border-color:var(--border);cursor:not-allowed';}
+}
+function billingNext(){
+  const d=STATE.data;
+  if(!d.billingAgreed||(d.cardNum||'').replace(/\s/g,'').length!==16)return;
+  next();
+}
+
+function renderStepOrg(){
+  const d=STATE.data;
+  const org=d.org||{name:'',industry:'Manufacturing',country:'India',email:'',phone:''};
+  const admin=d.orgAdmin||{name:'',email:''};
+  const industries=['Manufacturing','IT / Software','Retail','Healthcare','BFSI','Education','Logistics','Other'];
+  const countries=['India','UAE','Singapore','USA','UK'];
+  let html=`
+  <div class="step-tag tag-teal">Step 4 of 5</div>
+  <h1 class="step-title">Set up your organisation</h1>
+  <p class="step-sub">One organisation can hold multiple tenant companies. The Org Admin manages company creation.</p>
+  <div class="grid2" style="align-items:start">
+    <div class="card">
+      <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:14px;display:flex;align-items:center;gap:8px"><i class="ti ti-building" aria-hidden="true"></i> Organisation details</div>
+      <div class="field"><label>Organisation name <span style="color:var(--red)">*</span></label><input id="org-name" placeholder="Acme Group Pvt. Ltd." value="${org.name}"></div>
+      <div class="field"><label>Industry</label><select id="org-industry">${industries.map(x=>`<option ${org.industry===x?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div class="field"><label>Country</label><select id="org-country">${countries.map(x=>`<option ${org.country===x?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div class="field"><label>Contact email <span style="color:var(--red)">*</span></label><input id="org-email" type="email" placeholder="contact@acmegroup.in" value="${org.email}"></div>
+      <div class="field"><label>Phone</label><input id="org-phone" placeholder="+91 98765 43210" value="${org.phone||''}"></div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:14px;display:flex;align-items:center;gap:8px"><i class="ti ti-user" aria-hidden="true"></i> Org admin details</div>
+        <div class="info-box info-blue" style="margin-bottom:14px">The Org Admin can create companies and invite Tenant Admins. They <strong>cannot</strong> view employee HR data.</div>
+        <div class="field"><label>Admin full name <span style="color:var(--red)">*</span></label><input id="oa-name" placeholder="Vibhav Singh" value="${admin.name}"></div>
+        <div class="field"><label>Admin email <span style="color:var(--red)">*</span></label><input id="oa-email" type="email" placeholder="vibhav@acmegroup.in" value="${admin.email}"><p class="hint">Login credentials will be emailed here.</p></div>
+      </div>
+      <div class="card">
+        <div style="font-size:12px;font-weight:500;color:var(--ink3);margin-bottom:10px">What happens next</div>
+        ${[['ti-mail','Org Admin receives login credentials'],['ti-building','Admin creates company tenants'],['ti-users','Tenant admins are invited per company']].map(([ic,t])=>`<div style="display:flex;gap:10px;margin-bottom:8px;align-items:flex-start;font-size:13px;color:var(--ink2)"><i class="ti ${ic}" style="font-size:15px;margin-top:2px;flex-shrink:0" aria-hidden="true"></i><span>${t}</span></div>`).join('')}
+      </div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+    <button class="btn btn-primary" onclick="orgNext()">Add tenants <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>`;
+  v('step-content').innerHTML=html;
+}
+
+function orgNext(){
+  const ok=validate([
+    {id:'org-name',check:v=>v.length>0,msg:'Organisation name is required'},
+    {id:'org-email',check:v=>isEmail(v),msg:'Enter a valid email address'},
+    {id:'oa-name',check:v=>v.length>0,msg:'Admin name is required'},
+    {id:'oa-email',check:v=>isEmail(v),msg:'Enter a valid email address'},
+  ]);
+  if(!ok)return;
+  STATE.data.org={name:val('org-name'),industry:val('org-industry'),country:val('org-country'),email:val('org-email'),phone:val('org-phone')};
+  STATE.data.orgAdmin={name:val('oa-name'),email:val('oa-email')};
+  next();
+}
+
+function renderStepTenants(){
+  const d=STATE.data;
+  if(!d.tenants) d.tenants=[{id:1,name:'',pan:'',gst:'',state:'Maharashtra',adminName:'',adminEmail:'',open:true}];
+  const states=['Maharashtra','Karnataka','Tamil Nadu','Delhi','Gujarat','Telangana','UP','West Bengal','Other'];
+  let html=`
+  <div class="step-tag tag-teal">Step 5 of 5</div>
+  <h1 class="step-title">Add your companies (tenants)</h1>
+  <p class="step-sub">Each company is fully isolated. Tenant admins receive login credentials by email.</p>`;
+  d.tenants.forEach((t,i)=>{
+    const ready=t.name&&t.adminEmail;
+    html+=`<div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
+      <div class="acc-header" onclick="toggleTenant(${t.id})">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="acc-num" style="background:var(--teal-bg);border:0.5px solid var(--teal-border);color:var(--teal);font-weight:500">${i+1}</div>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:var(--ink)">${t.name||`Company ${i+1}`}</div>
+            <div style="font-size:12px;color:var(--ink3)">${t.adminEmail||'Admin not set'}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${ready?`<span class="ready-tag"><i class="ti ti-check" style="font-size:11px" aria-hidden="true"></i> Ready</span>`:''}
+          ${d.tenants.length>1?`<button class="rem-btn" onclick="event.stopPropagation();removeTenant(${t.id})"><i class="ti ti-x" style="font-size:15px" aria-hidden="true"></i></button>`:''}
+          <i class="ti ti-chevron-${t.open?'up':'down'}" style="color:var(--ink3)" aria-hidden="true"></i>
+        </div>
+      </div>
+      ${t.open?`<div class="acc-body">
+        <div class="grid2" style="margin-top:14px">
+          <div class="field"><label>Legal company name <span style="color:var(--red)">*</span></label><input id="tn-name-${t.id}" placeholder="Acme Manufacturing Ltd." value="${t.name}" oninput="updateTenant(${t.id},'name',this.value)"></div>
+          <div class="field"><label>State</label><select id="tn-state-${t.id}" onchange="updateTenant(${t.id},'state',this.value)">${states.map(s=>`<option ${t.state===s?'selected':''}>${s}</option>`).join('')}</select></div>
+          <div class="field"><label>PAN</label><input placeholder="AACCA1234Z" value="${t.pan}" oninput="updateTenant(${t.id},'pan',this.value.toUpperCase().slice(0,10))"></div>
+          <div class="field"><label>GST number</label><input placeholder="09AACCA1234Z1Z1" value="${t.gst}" oninput="updateTenant(${t.id},'gst',this.value.toUpperCase().slice(0,15))"></div>
+        </div>
+        <div style="border-top:1px dashed var(--border);padding-top:14px;margin-top:4px">
+          <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:12px"><i class="ti ti-user-circle" aria-hidden="true"></i> Tenant admin тАФ will receive login credentials</div>
+          <div class="grid2">
+            <div class="field"><label>Admin full name <span style="color:var(--red)">*</span></label><input id="tn-aname-${t.id}" placeholder="Rahul Sharma" value="${t.adminName}" oninput="updateTenant(${t.id},'adminName',this.value)"></div>
+            <div class="field"><label>Admin email <span style="color:var(--red)">*</span></label><input id="tn-aemail-${t.id}" type="email" placeholder="rahul@acmemfg.in" value="${t.adminEmail}" oninput="updateTenant(${t.id},'adminEmail',this.value)"></div>
+          </div>
+          <div class="info-box info-amber"><i class="ti ti-lock" style="font-size:13px" aria-hidden="true"></i> BenoSupport will auto-create a login account and send credentials to this email. Tenant admin sets password on first login.</div>
+        </div>
+      </div>`:''}
+    </div>`;
+  });
+  html+=`<button class="add-btn" onclick="addTenant()"><i class="ti ti-plus" style="color:var(--teal);font-size:18px" aria-hidden="true"></i> Add another company</button>
+  <div class="nav-row">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+    <button class="btn btn-primary" onclick="tenantsNext()">Launch workspace <i class="ti ti-rocket" aria-hidden="true"></i></button>
+  </div>`;
+  v('step-content').innerHTML=html;
+}
+
+function toggleTenant(id){ const t=STATE.data.tenants.find(x=>x.id===id); if(t)t.open=!t.open; renderStepTenants(); }
+function addTenant(){ STATE.data.tenants.push({id:Date.now(),name:'',pan:'',gst:'',state:'Maharashtra',adminName:'',adminEmail:'',open:true}); renderStepTenants(); }
+function removeTenant(id){ STATE.data.tenants=STATE.data.tenants.filter(x=>x.id!==id); renderStepTenants(); }
+function updateTenant(id,field,value){ const t=STATE.data.tenants.find(x=>x.id===id); if(t)t[field]=value; }
+
+function tenantsNext(){
+  const ts=STATE.data.tenants;
+  let ok=true;
+  ts.forEach(t=>{
+    const nameEl=v(`tn-name-${t.id}`); const emailEl=v(`tn-aemail-${t.id}`);
+    if(nameEl&&!nameEl.value.trim()){ nameEl.classList.add('err'); ok=false; }
+    if(emailEl&&!isEmail(emailEl.value.trim())){ emailEl.classList.add('err'); ok=false; }
+  });
+  if(!ok)return;
+  next();
+}
+
+function renderSuperDone(){
+  const d=STATE.data;
+  let html=`<div class="done-wrap">
+    <div class="done-icon">ЁЯЪА</div>
+    <h1 class="done-title">Workspace is live!</h1>
+    <p class="done-sub">Org Admin and ${d.tenants?.length||1} Tenant Admin(s) have received their credentials. The next step happens inside each tenant.</p>
+    <div class="stat-grid">
+      ${[['ЁЯПв','Organisation',d.org?.name||'тАФ'],['ЁЯПм','Tenants added',d.tenants?.length||1],['ЁЯзй','Modules active',d.modules?.length||'тАФ']].map(([ic,l,v])=>`<div class="stat-card"><div class="stat-icon">${ic}</div><div class="stat-label">${l}</div><div class="stat-val">${v}</div></div>`).join('')}
+    </div>
+    <button class="btn btn-blue" onclick="switchFlow('tenant')">Simulate Tenant Admin login <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>`;
+  v('step-content').innerHTML=html;
+}
+
+// тФАтФАтФА TENANT FLOW тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+
+function renderTenantWelcome(){
+  v('step-content').innerHTML=`
+  <div style="background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:var(--radlg);padding:24px 28px;margin-bottom:1.5rem">
+    <div style="font-size:32px;margin-bottom:8px">ЁЯСЛ</div>
+    <h1 style="font-size:20px;font-weight:500;color:var(--ink);margin-bottom:6px">Welcome, Tenant Admin</h1>
+    <p style="font-size:14px;color:var(--ink2);line-height:1.65;margin:0">You're setting up <strong>your company's HR structure</strong>. Define Lines of Business and units beneath them. Each unit gets its own admin for HR policies.</p>
+  </div>
+  <div class="grid3" style="margin-bottom:1.5rem">
+    ${[['ti-briefcase','LOB','Define divisions тАФ Retail, B2B, Manufacturing','var(--purple)','var(--purple-bg)'],
+       ['ti-building-community','Units','Operational teams within each LOB','var(--blue)','var(--blue-bg)'],
+       ['ti-user-check','Admin','Assign a Unit Admin per site','var(--teal)','var(--teal-bg)']].map(([ic,t,d,c,bg])=>`<div style="background:${bg};border:0.5px solid var(--border);border-radius:var(--radlg);padding:14px"><i class="ti ${ic}" style="font-size:22px;color:${c};margin-bottom:6px;display:block" aria-hidden="true"></i><div style="font-size:13px;font-weight:500;color:${c};margin-bottom:4px">${t}</div><div style="font-size:12px;color:var(--ink2);line-height:1.4">${d}</div></div>`).join('')}
+  </div>
+  <button class="btn btn-blue" onclick="next()">Start setup <i class="ti ti-arrow-right" aria-hidden="true"></i></button>`;
+}
+
+function renderTenantLOB(){
+  const d=STATE.data;
+  if(!d.lobs) d.lobs=[{id:1,name:'',head:'',desc:'',_order:0}];
+  let html=`
+  <div class="step-tag tag-blue">Step 2 of 3</div>
+  <h1 class="step-title">Define your lines of business</h1>
+  <p class="step-sub">LOBs are your top-level business divisions. Every unit and employee will belong to one LOB.</p>`;
+  d.lobs.forEach((l,i)=>{
+    html+=`<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="acc-num" style="background:var(--purple-bg);border:0.5px solid var(--purple-border);color:var(--purple)">L${i+1}</div>
+          <span style="font-size:14px;font-weight:500;color:var(--ink)">Line of business ${i+1}</span>
+        </div>
+        ${d.lobs.length>1?`<button class="rem-btn" onclick="removeLOB(${l.id})"><i class="ti ti-x" style="font-size:15px" aria-hidden="true"></i></button>`:''}
+      </div>
+      <div class="grid2">
+        <div class="field"><label>LOB name <span style="color:var(--red)">*</span></label><input id="lob-name-${l.id}" placeholder="e.g. Retail Division" value="${l.name}" oninput="updateLOB(${l.id},'name',this.value)"></div>
+        <div class="field"><label>Head of LOB</label><input placeholder="Responsible person" value="${l.head}" oninput="updateLOB(${l.id},'head',this.value)"></div>
+      </div>
+      <div class="field"><label>Description</label><input placeholder="Brief description" value="${l.desc}" oninput="updateLOB(${l.id},'desc',this.value)"></div>
+    </div>`;
+  });
+  html+=`<button class="add-btn" onclick="addLOB()"><i class="ti ti-plus" style="color:var(--purple);font-size:18px" aria-hidden="true"></i> Add another LOB</button>
+  <div class="nav-row">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+    <button class="btn btn-blue" onclick="lobNext()">Set up units <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>`;
+  v('step-content').innerHTML=html;
+}
+
+function addLOB(){ STATE.data.lobs.push({id:Date.now(),name:'',head:'',desc:''}); renderTenantLOB(); }
+function removeLOB(id){ STATE.data.lobs=STATE.data.lobs.filter(x=>x.id!==id); renderTenantLOB(); }
+function updateLOB(id,f,val){ const l=STATE.data.lobs.find(x=>x.id===id); if(l)l[f]=val; }
+
+function lobNext(){
+  const d=STATE.data;
+  let ok=true;
+  d.lobs.forEach(l=>{ const el=v(`lob-name-${l.id}`); if(el&&!el.value.trim()){ el.classList.add('err'); ok=false; } });
+  if(!ok)return;
+  next();
+}
+
+function renderTenantUnits(){
+  const d=STATE.data;
+  if(!d.units) d.units=[{id:1,name:'',lobId:d.lobs?.[0]?.id||1,location:'',adminName:'',adminEmail:'',open:true}];
+  let html=`
+  <div class="step-tag tag-blue">Step 3 of 3</div>
+  <h1 class="step-title">Create business units</h1>
+  <p class="step-sub">Units are operational sites or teams within an LOB. Each unit admin configures leave, payroll and attendance policies.</p>`;
+  d.units.forEach((u,i)=>{
+    const ready=u.name&&u.adminEmail;
+    const lobName=d.lobs?.find(l=>l.id===u.lobId)?.name||'No LOB';
+    html+=`<div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
+      <div class="acc-header" onclick="toggleUnit(${u.id})">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="acc-num" style="background:var(--blue-bg);border:0.5px solid var(--blue-border);color:var(--blue)">U${i+1}</div>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:var(--ink)">${u.name||`Unit ${i+1}`}</div>
+            <div style="font-size:12px;color:var(--ink3)">${lobName} ┬╖ ${u.location||'No location'}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${ready?`<span class="ready-tag-blue"><i class="ti ti-check" style="font-size:11px" aria-hidden="true"></i> Ready</span>`:''}
+          ${d.units.length>1?`<button class="rem-btn" onclick="event.stopPropagation();removeUnit(${u.id})"><i class="ti ti-x" style="font-size:15px" aria-hidden="true"></i></button>`:''}
+          <i class="ti ti-chevron-${u.open?'up':'down'}" style="color:var(--ink3)" aria-hidden="true"></i>
+        </div>
+      </div>
+      ${u.open?`<div class="acc-body">
+        <div class="grid2" style="margin-top:14px">
+          <div class="field"><label>Unit name <span style="color:var(--red)">*</span></label><input id="un-name-${u.id}" placeholder="e.g. North Zone Sales" value="${u.name}" oninput="updateUnit(${u.id},'name',this.value)"></div>
+          <div class="field"><label>Parent LOB</label><select onchange="updateUnit(${u.id},'lobId',parseInt(this.value))">${(d.lobs||[]).map(l=>`<option value="${l.id}" ${u.lobId===l.id?'selected':''}>${l.name||`LOB ${l.id}`}</option>`).join('')}</select></div>
+          <div class="field"><label>Location / city</label><input placeholder="e.g. Delhi" value="${u.location}" oninput="updateUnit(${u.id},'location',this.value)"></div>
+        </div>
+        <div style="border-top:1px dashed var(--border);padding-top:14px;margin-top:4px">
+          <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:12px"><i class="ti ti-key" aria-hidden="true"></i> Unit admin тАФ manages this site's HR policies</div>
+          <div class="grid2">
+            <div class="field"><label>Admin full name <span style="color:var(--red)">*</span></label><input id="un-aname-${u.id}" placeholder="Amit Kumar" value="${u.adminName}" oninput="updateUnit(${u.id},'adminName',this.value)"></div>
+            <div class="field"><label>Admin email <span style="color:var(--red)">*</span></label><input id="un-aemail-${u.id}" type="email" placeholder="amit@acmemfg.in" value="${u.adminEmail}" oninput="updateUnit(${u.id},'adminEmail',this.value)"></div>
+          </div>
+          <div class="info-box info-amber"><i class="ti ti-lock" style="font-size:13px" aria-hidden="true"></i> Login credentials will be emailed to this address. Unit Admin sets up leave policies, payroll structure and working days.</div>
+        </div>
+      </div>`:''}
+    </div>`;
+  });
+  html+=`<button class="add-btn" onclick="addUnit()"><i class="ti ti-plus" style="color:var(--blue);font-size:18px" aria-hidden="true"></i> Add another unit</button>
+  <div class="nav-row">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+    <button class="btn btn-blue" onclick="unitsNext()">Review & finish <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>`;
+  v('step-content').innerHTML=html;
+}
+
+function toggleUnit(id){ const u=STATE.data.units.find(x=>x.id===id); if(u)u.open=!u.open; renderTenantUnits(); }
+function addUnit(){ STATE.data.units.push({id:Date.now(),name:'',lobId:STATE.data.lobs?.[0]?.id||1,location:'',adminName:'',adminEmail:'',open:true}); renderTenantUnits(); }
+function removeUnit(id){ STATE.data.units=STATE.data.units.filter(x=>x.id!==id); renderTenantUnits(); }
+function updateUnit(id,f,val){ const u=STATE.data.units.find(x=>x.id===id); if(u)u[f]=val; }
+
+function unitsNext(){
+  const us=STATE.data.units;
+  let ok=true;
+  us.forEach(u=>{
+    const ne=v(`un-name-${u.id}`); const ee=v(`un-aemail-${u.id}`);
+    if(ne&&!ne.value.trim()){ ne.classList.add('err'); ok=false; }
+    if(ee&&!isEmail(ee.value.trim())){ ee.classList.add('err'); ok=false; }
+  });
+  if(!ok)return;
+  next();
+}
+
+function renderTenantDone(){
+  const d=STATE.data;
+  v('step-content').innerHTML=`<div class="done-wrap">
+    <div class="done-icon">ЁЯПв</div>
+    <h1 class="done-title">Company structure ready!</h1>
+    <p class="done-sub">${d.lobs?.length||1} LOB(s) and ${d.units?.length||1} unit(s) created. Unit admins have received their login credentials.</p>
+    <button class="btn btn-pur" onclick="switchFlow('unit')">Simulate Unit Admin first login <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>`;
+}
+
+// тФАтФАтФА UNIT FLOW тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+
+function renderUnitWelcome(){
+  v('step-content').innerHTML=`
+  <div style="background:var(--purple-bg);border:0.5px solid var(--purple-border);border-radius:var(--radlg);padding:24px 28px;margin-bottom:1.5rem">
+    <div style="font-size:32px;margin-bottom:8px">ЁЯСЛ</div>
+    <h1 style="font-size:20px;font-weight:500;color:var(--ink);margin-bottom:6px">Welcome, Unit Admin</h1>
+    <p style="font-size:14px;color:var(--ink2);line-height:1.65;margin:0">You're setting up HR policies for your unit тАФ company info, leave policy, payroll structure and working days, <strong>one step at a time</strong>.</p>
+  </div>
+  <div class="grid4" style="margin-bottom:1.5rem">
+    ${[['ti-building','Company info','Size, type, timezone'],['ti-beach','Leave policy','Types & accrual rules'],['ti-credit-card','Payroll','Components & tax'],['ti-calendar','Working days','Shifts & holidays']].map(([ic,t,d])=>`<div class="card" style="text-align:center"><i class="ti ${ic}" style="font-size:24px;color:var(--purple);margin-bottom:8px;display:block" aria-hidden="true"></i><div style="font-size:13px;font-weight:500;color:var(--ink)">${t}</div><div style="font-size:11px;color:var(--ink3);margin-top:3px">${d}</div></div>`).join('')}
+  </div>
+  <button class="btn btn-pur" onclick="next()">Start HR setup <i class="ti ti-arrow-right" aria-hidden="true"></i></button>`;
+}
+
+function renderUnitCompany(){
+  const d=STATE.data;
+  const info=d.unitInfo||{size:'',type:'',timezone:'IST',currency:'INR',probation:'90',noticePeriod:'30'};
+  v('step-content').innerHTML=`
+  <div class="step-tag tag-pur">Step 2 of 5</div>
+  <h1 class="step-title">Tell us about your unit</h1>
+  <p class="step-sub">This helps configure sensible defaults for your HR policies.</p>
+  <div class="card">
+    <div class="field"><label>Company size (employees) <span style="color:var(--red)">*</span></label><select id="ui-size">${['','1тАУ10','11тАУ50','51тАУ200','201тАУ500','500+'].map(x=>`<option value="${x}" ${info.size===x?'selected':''}>${x||'Select...'}</option>`).join('')}</select></div>
+    <div class="field"><label>Organisation type <span style="color:var(--red)">*</span></label><select id="ui-type">${['','Private Limited','Public Limited','LLP','Proprietorship','Government','NGO'].map(x=>`<option value="${x}" ${info.type===x?'selected':''}>${x||'Select...'}</option>`).join('')}</select></div>
+    <div class="grid2">
+      <div class="field"><label>Timezone</label><select id="ui-tz">${['IST','GST','SGT','EST','GMT'].map(x=>`<option ${info.timezone===x?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div class="field"><label>Currency</label><select id="ui-cur">${['INR','USD','AED','SGD','GBP'].map(x=>`<option ${info.currency===x?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div class="field"><label>Probation period (days)</label><input id="ui-prob" placeholder="90" value="${info.probation}"></div>
+      <div class="field"><label>Notice period (days)</label><input id="ui-notice" placeholder="30" value="${info.noticePeriod}"></div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+    <button class="btn btn-pur" onclick="unitInfoNext()">Next <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>`;
+}
+
+function unitInfoNext(){
+  const ok=validate([
+    {id:'ui-size',check:v=>v.length>0,msg:'Please select company size'},
+    {id:'ui-type',check:v=>v.length>0,msg:'Please select organisation type'},
+  ]);
+  if(!ok)return;
+  STATE.data.unitInfo={size:val('ui-size'),type:val('ui-type'),timezone:val('ui-tz'),currency:val('ui-cur'),probation:val('ui-prob'),noticePeriod:val('ui-notice')};
+  next();
+}
+
+function renderUnitLeave(){
+  const d=STATE.data;
+  const sel=d.leaveTypes||['annual','sick','casual'];
+  let html=`
+  <div class="step-tag tag-pur">Step 3 of 5</div>
+  <h1 class="step-title">Configure leave policy</h1>
+  <p class="step-sub">Select the leave types applicable for this unit. Fine-tune rules after setup.</p>
+  <div class="grid2" style="margin-bottom:1rem">`;
+  LEAVE_TYPES.forEach(lt=>{
+    const on=sel.includes(lt.id);
+    html+=`<div class="leave-card ${on?'on':''}" onclick="toggleLeave('${lt.id}')">
+      <div class="leave-card-row">
+        <div style="display:flex;align-items:center;gap:8px"><span>${lt.icon}</span><span style="font-size:13px;font-weight:500;color:var(--ink)">${lt.name}</span></div>
+        <div class="check-box ${on?'on':''}">${on?'<i class="ti ti-check" aria-hidden="true"></i>':''}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="tag-sm tag-blue-sm">${lt.days>0?`${lt.days} days`:'Earned'}</span>
+        <span class="tag-sm tag-gray-sm">${lt.accrual}</span>
+        ${lt.cf?`<span class="tag-sm tag-pur-sm">Carry forward</span>`:''}
+      </div>
+    </div>`;
+  });
+  html+=`</div>
+  <div class="nav-row">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+    <button class="btn btn-pur" onclick="leaveNext()" ${sel.length===0?'disabled':''}>Next <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>`;
+  v('step-content').innerHTML=html;
+  STATE.data.leaveTypes=sel;
+}
+
+function toggleLeave(id){
+  const sel=STATE.data.leaveTypes||[];
+  STATE.data.leaveTypes=sel.includes(id)?sel.filter(x=>x!==id):[...sel,id];
+  renderUnitLeave();
+}
+function leaveNext(){ if((STATE.data.leaveTypes||[]).length===0)return; next(); }
+
+function renderUnitPayroll(){
+  const d=STATE.data;
+  const cfg=d.payrollCfg||{basic:40,hra:20,special:20,pf:true,esi:true,pt:true,payDay:'last',salaryMode:'monthly'};
+  STATE.data.payrollCfg=cfg;
+  const rem=Math.max(0,100-Number(cfg.basic)-Number(cfg.hra)-Number(cfg.special));
+  v('step-content').innerHTML=`
+  <div class="step-tag tag-pur">Step 4 of 5</div>
+  <h1 class="step-title">Payroll structure</h1>
+  <p class="step-sub">Define how salary is split and which statutory deductions apply.</p>
+  <div class="grid2" style="align-items:start">
+    <div class="card">
+      <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:14px">Salary components</div>
+      ${[['basic','Basic salary'],['hra','HRA'],['special','Special allowance']].map(([k,lbl])=>`
+      <div class="slider-row">
+        <span class="slider-label">${lbl}</span>
+        <input type="range" min="0" max="80" step="1" value="${cfg[k]}" oninput="updatePayroll('${k}',this.value)">
+        <span class="slider-pct" id="pct-${k}">${cfg[k]}%</span>
+      </div>`).join('')}
+      <div style="background:var(--surf2);border-radius:var(--rad);padding:10px 12px;font-size:13px;color:var(--ink2)">
+        Remaining <strong id="rem-pct">${rem}%</strong> = other allowances
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:12px">Statutory deductions</div>
+        ${[['pf','Provident fund (PF)','12% employee + 12% employer'],['esi','ESIC','0.75% employee + 3.25% employer'],['pt','Professional tax','State-specific slab']].map(([k,n,dsc])=>`
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;cursor:pointer" onclick="toggleDeduction('${k}')">
+          <div class="cb-box ${cfg[k]?'on':''}">${cfg[k]?'<i class="ti ti-check" aria-hidden="true"></i>':''}</div>
+          <div><div style="font-size:13px;font-weight:500;color:var(--ink)">${n}</div><div style="font-size:11px;color:var(--ink3)">${dsc}</div></div>
+        </div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="field"><label>Pay day</label><select onchange="updatePayroll('payDay',this.value)"><option value="last" ${cfg.payDay==='last'?'selected':''}>Last day of month</option><option value="1" ${cfg.payDay==='1'?'selected':''}>1st of next month</option><option value="5" ${cfg.payDay==='5'?'selected':''}>5th of next month</option></select></div>
+        <div class="field"><label>Salary mode</label><select onchange="updatePayroll('salaryMode',this.value)"><option value="monthly" ${cfg.salaryMode==='monthly'?'selected':''}>Monthly</option><option value="weekly" ${cfg.salaryMode==='weekly'?'selected':''}>Weekly</option><option value="biweekly" ${cfg.salaryMode==='biweekly'?'selected':''}>Bi-weekly</option></select></div>
+      </div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+    <button class="btn btn-pur" onclick="next()">Next <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>`;
+}
+
+function updatePayroll(k,val){ STATE.data.payrollCfg[k]=val; renderUnitPayroll(); }
+function toggleDeduction(k){ STATE.data.payrollCfg[k]=!STATE.data.payrollCfg[k]; renderUnitPayroll(); }
+
+function renderUnitWorkingDays(){
+  const d=STATE.data;
+  const working=d.workingDays||['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const shift=d.shift||{start:'09:00',end:'18:00',grace:'15'};
+  const wfh=d.wfh||{enabled:true,daysPerWeek:'2'};
+  const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  STATE.data.workingDays=working; STATE.data.shift=shift; STATE.data.wfh=wfh;
+  v('step-content').innerHTML=`
+  <div class="step-tag tag-pur">Step 5 of 5</div>
+  <h1 class="step-title">Working days & shift</h1>
+  <p class="step-sub">This drives attendance marking, overtime calculation, and WFH eligibility.</p>
+  <div class="card" style="margin-bottom:12px">
+    <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:12px">Working days</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${DAYS.map(d=>`<button class="day-btn ${working.includes(d)?'on':''}" onclick="toggleDay('${d}')">${d.slice(0,3)}</button>`).join('')}
+    </div>
+    <p style="font-size:12px;color:var(--ink3);margin-top:10px">${working.length} days selected per week</p>
+  </div>
+  <div class="grid2" style="margin-bottom:12px">
+    <div class="card">
+      <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:12px">Shift timings</div>
+      <div class="grid2">
+        <div class="field"><label>Start time</label><input type="time" id="shift-start" value="${shift.start}" onchange="updateShift('start',this.value)"></div>
+        <div class="field"><label>End time</label><input type="time" id="shift-end" value="${shift.end}" onchange="updateShift('end',this.value)"></div>
+      </div>
+      <div class="field"><label>Late grace period (minutes)</label><input id="shift-grace" placeholder="15" value="${shift.grace}" oninput="updateShift('grace',this.value)"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:500;color:var(--ink);margin-bottom:12px">WFH policy</div>
+      <div class="toggle-wrap" onclick="toggleWFH()">
+        <div class="toggle ${wfh.enabled?'on':''}"><div class="toggle-knob"></div></div>
+        <span class="toggle-label">WFH allowed</span>
+      </div>
+      ${wfh.enabled?`<div class="field"><label>Max WFH days per week</label><select onchange="updateWFH('daysPerWeek',this.value)">${['1','2','3','4','5'].map(x=>`<option ${wfh.daysPerWeek===x?'selected':''}>${x} days</option>`).join('')}</select></div>`:''}
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn" onclick="back()"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</button>
+    <button class="btn btn-pur" onclick="next()">Complete setup <i class="ti ti-check" aria-hidden="true"></i></button>
+  </div>`;
+}
+
+function toggleDay(d){ const w=STATE.data.workingDays; STATE.data.workingDays=w.includes(d)?w.filter(x=>x!==d):[...w,d]; renderUnitWorkingDays(); }
+function updateShift(k,val){ STATE.data.shift[k]=val; }
+function toggleWFH(){ STATE.data.wfh.enabled=!STATE.data.wfh.enabled; renderUnitWorkingDays(); }
+function updateWFH(k,val){ STATE.data.wfh[k]=val; }
+
+function renderUnitDone(){
+  v('step-content').innerHTML=`<div class="done-wrap">
+    <div class="done-icon">тЬЕ</div>
+    <h1 class="done-title">Unit is fully configured!</h1>
+    <p class="done-sub">Leave policies, payroll structure and working hours are saved. Your unit is now ready to onboard employees.</p>
+    <div class="info-box info-green" style="max-width:400px;margin:0 auto 1.5rem;text-align:left">
+      <strong>HRMS is live for your unit</strong><br>
+      ${['Add employees and assign to departments','Run your first attendance cycle','Process month-end payroll','Approve leave requests'].map(t=>`<div style="display:flex;gap:8px;margin-top:6px;font-size:13px"><i class="ti ti-arrow-right" style="font-size:13px;margin-top:2px;flex-shrink:0" aria-hidden="true"></i><span>${t}</span></div>`).join('')}
+    </div>
+    <button class="btn btn-primary" onclick="switchFlow('super')">Back to Super Admin flow <i class="ti ti-refresh" aria-hidden="true"></i></button>
+  </div>`;
+}
+
+// тФАтФАтФА Flow router тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+const RENDERS = {
+  super:  [renderStepPlan, renderStepModules, renderStepBilling, renderStepOrg, renderStepTenants, renderSuperDone],
+  tenant: [renderTenantWelcome, renderTenantLOB, renderTenantUnits, renderTenantDone],
+  unit:   [renderUnitWelcome, renderUnitCompany, renderUnitLeave, renderUnitPayroll, renderUnitWorkingDays, renderUnitDone],
+};
+
+function render(){
+  renderProgress();
+  const fn=RENDERS[STATE.flow][STATE.step];
+  if(fn) fn();
+}
+
+function next(){ STATE.step=Math.min(STATE.step+1, RENDERS[STATE.flow].length-1); render(); }
+function back(){ STATE.step=Math.max(STATE.step-1, 0); render(); }
+
+function switchFlow(f){
+  STATE.flow=f; STATE.step=0; STATE.data={};
+  ['super','tenant','unit'].forEach(fl=>{
+    const tab=v(`tab-${fl}`);
+    tab.className='flow-tab'+(fl===f?` active-${fl}`:'');
+  });
+  render();
+}
+
+render();
+</script>

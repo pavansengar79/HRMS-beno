@@ -304,7 +304,7 @@ const AttendanceDrawer = ({ open, toggle, roleSlug, onSuccess }) => {
         setTimeout(() => setPunchSuccess(false), 2500)
       }
     } catch (err) {
-      toast.error(err|| 'Punch-in failed')
+      toast.error(typeof err === 'string' ? err : err?.message || 'Punch-in failed')
     } finally {
       setSubmitting(false)
       setPunchAction(null)
@@ -333,7 +333,7 @@ const AttendanceDrawer = ({ open, toggle, roleSlug, onSuccess }) => {
         setTimeout(() => setPunchSuccess(false), 2500)
       }
     } catch (err) {
-      toast.error(err || 'Punch-out failed')
+      toast.error(typeof err === 'string' ? err : err?.message || 'Punch-out failed')
     } finally {
       setSubmitting(false)
       setPunchAction(null)

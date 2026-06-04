@@ -8,6 +8,7 @@ import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 import FormHelperText from '@mui/material/FormHelperText'
 import Chip from '@mui/material/Chip'
+import Alert from '@mui/material/Alert'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
@@ -16,7 +17,6 @@ import Icon from 'src/@core/components/icon'
 import { useDropzone } from 'react-dropzone'
 
 // ─── Single File Dropzone ─────────────────────
-// Same UI as the FileUploaderSingle you provided
 const FileUploaderSingle = ({ value, onChange, accept, hint }) => {
   const acceptedTypes = accept || {
     'application/pdf': ['.pdf'],
@@ -25,9 +25,7 @@ const FileUploaderSingle = ({ value, onChange, accept, hint }) => {
 
   const onDrop = useCallback(
     acceptedFiles => {
-      if (acceptedFiles.length > 0) {
-        onChange(acceptedFiles[0])
-      }
+      if (acceptedFiles.length > 0) onChange(acceptedFiles[0])
     },
     [onChange]
   )
@@ -70,8 +68,7 @@ const FileUploaderSingle = ({ value, onChange, accept, hint }) => {
                 borderRadius: 1,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: theme =>
-                  `rgba(${theme.palette.customColors.main}, 0.08)`
+                backgroundColor: theme => `rgba(${theme.palette.customColors.main}, 0.08)`
               }}
             >
               <Icon icon='tabler:file-text' fontSize='1.75rem' />
@@ -88,13 +85,7 @@ const FileUploaderSingle = ({ value, onChange, accept, hint }) => {
               {(value.size / 1024).toFixed(1)} KB
             </Typography>
           </Box>
-          <Button
-            size='small'
-            color='error'
-            variant='tonal'
-            onClick={handleRemove}
-            sx={{ minWidth: 'auto', px: 2 }}
-          >
+          <Button size='small' color='error' variant='tonal' onClick={handleRemove} sx={{ minWidth: 'auto', px: 2 }}>
             <Icon icon='tabler:x' fontSize='1rem' />
           </Button>
         </Box>
@@ -109,8 +100,7 @@ const FileUploaderSingle = ({ value, onChange, accept, hint }) => {
               borderRadius: 1,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: theme =>
-                `rgba(${theme.palette.customColors.main}, 0.08)`
+              backgroundColor: theme => `rgba(${theme.palette.customColors.main}, 0.08)`
             }}
           >
             <Icon icon='tabler:upload' fontSize='1.75rem' />
@@ -118,9 +108,7 @@ const FileUploaderSingle = ({ value, onChange, accept, hint }) => {
           <Typography variant='p' sx={{ mb: 2.5 }}>
             Drop files here or click to upload.
           </Typography>
-          {hint && (
-            <Typography sx={{ color: 'text.secondary' }}>{hint}</Typography>
-          )}
+          {hint && <Typography sx={{ color: 'text.secondary' }}>{hint}</Typography>}
         </Box>
       )}
     </Box>
@@ -130,9 +118,7 @@ const FileUploaderSingle = ({ value, onChange, accept, hint }) => {
 // ─── Multi File Dropzone ──────────────────────
 const FileUploaderMultiple = ({ value = [], onChange }) => {
   const onDrop = useCallback(
-    acceptedFiles => {
-      onChange([...value, ...acceptedFiles])
-    },
+    acceptedFiles => onChange([...value, ...acceptedFiles]),
     [value, onChange]
   )
 
@@ -157,18 +143,13 @@ const FileUploaderMultiple = ({ value = [], onChange }) => {
               borderRadius: 1,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: theme =>
-                `rgba(${theme.palette.customColors.main}, 0.08)`
+              backgroundColor: theme => `rgba(${theme.palette.customColors.main}, 0.08)`
             }}
           >
             <Icon icon='tabler:upload' fontSize='1.75rem' />
           </Box>
-          <Typography variant='p' sx={{ mb: 2.5 }}>
-            Drop files here or click to upload.
-          </Typography>
-          <Typography sx={{ color: 'text.secondary' }}>
-            Multiple files allowed (PDF, JPG, PNG)
-          </Typography>
+          <Typography variant='p' sx={{ mb: 2.5 }}>Drop files here or click to upload.</Typography>
+          <Typography sx={{ color: 'text.secondary' }}>Multiple files allowed (PDF, JPG, PNG)</Typography>
         </Box>
       </Box>
       {value.length > 0 && (
@@ -190,7 +171,9 @@ const FileUploaderMultiple = ({ value = [], onChange }) => {
 }
 
 // ─── Component ───────────────────────────────
-const StepDocuments = ({ handleNext, handlePrev }) => {
+const StepAccountDetails = ({ handleNext, handlePrev, formData, plan }) => {
+  const isEnterprise = plan === 'enterprise'
+
   const [files, setFiles] = useState({
     regCertificate: null,
     gstCertificate: null,
@@ -203,26 +186,10 @@ const StepDocuments = ({ handleNext, handlePrev }) => {
   const [errors, setErrors] = useState({})
 
   const requiredDocs = [
-    {
-      key: 'regCertificate',
-      label: 'Company Registration Certificate',
-      hint: 'PDF or image, max 5MB'
-    },
-    {
-      key: 'gstCertificate',
-      label: 'GST / Tax Certificate',
-      hint: 'PDF or image, max 5MB'
-    },
-    {
-      key: 'panCard',
-      label: 'PAN Card / Business ID',
-      hint: 'PDF or image, max 5MB'
-    },
-    {
-      key: 'addressProof',
-      label: 'Address Proof',
-      hint: 'Utility bill, bank statement, etc.'
-    }
+    { key: 'regCertificate', label: 'Company Registration Certificate', hint: 'PDF or image, max 5MB' },
+    { key: 'gstCertificate', label: 'GST / Tax Certificate', hint: 'PDF or image, max 5MB' },
+    { key: 'panCard', label: 'PAN Card / Business ID', hint: 'PDF or image, max 5MB' },
+    { key: 'addressProof', label: 'Address Proof', hint: 'Utility bill, bank statement, etc.' }
   ]
 
   const handleFileChange = (key, file) => {
@@ -249,14 +216,24 @@ const StepDocuments = ({ handleNext, handlePrev }) => {
         <Typography variant='h3' sx={{ mb: 1.5 }}>
           Company Documents
         </Typography>
-        <Typography sx={{ color: 'text.secondary' }}>Upload your documents for verification</Typography>
+        <Typography sx={{ color: 'text.secondary' }}>
+          Upload your documents for verification
+          {isEnterprise && ' — required for Enterprise onboarding approval'}
+        </Typography>
       </Box>
 
-      
+      {isEnterprise && (
+        <Alert
+          severity='info'
+          icon={<Icon icon='tabler:building-skyscraper' />}
+          sx={{ mb: 5, borderRadius: 2 }}
+        >
+          As an <strong>Enterprise customer</strong>, your documents will be reviewed by our team before your account is activated. This typically takes 1–2 business days.
+        </Alert>
+      )}
 
       <Grid container spacing={5}>
 
-        {/* Required Documents */}
         {requiredDocs.map(doc => (
           <Grid item xs={12} sm={6} key={doc.key}>
             <Typography variant='body2' sx={{ mb: 1.5, fontWeight: 500 }}>
@@ -268,14 +245,11 @@ const StepDocuments = ({ handleNext, handlePrev }) => {
               onChange={file => handleFileChange(doc.key, file)}
             />
             {errors[doc.key] && (
-              <FormHelperText error sx={{ mt: 1 }}>
-                {errors[doc.key]}
-              </FormHelperText>
+              <FormHelperText error sx={{ mt: 1 }}>{errors[doc.key]}</FormHelperText>
             )}
           </Grid>
         ))}
 
-        {/* Company Logo */}
         <Grid item xs={12} sm={6}>
           <Typography variant='body2' sx={{ mb: 1.5, fontWeight: 500 }}>
             Company Logo (Optional)
@@ -288,20 +262,17 @@ const StepDocuments = ({ handleNext, handlePrev }) => {
           />
         </Grid>
 
-        {/* Additional Documents */}
         <Grid item xs={12}>
           <Typography variant='body2' sx={{ mb: 1.5, fontWeight: 500 }}>
             Additional Documents (Optional)
           </Typography>
           <FileUploaderMultiple
             value={files.additionalDocs}
-            onChange={updatedFiles =>
-              setFiles(prev => ({ ...prev, additionalDocs: updatedFiles }))
-            }
+            onChange={updatedFiles => setFiles(prev => ({ ...prev, additionalDocs: updatedFiles }))}
           />
         </Grid>
 
-        {/* Navigation — same layout as original */}
+        {/* Navigation */}
         <Grid item xs={12} sx={{ pt: theme => `${theme.spacing(6)} !important` }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Button color='secondary' variant='tonal' onClick={handlePrev} sx={{ '& svg': { mr: 2 } }}>
@@ -313,7 +284,6 @@ const StepDocuments = ({ handleNext, handlePrev }) => {
               <Icon fontSize='1.125rem' icon='tabler:arrow-right' />
             </Button>
           </Box>
-
         </Grid>
 
       </Grid>
@@ -321,4 +291,4 @@ const StepDocuments = ({ handleNext, handlePrev }) => {
   )
 }
 
-export default StepDocuments
+export default StepAccountDetails

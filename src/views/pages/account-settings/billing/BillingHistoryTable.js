@@ -25,7 +25,7 @@ import format from 'date-fns/format'
 
 // ** Store & Actions Imports
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchData, deleteInvoice } from 'src/store/apps/invoice'
+// import { fetchData, deleteInvoice } from 'src/store/apps/invoice'
 
 // ** Utils Import
 import { getInitials } from 'src/@core/utils/get-initials'

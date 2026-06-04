@@ -245,128 +245,26 @@ const ConfirmDeleteDialog = ({ open, deptName, onConfirm, onCancel, deleting }) 
 // Department Page
 // ---------------------------------------------------------------------------
 const DepartmentPage = () => {
-  const theme = useTheme()
+  const permissions = useSelector(selectPermissions)
+  const canCreate   = permissions.includes('department.create')
 
-  // ---------------------------------------------------------------------------
-  // Permissions — read the flat array from authSlice directly
-  //
-  // authSlice stores: state.auth.permissions = ["department.create", "department.update", ...]
-  // selectPermissions selector: state => state.auth.permissions
-  //
-  // This is the O(1) flat lookup structure — use .includes() for each check
-  // ---------------------------------------------------------------------------
-  const permissions = useSelector(selectPermissions)   // ["department.create", "department.update", ...]
-
-  const canCreate = permissions.includes('department.create')
-  const canEdit   = permissions.includes('department.update')
-  const canDelete = permissions.includes('department.delete')
-
-  // ---------------------------------------------------------------------------
-  // State
-  // ---------------------------------------------------------------------------
-  const [departments, setDepartments]   = useState([])
-  const [loading, setLoading]           = useState(true)
-  const [activeTab, setActiveTab]       = useState('')
-
-  // Drawer — shared for Add + Edit
-  const [drawerOpen, setDrawerOpen]     = useState(false)
-  const [editingDept, setEditingDept]   = useState(null)   // null = Add, object = Edit
-
-  // Delete confirm
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleting, setDeleting]         = useState(false)
-
-  // ---------------------------------------------------------------------------
-  // Fetch departments
-  // ---------------------------------------------------------------------------
-  const fetchDepartments = useCallback(async () => {
-    try {
-      setLoading(true)
-      const res = await axiosRequest.get('/api/v1/departments')
-      if (res?.success && Array.isArray(res.data)) {
-        const seen   = new Set()
-        const unique = res.data.filter(d => {
-          if (seen.has(d.name)) return false
-          seen.add(d.name)
-          return true
-        })
-        setDepartments(unique)
-        if (unique.length > 0) setActiveTab(unique[0]._id)
-      }
-    } catch (err) {
-      console.error('Failed to fetch departments:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchDepartments()
-  }, [fetchDepartments])
-
-  // ---------------------------------------------------------------------------
-  // Handlers
-  // ---------------------------------------------------------------------------
-  const handleTabChange = (_, newVal) => {
-    if (newVal !== 'add') setActiveTab(newVal)
-  }
-
-  const openAddDrawer = () => {
-    setEditingDept(null)
-    setDrawerOpen(true)
-  }
-
-  const openEditDrawer = dept => {
-    setEditingDept(dept)
-    setDrawerOpen(true)
-  }
-
-  const closeDrawer = () => {
-    setDrawerOpen(false)
-    setEditingDept(null)
-  }
-
-  const handleDrawerSuccess = useCallback(() => fetchDepartments(), [fetchDepartments])
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return
-    try {
-      setDeleting(true)
-      const res = await axiosRequest.delete(`/api/v1/departments/${deleteTarget._id}`)
-      if (res?.success) {
-        if (activeTab === deleteTarget._id) setActiveTab('')
-        setDeleteTarget(null)
-        fetchDepartments()
-      } else {
-        const { default: toast } = await import('react-hot-toast')
-        toast.error(res?.message || 'Failed to delete department')
-      }
-    } catch (err) {
-      const { default: toast } = await import('react-hot-toast')
-      toast.error(typeof err === 'string' ? err : 'Something went wrong')
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Loading state
-  // ---------------------------------------------------------------------------
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
-        <CircularProgress />
-      </Box>
-    )
-  }
+  const [drawerOpen,  setDrawerOpen]  = useState(false)
+  const [refreshKey,  setRefreshKey]  = useState(0)
 
   return (
     <>
-    <Card>
- <TreeViewCustomized />
-    </Card>
-      
-     
+      <TreeViewCustomized
+        onAddRoot={canCreate ? () => setDrawerOpen(true) : undefined}
+        refreshKey={refreshKey}
+      />
+
+      {/* Drawer — opens when "Add Department" button is clicked from the tree view */}
+      <AddDepartmentDrawer
+        open={drawerOpen}
+        toggle={() => setDrawerOpen(false)}
+        onSuccess={() => setRefreshKey(k => k + 1)}
+        editingDept={null}
+      />
     </>
   )
 }

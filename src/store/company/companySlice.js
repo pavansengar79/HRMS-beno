@@ -1,139 +1,66 @@
-// src/store/company/companySlice.js
-
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import axios from 'axios'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
-const BASE = `/api/v1/super-admin/tenants`
+const BASE = '/api/v1/companies'
 
-// ─── Thunks ───────────────────────────────────────────────────────────────────
+export const fetchAllCompanies = createAsyncThunk('company/fetchAll', async (params = {}, { rejectWithValue }) => {
+  try {
+    const q = new URLSearchParams(params).toString()
+    const res = await axiosRequest.get(`${BASE}${q ? '?' + q : ''}`)
+    return res.companies || res.data || []
+  } catch (err) { return rejectWithValue(err?.message || 'Failed') }
+})
 
-export const fetchAllCompanies = createAsyncThunk(
-  'company/fetchAll',
-  async (_, { rejectWithValue }) => {
-    try {
-      const res = await axiosRequest.get(`${BASE}?limit=100`) // Adjust limit as needed
-      return res.data // array of tenants
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch companies')
-    }
-  }
-)
+export const fetchCompanyById = createAsyncThunk('company/fetchById', async (id, { rejectWithValue }) => {
+  try { const res = await axiosRequest.get(`${BASE}/${id}`); return res.data }
+  catch (err) { return rejectWithValue(err?.message || 'Failed') }
+})
 
-export const fetchCompanyById = createAsyncThunk(
-  'company/fetchById',
-  async (id, { rejectWithValue }) => {
-    try {
-      const res = await axiosRequest.get(`${BASE}/${id}`)
-      return res.data // single tenant detail object
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to fetch company')
-    }
+export const createCompany = createAsyncThunk('company/create', async (payload, { rejectWithValue }) => {
+  try { const res = await axiosRequest.post(BASE, payload); return res.data }
+  catch (err) { return rejectWithValue(err?.message || 'Failed') }
+})
 
-  }
-)
+export const updateCompany = createAsyncThunk('company/update', async ({ id, payload }, { rejectWithValue }) => {
+  try { const res = await axiosRequest.put(`${BASE}/${id}`, payload); return res.data }
+  catch (err) { return rejectWithValue(err?.message || 'Failed') }
+})
 
-
-
-export const deleteCompany = createAsyncThunk(
-  'company/delete',
-  async (id, { rejectWithValue }) => {
-    try {
-      await axiosRequest.delete(`${BASE}/${id}`)
-      return id
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to delete company')
-    }
-  }
-)
-
-export const updateCompany = createAsyncThunk(
-  'company/update',
-  async ({ id, payload }, { rejectWithValue }) => {
-    try {
-      const res = await axiosRequest.put(`${BASE}/${id}`, payload)
-      return res.data
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to update company')
-    }
-  }
-)
-
-// ─── Slice ────────────────────────────────────────────────────────────────────
+export const deleteCompany = createAsyncThunk('company/delete', async (id, { rejectWithValue }) => {
+  try { await axiosRequest.delete(`${BASE}/${id}`); return id }
+  catch (err) { return rejectWithValue(err?.message || 'Failed') }
+})
 
 const companySlice = createSlice({
   name: 'company',
-  initialState: {
-    list:            [],
-    total:           0,
-    selectedCompany: null,
-    loading:         false,
-    detailLoading:   false,
-    error:           null,
-  },
-  reducers: {
-    clearSelectedCompany: state => {
-      state.selectedCompany = null
-      state.error           = null
-    }
-  },
+  initialState: { list: [], total: 0, selectedCompany: null, loading: false, detailLoading: false, error: null },
+  reducers: { clearSelectedCompany: state => { state.selectedCompany = null; state.error = null } },
   extraReducers: builder => {
-    // ── fetchAllCompanies ──────────────────────────────────────────────────
     builder
-      .addCase(fetchAllCompanies.pending, state => {
-        state.loading = true
-        state.error   = null
+      .addCase(fetchAllCompanies.pending, s => { s.loading = true; s.error = null })
+      .addCase(fetchAllCompanies.fulfilled, (s, { payload }) => { s.loading = false; s.list = Array.isArray(payload) ? payload : []; s.total = s.list.length })
+      .addCase(fetchAllCompanies.rejected, (s, { payload }) => { s.loading = false; s.error = payload })
+      .addCase(fetchCompanyById.pending, s => { s.detailLoading = true })
+      .addCase(fetchCompanyById.fulfilled, (s, { payload }) => { s.detailLoading = false; s.selectedCompany = payload })
+      .addCase(fetchCompanyById.rejected, (s, { payload }) => { s.detailLoading = false; s.error = payload })
+      .addCase(createCompany.fulfilled, (s, { payload }) => {
+        const c = payload?.company || payload
+        if (c?._id) { s.list = [c, ...s.list]; s.total++ }
       })
-      .addCase(fetchAllCompanies.fulfilled, (state, { payload }) => {
-        state.loading = false
-        state.list    = payload
-        state.total   = payload.length
-      })
-      .addCase(fetchAllCompanies.rejected, (state, { payload }) => {
-        state.loading = false
-        state.error   = payload
-      })
-
-    // ── fetchCompanyById ───────────────────────────────────────────────────
-    builder
-      .addCase(fetchCompanyById.pending, state => {
-        state.detailLoading   = true
-        state.selectedCompany = null
-        state.error           = null
-      })
-      .addCase(fetchCompanyById.fulfilled, (state, { payload }) => {
-        state.detailLoading   = false
-        state.selectedCompany = payload
-      })
-      .addCase(fetchCompanyById.rejected, (state, { payload }) => {
-        state.detailLoading = false
-        state.error         = payload
-      })
-
-    // ── deleteCompany ──────────────────────────────────────────────────────
-    builder
-      .addCase(deleteCompany.fulfilled, (state, { payload: id }) => {
-        state.list  = state.list.filter(c => c._id !== id && c.id !== id)
-        state.total = state.list.length
-      })
-
-    // ── updateCompany ──────────────────────────────────────────────────────
-    builder
-      .addCase(updateCompany.fulfilled, (state, { payload }) => {
-        const idx = state.list.findIndex(c => c._id === payload._id || c.id === payload.id)
-        if (idx !== -1) state.list[idx] = payload
-        if (state.selectedCompany) state.selectedCompany = payload
+      .addCase(deleteCompany.fulfilled, (s, { payload: id }) => { s.list = s.list.filter(c => c._id !== id); s.total-- })
+      .addCase(updateCompany.fulfilled, (s, { payload }) => {
+        const idx = s.list.findIndex(c => c._id === payload?._id)
+        if (idx !== -1) s.list[idx] = payload
+        if (s.selectedCompany) s.selectedCompany = payload
       })
   }
 })
 
 export const { clearSelectedCompany } = companySlice.actions
 export default companySlice.reducer
-
-// ─── Selectors ────────────────────────────────────────────────────────────────
-export const selectAllCompanies      = state => state.company.list
-export const selectCompanyTotal      = state => state.company.total
-export const selectCompanyLoading    = state => state.company.loading
-export const selectSelectedCompany   = state => state.company.selectedCompany
-export const selectCompanyDetailLoading = state => state.company.detailLoading
-export const selectCompanyError      = state => state.company.error
+export const selectAllCompanies         = s => s.company.list
+export const selectCompanyTotal         = s => s.company.total
+export const selectCompanyLoading       = s => s.company.loading
+export const selectSelectedCompany      = s => s.company.selectedCompany
+export const selectCompanyDetailLoading = s => s.company.detailLoading
+export const selectCompanyError         = s => s.company.error

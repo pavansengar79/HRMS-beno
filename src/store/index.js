@@ -12,6 +12,9 @@ import holidayReducer from './holiday/holidaySlice' // ✅ import your holiday r
 
 // ** App reducers (used across many pages via useSelector(state => state.<key>))
 import calendarReducer from './calendar/leaveSlice'
+import adminUsersReducer from './adminUsers/adminUsersSlice'
+import unitReducer from './unit/unitSlice'
+import lobReducer from './lob/lobSlice'
 // import chatReducer from './apps/chat'
 // import couponReducer from './apps/coupon'
 // import disabledReducer from './apps/disabled'
@@ -70,6 +73,9 @@ const store = configureStore({
     leaves: leaveReducer, // ✅ add your leave reducer here
     holiday: holidayReducer,
     calendar: calendarReducer,
+    adminUsers: adminUsersReducer,
+    unit: unitReducer,
+    lob: lobReducer,
     // apps
 
 

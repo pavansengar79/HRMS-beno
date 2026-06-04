@@ -331,7 +331,9 @@ const DeptRow = ({
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-const DepartmentTreePage = () => {
+// onAddRoot  — optional: called instead of opening internal dialog for root-level creation
+// refreshKey — optional: increment this from the parent to trigger a re-fetch
+const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
   const permissions = useSelector(selectPermissions)
   const canCreate = permissions.includes('department.create')
   const canEdit = permissions.includes('department.update')
@@ -368,6 +370,9 @@ const DepartmentTreePage = () => {
   }, [])
 
   useEffect(() => { fetchTree() }, [fetchTree])
+
+  // Re-fetch whenever parent increments refreshKey (e.g. after external create)
+  useEffect(() => { if (refreshKey > 0) fetchTree() }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Expand / collapse ──────────────────────────────────────────────────────
   const toggleExpand = id =>
@@ -412,7 +417,7 @@ const DepartmentTreePage = () => {
         const payload = { name, description: description || undefined }
         if (parentId) payload.parentId = parentId
 
-        await axiosRequest.post('/api/v1/departments', payload)
+        await axiosRequest.post('/api/v1/departments/create', payload)
         toast.success(`"${name}" created`)
         if (parentId)
           setExpandedIds(prev => { const n = new Set(prev); n.add(parentId); return n })
@@ -435,7 +440,7 @@ const DepartmentTreePage = () => {
       fetchTree()
     } catch (e) {
       console.log("data", e)
-      toast.error(e || e.response?.data?.message || 'Delete failed')
+      toast.error(typeof e === 'string' ? e : e?.message || e?.response?.data?.message || 'Delete failed')
 
       setDelDialog(d => ({ ...d, loading: false, open: false }))
     }
@@ -533,7 +538,7 @@ const DepartmentTreePage = () => {
             <Button
               variant='contained' size='small'
               startIcon={<Icon icon='tabler:plus' />}
-              onClick={() => handleOpenAdd(null, '')}
+              onClick={() => onAddRoot ? onAddRoot() : handleOpenAdd(null, '')}
             >
               Add Department
             </Button>
