@@ -18,6 +18,10 @@ import {
   selectSelectedCompany,
   selectCompanyDetailLoading
 } from 'src/store/company/companySlice'
+import {
+  setSelectedCompany,
+  clearHierarchySelection,
+} from 'src/store/hierarchy/hierarchySlice'
 import CompanyViewLeft from '../../view/CompanyViewLeft'
 import CompanyViewRight from '../../view/CompanyViewRight'
 
@@ -37,10 +41,14 @@ const CompanyDetails = () => {
   useEffect(() => {
     if (id) {
       dispatch(fetchCompanyById(id))
+      // Scope the sidebar to this company
+      dispatch(setSelectedCompany(id))
     }
 
     return () => {
       dispatch(clearSelectedCompany())
+      // Clear sidebar scope when leaving company detail
+      dispatch(clearHierarchySelection())
     }
   }, [id, dispatch])
 

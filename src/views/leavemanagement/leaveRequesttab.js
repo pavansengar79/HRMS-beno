@@ -279,7 +279,7 @@ const TabLeaveRequests = () => {
 
   const handleConfirm = async (comment) => {
     try {
-      await dispatch(updateLeaveStatus({ id: selectedId, status: dialogAction, comment })).unwrap()
+      await dispatch(updateLeaveStatus({ id: selectedId, status: dialogAction, remarks: comment })).unwrap()
       toast.success(`Leave ${dialogAction === 'APPROVED' ? 'approved' : 'rejected'} successfully`)
       setDialogOpen(false)
       loadLeaves()

@@ -105,9 +105,9 @@ const HolidayDrawer = ({ open, onClose, editData, onSuccess }) => {
       let res
 
       if (isEdit) {
-        res = await axiosRequest.put(`api/v1/holidays/${editData._id}`, payload)
+        res = await axiosRequest.put(`/api/v1/holidays/${editData._id}`, payload)
       } else {
-        res = await axiosRequest.post('api/v1/holidays', payload)
+        res = await axiosRequest.post('/api/v1/holidays', payload)
       }
 
       if (res?.data?.success) {
@@ -315,7 +315,7 @@ const TabHolidayCalendar = () => {
 
     try {
       const res = await axiosRequest.get(
-        `api/v1/holidays?year=${selectedYear}`
+        `/api/v1/holidays?year=${selectedYear}`
       )
 
       console.log('Holiday fetch response:', res.data)
@@ -357,7 +357,7 @@ const TabHolidayCalendar = () => {
     try {
       const id = deleteModal?.data?._id
 
-      const res = await axiosRequest.delete(`api/v1/holidays/${id}`)
+      const res = await axiosRequest.delete(`/api/v1/holidays/${id}`)
 
       if (res?.data?.success) {
         setHolidays(prev => prev.filter(item => item._id !== id))
@@ -505,7 +505,7 @@ const TabHolidayCalendar = () => {
                               onClick={async () => {
                                 try {
                                   const res = await axiosRequest.get(
-                                    `api/v1/holidays/${row._id}`
+                                    `/api/v1/holidays/${row._id}`
                                   )
 
                                   if (res?.data?.success) {

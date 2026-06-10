@@ -13,6 +13,7 @@ import Menu from '@mui/material/Menu'
 import Icon from 'src/@core/components/icon'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchAllCompanies, deleteCompany, selectAllCompanies, selectCompanyLoading } from 'src/store/company/companySlice'
+import { clearHierarchySelection } from 'src/store/hierarchy/hierarchySlice'
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
@@ -85,7 +86,11 @@ const Company = () => {
   const companies = useSelector(selectAllCompanies)
   const loading   = useSelector(selectCompanyLoading)
 
-  useEffect(() => { dispatch(fetchAllCompanies()) }, [dispatch])
+  useEffect(() => {
+    dispatch(fetchAllCompanies())
+    // Clear any company/unit context so sidebar shows all companies
+    dispatch(clearHierarchySelection())
+  }, [dispatch])
 
   const filteredRows = companies.filter(row =>
     !search || row.company_name?.toLowerCase().includes(search.toLowerCase()) ||

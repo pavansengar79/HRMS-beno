@@ -9,7 +9,7 @@ export const fetchMyLeaves = createAsyncThunk(
   'leaves/fetchMyLeaves',
   async ({ page = 1, limit = 10 } = {}, { rejectWithValue }) => {
     try {
-      const res = await axiosRequest.get(`/api/v1/leave/me/requests?page=${page}&limit=${limit}`)
+      const res = await axiosRequest.get(`/api/v1/leave?page=${page}&limit=${limit}`)
       // Interceptor returns body directly: { success, message, data: { page, limit, total, data: [] } }
       return res
     } catch (err) {
@@ -49,8 +49,8 @@ export const applyLeave = createAsyncThunk(
   'leaves/applyLeave',
   async (payload, { rejectWithValue }) => {
     try {
-      // POST /leave/me/requests  (applyLeave — NOT POST /leave/ which creates a leave type)
-      const res = await axiosRequest.post('/api/v1/leave/me/requests', payload)
+      // POST /leave — apply for leave
+      const res = await axiosRequest.post('/api/v1/leave', payload)
       return res.data ?? res
     } catch (err) {
       return rejectWithValue(err?.response?.data?.message || 'Failed to apply leave')
@@ -60,9 +60,10 @@ export const applyLeave = createAsyncThunk(
 
 export const updateLeaveStatus = createAsyncThunk(
   'leaves/updateLeaveStatus',
-  async ({ id, status, comment }, { rejectWithValue }) => {
+  async ({ id, status, remarks }, { rejectWithValue }) => {
     try {
-      const res = await axiosRequest.patch(`/api/v1/leave/requests/${id}/action`, { action: status, comment })
+      // PATCH /leave/:id — status: APPROVED | REJECTED | UNDER_REVIEW
+      const res = await axiosRequest.patch(`/api/v1/leave/${id}`, { status, remarks })
       return res.data ?? res
     } catch (err) {
       return rejectWithValue(err?.response?.data?.message || 'Failed to update leave status')

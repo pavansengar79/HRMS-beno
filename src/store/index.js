@@ -15,6 +15,7 @@ import calendarReducer from './calendar/leaveSlice'
 import adminUsersReducer from './adminUsers/adminUsersSlice'
 import unitReducer from './unit/unitSlice'
 import lobReducer from './lob/lobSlice'
+import hierarchyReducer from './hierarchy/hierarchySlice'
 // import chatReducer from './apps/chat'
 // import couponReducer from './apps/coupon'
 // import disabledReducer from './apps/disabled'
@@ -76,6 +77,7 @@ const store = configureStore({
     adminUsers: adminUsersReducer,
     unit: unitReducer,
     lob: lobReducer,
+    hierarchy: hierarchyReducer,
     // apps
 
 

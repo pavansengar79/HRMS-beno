@@ -43,6 +43,14 @@ import { buildAbilityFor } from 'src/configs/acl'
 
 // ** Hooks
 import { useAuth } from 'src/hooks/useAuth'
+import { useEffect } from 'react'
+import { useDispatch } from 'react-redux'
+
+// ** Hierarchy store — rehydrate selection from localStorage
+import { initFromStorage } from 'src/store/hierarchy/hierarchySlice'
+
+// ** Hierarchy sync — updates selected context when URL query params change
+import HierarchySidebarSync from 'src/layouts/components/HierarchySidebarSync'
 
 // ** Styled Components
 import ReactHotToast from 'src/@core/styles/libs/react-hot-toast'
@@ -135,6 +143,12 @@ const AppContent = ({ Component, pageProps, getLayout, setConfig, authGuard, gue
   const auth = useAuth()
   const ability = auth.user ? buildAbilityFor(auth.user.role, aclAbilities.subject) : null
 
+  // Rehydrate selected company/unit from localStorage on app start
+  const dispatch = useDispatch()
+  useEffect(() => {
+    dispatch(initFromStorage())
+  }, [dispatch])
+
   return (
     <SettingsProvider {...(setConfig ? { pageSettings: setConfig() } : {})}>
       <SettingsConsumer>
@@ -143,6 +157,7 @@ const AppContent = ({ Component, pageProps, getLayout, setConfig, authGuard, gue
             <ThemeComponent settings={settings}>
               <AbilityContext.Provider value={ability}>
                 <Guard authGuard={authGuard} guestGuard={guestGuard}>
+                  <HierarchySidebarSync />
                   {/* Bypassed AclGuard for now */}
                   {/* <AclGuard aclAbilities={aclAbilities} guestGuard={guestGuard} authGuard={authGuard}> */}
                     {getLayout(<Component {...pageProps} />)}

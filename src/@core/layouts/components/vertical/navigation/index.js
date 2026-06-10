@@ -1,5 +1,8 @@
 // ** React Import
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
+
+// ** Next Import
+import { useRouter } from 'next/router'
 
 // ** MUI Imports
 import List from '@mui/material/List'
@@ -22,6 +25,7 @@ import themeOptions from 'src/@core/theme/ThemeOptions'
 
 // ** Util Import
 import { hexToRGBA } from 'src/@core/utils/hex-to-rgba'
+import { hasActiveChild } from 'src/@core/layouts/utils'
 
 const StyledBoxForShadow = styled(Box)(({ theme }) => ({
   top: 60,
@@ -59,6 +63,38 @@ const Navigation = props => {
   const [navHover, setNavHover] = useState(false)
   const [groupActive, setGroupActive] = useState([])
   const [currentActiveGroup, setCurrentActiveGroup] = useState([])
+
+  // ** Router — needed for route-based sidebar restoration
+  const router = useRouter()
+
+  // When nav items change (e.g. after hierarchy data loads on page refresh),
+  // compute which groups should be open based on the current URL and reopen them.
+  // This makes the sidebar hierarchy stable after a hard refresh.
+  useEffect(() => {
+    const navItems = props.verticalNavItems
+    if (!navItems || !router.asPath) return
+
+    const computeOpenGroups = (items, url, acc = []) => {
+      items.forEach(item => {
+        if (item.children && hasActiveChild(item, url)) {
+          acc.push(item.title)
+          computeOpenGroups(item.children, url, acc)
+        }
+      })
+      return acc
+    }
+
+    const openGroups = computeOpenGroups(navItems, router.asPath)
+    if (openGroups.length > 0) {
+      setGroupActive(prev => {
+        // Merge with any already-open groups (e.g. user manually opened something)
+        const merged = [...new Set([...prev, ...openGroups])]
+        return merged
+      })
+      setCurrentActiveGroup(openGroups)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.verticalNavItems])
 
   // ** Ref
   const shadowRef = useRef(null)

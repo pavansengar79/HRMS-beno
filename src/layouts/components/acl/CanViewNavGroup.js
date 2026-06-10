@@ -5,35 +5,29 @@ import { useContext } from 'react'
 import { AbilityContext } from 'src/layouts/components/acl/Can'
 
 const CanViewNavGroup = props => {
-  // ** Props
   const { children, navGroup } = props
-
-  // ** Hook
   const ability = useContext(AbilityContext)
+
+  // auth: false → always show (our dynamic hierarchy items all use this)
+  if (navGroup && navGroup.auth === false) {
+    return <>{children}</>
+  }
 
   const checkForVisibleChild = arr => {
     return arr.some(i => {
-      if (i.children) {
-        return checkForVisibleChild(i.children)
-      } else {
-        return ability?.can(i.action, i.subject)
-      }
+      if (i.auth === false) return true
+      if (i.children) return checkForVisibleChild(i.children)
+      return ability?.can(i.action, i.subject)
     })
   }
 
   const canViewMenuGroup = item => {
     const hasAnyVisibleChild = item.children && checkForVisibleChild(item.children)
-    if (!(item.action && item.subject)) {
-      return hasAnyVisibleChild
-    }
-
+    if (!(item.action && item.subject)) return hasAnyVisibleChild
     return ability && ability.can(item.action, item.subject) && hasAnyVisibleChild
   }
-  if (navGroup && navGroup.auth === false) {
-    return <>{children}</>
-  } else {
-    return navGroup && canViewMenuGroup(navGroup) ? <>{children}</> : null
-  }
+
+  return navGroup && canViewMenuGroup(navGroup) ? <>{children}</> : null
 }
 
 export default CanViewNavGroup

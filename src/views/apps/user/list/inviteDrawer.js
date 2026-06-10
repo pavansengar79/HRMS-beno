@@ -52,7 +52,7 @@ const InviteDrawer = ({ open, onClose, onSuccess }) => {
       try {
         const [rolesRes, deptsRes] = await Promise.all([
           axiosRequest.get('/api/v1/roles/'),
-          axiosRequest.get('/api/v1/departments/flat'),
+          axiosRequest.get('/api/v1/departments'),
         ])
 
         if (rolesRes?.success && Array.isArray(rolesRes.data))

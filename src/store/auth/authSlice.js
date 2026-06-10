@@ -73,3 +73,12 @@ export const selectRoleId          = s => s.auth.roleId
 export const selectSubscription    = s => s.auth.subscription
 export const selectPermissions     = s => s.auth.permissions
 export const selectPermissionsByModule = s => s.auth.permissionsByModule
+
+// Organisation ID — tries common field names the API may use on the user object
+export const selectOrgId = s =>
+  s.auth.user?.org_id             ||
+  s.auth.user?.organisation_id    ||
+  s.auth.user?.organization_id    ||
+  s.auth.user?.organisation?._id  ||
+  s.auth.user?.organization?._id  ||
+  null

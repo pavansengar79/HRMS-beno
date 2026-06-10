@@ -91,8 +91,8 @@ const RegularisationPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             }
 
             const res = isEdit
-                ? await axiosRequest.put(`/regularisation/policies/${editData._id}`, payload)
-                : await axiosRequest.post('/regularisation/policies', payload)
+                ? await axiosRequest.put(`/api/v1/regularisation/policies/${editData._id}`, payload)
+                : await axiosRequest.post('/api/v1/regularisation/policies', payload)
 
             if (res.data?.success) {
                 toast.success(`Regularisation policy ${isEdit ? 'updated' : 'created'}`)
@@ -323,7 +323,7 @@ const TabRegularisationPolicy = () => {
     const fetchPolicies = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await axiosRequest.get('/regularisation/policies')
+            const res = await axiosRequest.get('/api/v1/regularisation/policies')
             if (res.data?.success) setPolicies(res.data.data)
         } catch {
             toast.error('Failed to load regularisation policies')

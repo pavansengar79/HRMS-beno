@@ -42,6 +42,7 @@ import AddHolidaySidebar, { HOLIDAY_TYPE_CONFIG } from './AddholidayDrawer'
 
 // ** Icons
 import Icon from 'src/@core/components/icon'
+import UnitContextBanner from 'src/@core/components/CustomComponents/UnitContextBanner'
 
 // ─── Permission helper ────────────────────────────────────────────────────────
 /**
@@ -241,6 +242,7 @@ useEffect(() => {
 
   return (
     <Box>
+      <UnitContextBanner />
       {/* ── Top bar ── */}
       <Box
         sx={{

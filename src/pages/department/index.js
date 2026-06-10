@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 // ** Redux Imports
 import { useSelector } from 'react-redux'
 
+// ** Hierarchy context banner
+import UnitContextBanner from 'src/@core/components/CustomComponents/UnitContextBanner'
+
 // ** Auth selectors — import directly from authSlice so the path is always correct
 import { selectPermissions } from 'src/store/auth/authSlice'
 
@@ -253,6 +256,7 @@ const DepartmentPage = () => {
 
   return (
     <>
+      <UnitContextBanner />
       <TreeViewCustomized
         onAddRoot={canCreate ? () => setDrawerOpen(true) : undefined}
         refreshKey={refreshKey}

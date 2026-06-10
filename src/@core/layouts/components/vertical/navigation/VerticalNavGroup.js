@@ -32,6 +32,10 @@ import UserIcon from 'src/layouts/components/UserIcon'
 import Translations from 'src/layouts/components/Translations'
 import CanViewNavGroup from 'src/layouts/components/acl/CanViewNavGroup'
 
+// Module-level registry of titles for company-level nav groups (icon = 'mdi:domain').
+// Shared across all VerticalNavGroup instances so the accordion can close siblings.
+const _companyGroupTitles = new Set()
+
 const MenuItemTextWrapper = styled(Box)(({ theme }) => ({
   width: '100%',
   display: 'flex',
@@ -64,6 +68,14 @@ const VerticalNavGroup = props => {
   const currentURL = router.asPath
   const { direction, navCollapsed, verticalNavToggleType } = settings
 
+  // Register this group's title in the company registry when it's a company-level group
+  useEffect(() => {
+    if (item.icon === 'mdi:domain') {
+      _companyGroupTitles.add(item.title)
+      return () => { _companyGroupTitles.delete(item.title) }
+    }
+  }, [item.title, item.icon])
+
   // ** Accordion menu group open toggle
   const toggleActiveGroup = (item, parent) => {
     let openGroup = groupActive
@@ -94,6 +106,12 @@ const VerticalNavGroup = props => {
       // ** push Current Active Group To Open Group array
       if (currentActiveGroup.every(elem => groupActive.includes(elem))) {
         openGroup.push(...currentActiveGroup)
+      }
+
+      // ** Accordion: when opening a company-level group, close all other company groups
+      // ** but keep unit-level and HRMS-level groups open
+      if (item.icon === 'mdi:domain') {
+        openGroup = openGroup.filter(t => !_companyGroupTitles.has(t))
       }
 
       // ** Push current clicked group item to Open Group array
