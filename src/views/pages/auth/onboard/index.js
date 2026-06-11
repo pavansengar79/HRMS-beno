@@ -1105,7 +1105,7 @@ const FLOW_META = {
   unit:   { label:"Unit Admin Setup",   icon:"🏭", color:C.purple },
 };
 
-export default function onboard() {
+export default function Onboard() {
   const [flow, setFlow]   = useState("super");
   const [step, setStep]   = useState(0);
   const [data, setData]   = useState({});

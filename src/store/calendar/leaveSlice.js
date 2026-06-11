@@ -1,3 +1,29 @@
+// Minimal stub for calendar leaveSlice actions
+export const fetchEvents = () => async dispatch => {
+  dispatch({ type: 'calendar/fetchEvents' })
+  return Promise.resolve([])
+}
+
+export const handleSelectEvent = id => ({ type: 'calendar/selectEvent', payload: id })
+
+export const handleAllCalendars = () => ({ type: 'calendar/handleAllCalendars' })
+
+export const handleCalendarsUpdate = data => ({ type: 'calendar/updateCalendars', payload: data })
+
+export const updateEvent = event => async dispatch => {
+  dispatch({ type: 'calendar/updateEvent', payload: event })
+  return Promise.resolve({ success: true })
+}
+
+export const addEvent = event => async dispatch => {
+  dispatch({ type: 'calendar/addEvent', payload: event })
+  return Promise.resolve({ success: true })
+}
+
+export const deleteEvent = id => async dispatch => {
+  dispatch({ type: 'calendar/deleteEvent', payload: id })
+  return Promise.resolve({ success: true })
+}
 // ** Redux Toolkit
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import axios from 'axios'
