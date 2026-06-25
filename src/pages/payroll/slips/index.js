@@ -1,114 +1,168 @@
-// ** React Imports
-import { useState, useCallback } from 'react'
+// src/pages/payroll/slips/index.js
+// REAL API — GET /api/v1/payslips/my (employee) or /api/v1/payslips (HR)
+import { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchMyPayslips, fetchAllPayslips } from 'src/store/payroll/payrollSlice'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 
-// ** MUI Imports
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
-import Divider from '@mui/material/Divider'
-import IconButton from '@mui/material/IconButton'
+import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 import CardHeader from '@mui/material/CardHeader'
-import { DataGrid } from '@mui/x-data-grid'
-
-// ** Custom Components
-import CustomChip from 'src/@core/components/mui/chip'
+import LinearProgress from '@mui/material/LinearProgress'
+import Chip from '@mui/material/Chip'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import Avatar from '@mui/material/Avatar'
+import Stack from '@mui/material/Stack'
+import TablePagination from '@mui/material/TablePagination'
+import { alpha } from '@mui/material/styles'
+import CustomTextField from 'src/@core/components/mui/text-field'
 import Icon from 'src/@core/components/icon'
-import TableHeader from 'src/views/apps/user/list/TableHeader'
 
-// ---------------------------------------------------------------------------
-// Mock Data
-// ---------------------------------------------------------------------------
+const fmt = n => n == null ? '—' : '₹' + Math.round(n).toLocaleString('en-IN')
+const fmtDate = s => s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
-/**
- * Replace with: axios.get(`/api/payrolls/slips/${userId}`)
- */
-const MOCK_SLIPS = [
-  { id: 1, month: 'March 2026',    grossSalary: 60000, deductions: 3000, netSalary: 57000, status: 'Generated' },
-  { id: 2, month: 'February 2026', grossSalary: 60000, deductions: 3000, netSalary: 57000, status: 'Paid'      },
-  { id: 3, month: 'January 2026',  grossSalary: 58000, deductions: 2800, netSalary: 55200, status: 'Paid'      },
-  { id: 4, month: 'December 2025', grossSalary: 58000, deductions: 2800, netSalary: 55200, status: 'Paid'      },
-  { id: 5, month: 'November 2025', grossSalary: 55000, deductions: 2500, netSalary: 52500, status: 'Paid'      },
-]
-
-const slipStatusObj = {
-  Paid:      'success',
-  Generated: 'info',
-  Pending:   'warning'
+const STATUS_CONFIG = {
+  DRAFT:     { color: '#8b5cf6', label: 'Draft'     },
+  PUBLISHED: { color: '#10b981', label: 'Published' },
+  PAID:      { color: '#0ea5e9', label: 'Paid'      },
 }
 
-/**
- * Simulate payslip download.
- * Replace with: axios.get(`/api/payrolls/slips/${id}/download`, { responseType: 'blob' })
- */
-const downloadSlip = id => {
-  console.log('Downloading payslip id:', id)
-  alert(`Downloading payslip for ${MOCK_SLIPS.find(s => s.id === id)?.month}`)
-}
+const YEAR_OPTIONS = (() => {
+  const now = new Date().getFullYear()
+  return [now, now - 1, now - 2].map(String)
+})()
 
-// ---------------------------------------------------------------------------
-// Salary Slips Page
-// ---------------------------------------------------------------------------
-const SalarySlips = () => {
-  const [filterQ, setFilterQ]               = useState('')
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
+export default function SalarySlips() {
+  const dispatch = useDispatch()
+  const roleSlug = useSelector(selectRoleSlug)
+  const isEmployee = roleSlug === 'employee'
 
-  const filtered = filterQ
-    ? MOCK_SLIPS.filter(r => r.month.toLowerCase().includes(filterQ.toLowerCase()))
-    : MOCK_SLIPS
+  const { myPayslips, myPayslipsLoading, myPayslipsTotal, payslips, payslipsLoading, payslipsTotal } = useSelector(s => s.payroll)
 
-  const columns = [
-    {
-      flex: 0.2, minWidth: 180, field: 'month', headerName: 'Month',
-      renderCell: ({ row }) => <Typography noWrap sx={{ fontWeight: 500, color: 'text.secondary' }}>{row.month}</Typography>
-    },
-    {
-      flex: 0.18, minWidth: 150, field: 'grossSalary', headerName: 'Gross Salary',
-      renderCell: ({ row }) => <Typography noWrap sx={{ color: 'text.secondary' }}>₹{row.grossSalary.toLocaleString()}</Typography>
-    },
-    {
-      flex: 0.15, minWidth: 130, field: 'deductions', headerName: 'Deductions',
-      renderCell: ({ row }) => <Typography noWrap sx={{ color: 'text.secondary' }}>₹{row.deductions.toLocaleString()}</Typography>
-    },
-    {
-      flex: 0.18, minWidth: 150, field: 'netSalary', headerName: 'Net Salary',
-      renderCell: ({ row }) => <Typography noWrap sx={{ fontWeight: 600, color: 'text.primary' }}>₹{row.netSalary.toLocaleString()}</Typography>
-    },
-    {
-      flex: 0.12, minWidth: 110, field: 'status', headerName: 'Status',
-      renderCell: ({ row }) => (
-        <CustomChip rounded skin='light' size='small' label={row.status} color={slipStatusObj[row.status] ?? 'default'} sx={{ textTransform: 'capitalize' }} />
-      )
-    },
-    {
-      flex: 0.12, minWidth: 120, field: 'actions', headerName: 'Action', sortable: false,
-      renderCell: ({ row }) => (
-        <IconButton size='small' title='Download Payslip' onClick={() => downloadSlip(row.id)} sx={{ color: 'text.secondary' }}>
-          <Icon icon='tabler:download' fontSize={20} />
-        </IconButton>
-      )
+  const [year,  setYear]  = useState(String(new Date().getFullYear()))
+  const [page,  setPage]  = useState(0)
+  const [limit, setLimit] = useState(20)
+
+  useEffect(() => {
+    if (isEmployee) {
+      dispatch(fetchMyPayslips({ year, page: page + 1, limit }))
+    } else {
+      dispatch(fetchAllPayslips({ year, page: page + 1, limit }))
     }
-  ]
+  }, [dispatch, isEmployee, year, page, limit])
+
+  const rows  = isEmployee ? myPayslips  : payslips
+  const total = isEmployee ? myPayslipsTotal : payslipsTotal
+  const loading = isEmployee ? myPayslipsLoading : payslipsLoading
 
   return (
-    <Grid container spacing={6.5}>
-      <Grid item xs={12}>
-        <Card>
-          <CardHeader title='Salary Slips' subheader='Your monthly salary slip records' />
-          <Divider sx={{ m: '0 !important' }} />
-          <TableHeader value={filterQ} handleFilter={useCallback(v => setFilterQ(v), [])} toggle={() => {}} />
-          <DataGrid
-            autoHeight rowHeight={62}
-            rows={filtered} columns={columns}
-            disableRowSelectionOnClick
-            pageSizeOptions={[10, 25, 50]}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-          />
-        </Card>
+    <Box sx={{ p: { xs: 2, md: 4 } }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
+        <Box>
+          <Typography variant='h5' sx={{ fontWeight: 800 }}>
+            {isEmployee ? 'My Payslips' : 'All Payslips'}
+          </Typography>
+          <Typography variant='body2' color='text.secondary'>
+            {isEmployee ? 'View and download your salary slips' : 'Manage all employee payslips'}
+          </Typography>
+        </Box>
+        <CustomTextField select value={year} onChange={e => { setYear(e.target.value); setPage(0) }} size='small' sx={{ minWidth: 120 }}>
+          {YEAR_OPTIONS.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
+        </CustomTextField>
+      </Box>
+
+      {/* Summary */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {[
+          { label: 'Total Payslips', value: total, color: '#6366f1', icon: 'tabler:file-invoice' },
+          { label: 'Published',      value: rows.filter(p => p.status === 'PUBLISHED').length, color: '#10b981', icon: 'tabler:circle-check' },
+          { label: 'Paid',           value: rows.filter(p => p.status === 'PAID').length,      color: '#0ea5e9', icon: 'tabler:cash' },
+          { label: 'Draft',          value: rows.filter(p => p.status === 'DRAFT').length,     color: '#8b5cf6', icon: 'tabler:file-description' },
+        ].map(s => (
+          <Grid item xs={6} sm={3} key={s.label}>
+            <Card>
+              <Box sx={{ px: 3, py: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: alpha(s.color, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon icon={s.icon} fontSize={20} style={{ color: s.color }} />
+                </Box>
+                <Box>
+                  <Typography variant='h6' sx={{ fontWeight: 800, lineHeight: 1 }}>{s.value}</Typography>
+                  <Typography variant='caption' color='text.secondary'>{s.label}</Typography>
+                </Box>
+              </Box>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
-    </Grid>
+
+      <Card>
+        <CardHeader title={<Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Payslips — {year}</Typography>} />
+        {loading && <LinearProgress />}
+        <Table>
+          <TableHead>
+            <TableRow>
+              {(!isEmployee ? ['Employee', 'Month', 'Year'] : ['Month', 'Year']).concat(['Gross', 'Net', 'LOP Days', 'Status']).map(h => (
+                <TableCell key={h} sx={{ fontWeight: 700, fontSize: 12, color: 'text.secondary' }}>{h}</TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.length === 0 && !loading ? (
+              <TableRow>
+                <TableCell colSpan={8} sx={{ textAlign: 'center', py: 6 }}>
+                  <Icon icon='tabler:file-off' fontSize={40} style={{ color: '#94a3b8', display: 'block', margin: '0 auto 8px' }} />
+                  <Typography variant='body2' color='text.secondary'>No payslips found for {year}</Typography>
+                </TableCell>
+              </TableRow>
+            ) : rows.map(p => {
+              const sc = STATUS_CONFIG[p.status] || {}
+              const emp = p.employee_id || p.employeeId || {}
+              const monthName = new Date(2024, (p.month || 1) - 1).toLocaleString('en-IN', { month: 'long' })
+              return (
+                <TableRow key={p._id} hover>
+                  {!isEmployee && (
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar sx={{ width: 30, height: 30, bgcolor: alpha('#6366f1', 0.1), color: '#6366f1', fontSize: 11, fontWeight: 800 }}>
+                          {(emp.name || '?').charAt(0)}
+                        </Avatar>
+                        <Box>
+                          <Typography variant='body2' sx={{ fontWeight: 600 }}>{emp.name || 'Unknown'}</Typography>
+                          <Typography variant='caption' color='text.secondary'>{emp.employeeId}</Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                  )}
+                  <TableCell><Typography variant='body2'>{monthName}</Typography></TableCell>
+                  <TableCell><Typography variant='body2'>{p.year}</Typography></TableCell>
+                  <TableCell><Typography variant='body2' sx={{ fontWeight: 600 }}>{fmt(p.grossSalary)}</Typography></TableCell>
+                  <TableCell><Typography variant='body2' sx={{ fontWeight: 700, color: '#10b981' }}>{fmt(p.netSalary)}</Typography></TableCell>
+                  <TableCell><Typography variant='body2'>{p.lopDays ?? 0}d</Typography></TableCell>
+                  <TableCell>
+                    <Chip label={sc.label || p.status} size='small' sx={{ fontWeight: 700, fontSize: 11, bgcolor: alpha(sc.color || '#6366f1', 0.1), color: sc.color || '#6366f1' }} />
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+        <TablePagination
+          component='div'
+          count={total}
+          page={page}
+          rowsPerPage={limit}
+          onPageChange={(_, p) => setPage(p)}
+          onRowsPerPageChange={e => { setLimit(parseInt(e.target.value)); setPage(0) }}
+          rowsPerPageOptions={[10, 20, 50]}
+        />
+      </Card>
+    </Box>
   )
 }
-
-export default SalarySlips

@@ -2,7 +2,7 @@
 //
 // Add mode  → all fields empty, POST /api/v1/employees
 // Edit mode → all fields pre-filled from editingEmployee
-//             editable: phone, salary (PUT /api/v1/employees/:id accepts these)
+//             editable: phone, salary, designation, reporting manager
 //             read-only: name, email, department, joiningDate, employmentType
 //             (shown for context so user knows which employee they're editing)
 
@@ -64,12 +64,16 @@ const addSchema = yup.object().shape({
   salaryTravel:   yup.number().typeError('Must be a number').min(0).optional(),
   salaryPf:       yup.number().typeError('Must be a number').min(0).optional(),
   salaryTds:      yup.number().typeError('Must be a number').min(0).optional(),
+  designationId: yup.string().optional(),
+  reportingManagerId: yup.string().optional(),
 })
 
 // Edit schema validates only the fields the PUT API accepts
 // All other fields are shown but readOnly — no validation needed for them
 const editSchema = yup.object().shape({
   phone:        yup.string().matches(/^[0-9]{10}$/, 'Enter valid 10-digit number').required('Phone is required'),
+  designationId: yup.string().optional(),
+  reportingManagerId: yup.string().optional(),
   salaryBasic:  yup.number().typeError('Must be a number').min(0).optional(),
   salaryHra:    yup.number().typeError('Must be a number').min(0).optional(),
   salaryTravel: yup.number().typeError('Must be a number').min(0).optional(),
@@ -91,6 +95,8 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
   const isEditMode = Boolean(editingEmployee)
 
   const [departments, setDepartments] = useState([])
+  const [designations, setDesignations] = useState([])
+  const [managers, setManagers] = useState([])
   const [dropLoading, setDropLoading] = useState(false)
 
   const {
@@ -102,6 +108,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
     defaultValues: {
       name: '', email: '', phone: '',
       departmentId: '', joiningDate: '', employmentType: '',
+      designationId: '', reportingManagerId: '',
       salaryBasic: '', salaryHra: '', salaryTravel: '', salaryPf: '', salaryTds: '',
     }
   })
@@ -122,6 +129,8 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                           ? editingEmployee.joiningDate.substring(0, 10)  // YYYY-MM-DD for date input
                           : '',
         employmentType: editingEmployee.employmentType              || '',
+        designationId:  editingEmployee.designationId?._id         || editingEmployee.designationId || '',
+        reportingManagerId: editingEmployee.reportingManagerId?._id || editingEmployee.reportingManagerId || '',
 
         // Editable fields
         phone:        editingEmployee.phone              || '',
@@ -143,28 +152,37 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
 
   // ── Fetch departments for Add mode ────────────────────────────────────────
   useEffect(() => {
-    if (!open || isEditMode) return
+    if (!open) return
     const fetchDropdowns = async () => {
       try {
         setDropLoading(true)
-        const res = await axiosRequest.get('/api/v1/departments')
-        if (res?.success) setDepartments(res.data || [])
+        const [deptRes, desigRes, mgrRes] = await Promise.all([
+          axiosRequest.get('/api/v1/departments'),
+          axiosRequest.get('/api/v1/designations'),
+          axiosRequest.get('/api/v1/employees?limit=100')
+        ])
+
+        if (deptRes?.success) setDepartments(deptRes.data || [])
+        if (desigRes?.success) setDesignations(desigRes.data || [])
+        if (mgrRes?.success) setManagers((mgrRes.data || []).filter(m => m._id !== editingEmployee?._id))
       } catch (err) {
-        console.error('Failed to load departments:', err)
+        console.error('Failed to load dropdown data:', err)
       } finally {
         setDropLoading(false)
       }
     }
     fetchDropdowns()
-  }, [open, isEditMode])
+  }, [open, editingEmployee])
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const onSubmit = async data => {
     try {
       if (isEditMode) {
-        // PUT only sends editable fields — phone + salary
+        // PUT sends editable fields — phone, salary, designation, reporting manager
         const payload = {
           phone: data.phone,
+          ...(data.designationId ? { designationId: data.designationId } : {}),
+          ...(data.reportingManagerId ? { reportingManagerId: data.reportingManagerId } : {}),
           salary: {
             ...(data.salaryBasic  !== '' && data.salaryBasic  != null && { basic:           Number(data.salaryBasic)  }),
             ...(data.salaryHra    !== '' && data.salaryHra    != null && { hra:             Number(data.salaryHra)    }),
@@ -186,6 +204,8 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
           departmentId:   data.departmentId,
           joiningDate:    data.joiningDate,
           employmentType: data.employmentType,
+          designationId:  data.designationId,
+          reportingManagerId: data.reportingManagerId,
           salary: {
             ...(data.salaryBasic  !== '' && data.salaryBasic  != null && { basic:           Number(data.salaryBasic)  }),
             ...(data.salaryHra    !== '' && data.salaryHra    != null && { hra:             Number(data.salaryHra)    }),
@@ -267,7 +287,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
         }}>
           <Icon icon='tabler:info-circle' fontSize='1rem' style={{ color: 'interit', flexShrink: 0 }} />
           <Typography variant='caption' style={{ color: 'inherit' }}>
-            Only Phone and Salary can be updated. Other fields are shown for reference.
+            Only Phone, Salary, Designation, and Reporting Manager can be updated. Other fields are shown for reference.
           </Typography>
         </Box>
       )}
@@ -441,6 +461,46 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   </CustomTextField>
                 )} />
               )}
+            </Grid>
+
+            {/* Designation */}
+            <Grid item xs={12} sm={6}>
+              <Controller name='designationId' control={control} render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  select
+                  fullWidth
+                  label='Designation'
+                  error={Boolean(errors.designationId)}
+                  helperText={errors.designationId?.message}
+                  disabled={isSubmitting || dropLoading}
+                >
+                  <MenuItem value=''>Select designation</MenuItem>
+                  {designations.map(d => (
+                    <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
+                  ))}
+                </CustomTextField>
+              )} />
+            </Grid>
+
+            {/* Reporting Manager */}
+            <Grid item xs={12} sm={6}>
+              <Controller name='reportingManagerId' control={control} render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  select
+                  fullWidth
+                  label='Reporting Manager'
+                  error={Boolean(errors.reportingManagerId)}
+                  helperText={errors.reportingManagerId?.message}
+                  disabled={isSubmitting || dropLoading}
+                >
+                  <MenuItem value=''>Select manager</MenuItem>
+                  {managers.map(m => (
+                    <MenuItem key={m._id} value={m._id}>{m.name}</MenuItem>
+                  ))}
+                </CustomTextField>
+              )} />
             </Grid>
 
             {/* ── Section: Salary ──────────────────────────────────── */}

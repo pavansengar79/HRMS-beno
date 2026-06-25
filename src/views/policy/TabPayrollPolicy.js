@@ -47,6 +47,8 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 // ** Third Party
 import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { useSelector } from 'react-redux'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1128,19 +1130,19 @@ const PolicyActionsMenu = ({ policy, onEdit, onActivate, onDeactivate, onArchive
             <ListItemText>Edit Policy</ListItemText>
           </MenuItem>
         )}
-        {(status === 'draft' || status === 'inactive') && (
+        {(status === 'draft' || status === 'inactive') && onActivate && (
           <MenuItem onClick={handle(onActivate)}>
             <ListItemIcon><Icon icon='tabler:circle-check' fontSize='1rem' style={{ color: '#10B981' }} /></ListItemIcon>
             <ListItemText>Activate</ListItemText>
           </MenuItem>
         )}
-        {status === 'active' && (
+        {status === 'active' && onDeactivate && (
           <MenuItem onClick={handle(onDeactivate)}>
             <ListItemIcon><Icon icon='tabler:circle-pause' fontSize='1rem' style={{ color: '#F59E0B' }} /></ListItemIcon>
             <ListItemText>Deactivate</ListItemText>
           </MenuItem>
         )}
-        {(status === 'active' || status === 'inactive') && (
+        {(status === 'active' || status === 'inactive') && onArchive && (
           <MenuItem onClick={handle(onArchive)}>
             <ListItemIcon><Icon icon='tabler:archive' fontSize='1rem' style={{ color: '#6B7280' }} /></ListItemIcon>
             <ListItemText>Archive</ListItemText>
@@ -1191,6 +1193,8 @@ const PolicyDetailPanel = ({ policy: p }) => {
 // ─── TabPayrollPolicy ─────────────────────────────────────────────────────────
 
 const TabPayrollPolicy = () => {
+  const roleSlug   = useSelector(selectRoleSlug)
+  const canActivate = roleSlug === 'unit_admin'
   const [policies, setPolicies] = useState([])
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -1528,9 +1532,9 @@ const TabPayrollPolicy = () => {
                         policy={policy}
                         actionLoading={actionLoading}
                         onEdit={handleEdit}
-                        onActivate={handleActivate}
-                        onDeactivate={handleDeactivate}
-                        onArchive={handleArchive}
+                        onActivate={canActivate ? handleActivate : null}
+                        onDeactivate={canActivate ? handleDeactivate : null}
+                        onArchive={canActivate ? handleArchive : null}
                         onDelete={handleDelete}
                       />
                     </Box>

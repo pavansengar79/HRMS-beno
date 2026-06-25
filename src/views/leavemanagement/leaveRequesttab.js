@@ -34,6 +34,23 @@ import {
 } from 'src/store/leaves/leaveSlice'
 import { selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
 
+const fmtDate = date => {
+  if (!date) return '—'
+  return new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+const getLeaveTypeLabel = row => {
+  const leaveType = row.leaveTypeId || row.leaveType
+  if (!leaveType) return '—'
+  return typeof leaveType === 'string' ? leaveType : leaveType.name || leaveType.code || '—'
+}
+
+const getLeaveTypeColor = row => row.leaveTypeId?.colorCode || row.leaveType?.colorCode || '#6B7280'
+
+const getTotalDays = row => row.totalDays ?? row.days ?? row.duration ?? '—'
+
+const getReason = row => row.reason || row.leaveReason || row.description || '—'
+
 // ─── Status Chip ──────────────────────────────────────────────────────────────
 
 const STATUS_COLOR = {
@@ -307,9 +324,9 @@ const TabLeaveRequests = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{
             width: 8, height: 8, borderRadius: '50%',
-            bgcolor: row.leaveTypeId?.colorCode || '#6B7280', flexShrink: 0
+            bgcolor: getLeaveTypeColor(row), flexShrink: 0
           }} />
-          <Typography variant='body2'>{row.leaveTypeId?.name || '—'}</Typography>
+          <Typography variant='body2'>{getLeaveTypeLabel(row)}</Typography>
         </Box>
       )
     },
@@ -317,36 +334,34 @@ const TabLeaveRequests = () => {
       field: 'startDate',
       headerName: 'From',
       flex: 1,
-      renderCell: ({ row }) =>
-        new Date(row.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      renderCell: ({ row }) => fmtDate(row.startDate || row.fromDate)
     },
     {
       field: 'endDate',
       headerName: 'To',
       flex: 1,
-      renderCell: ({ row }) =>
-        new Date(row.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      renderCell: ({ row }) => fmtDate(row.endDate || row.toDate)
     },
     {
       field: 'totalDays',
       headerName: 'Days',
       width: 80,
       renderCell: ({ row }) => (
-        <Chip label={`${row.totalDays}d`} size='small' variant='tonal' color='primary' />
+        <Chip label={`${getTotalDays(row)}d`} size='small' variant='tonal' color='primary' />
       )
     },
     {
       field: 'status',
       headerName: 'Status',
       flex: 1,
-      renderCell: ({ row }) => <LeaveStatusChip status={row.status?.toLowerCase()} />
+      renderCell: ({ row }) => <LeaveStatusChip status={(row.status || row.state || '').toString().toLowerCase()} />
     },
     {
       field: 'reason',
       headerName: 'Reason',
       flex: 1.5,
       renderCell: ({ row }) => (
-        <Typography variant='body2' noWrap title={row.reason}>{row.reason}</Typography>
+        <Typography variant='body2' noWrap title={getReason(row)}>{getReason(row)}</Typography>
       )
     },
     // ── HR-only actions column ─────────────────
@@ -356,7 +371,7 @@ const TabLeaveRequests = () => {
       width: 100,
       sortable: false,
       renderCell: ({ row }) => {
-        const isPending = row.status?.toLowerCase() === 'pending'
+        const isPending = (row.status || row.state || '').toString().toLowerCase() === 'pending'
         if (!isPending) return null
         return (
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -396,7 +411,7 @@ const TabLeaveRequests = () => {
             autoHeight
             rows={rows}
             columns={columns}
-            getRowId={row => row._id}
+            getRowId={row => row._id ?? row.id}
             loading={loading}
             rowCount={total}
             paginationMode='server'

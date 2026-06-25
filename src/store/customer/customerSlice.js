@@ -1,198 +1,131 @@
-import { createSlice } from '@reduxjs/toolkit'
+// src/store/customer/customerSlice.js
+// REAL API — replaces dummy data
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import axiosRequest from 'src/utils/AxiosInterceptor'
 
-// ─── Dummy Data ───────────────────────────────
-// Hierarchy: Customer → Plan → Organisation → Company → Business Unit → …
-// These seed records represent top-level tenant/subscriber accounts.
-// Replace with real API thunks once the backend is ready.
-const DUMMY_CUSTOMERS = [
-  {
-    _id:           'cust_001',
-    customerCode:  'CUST-001',
-    customerName:  'Acme Corporation',
-    customerEmail: 'admin@acme.com',
-    customerPhone: '+91 98765 43210',
-    subdomain:     'acme',
-    plan:          'ENTERPRISE',
-    status:        'ACTIVE',
-    country:       'India',
-    city:          'Mumbai',
-    stateProvince: 'Maharashtra',
-    addressLine1:  '101 Business Park',
-    addressLine2:  'BKC, Bandra East',
-    zipPostalCode: '400051',
-    timezone:      'UTC+5.5',
-    createdAt:     '2025-01-15T09:00:00Z'
-  },
-  {
-    _id:           'cust_002',
-    customerCode:  'CUST-002',
-    customerName:  'Bright Horizon Pvt Ltd',
-    customerEmail: 'info@brighthorizon.in',
-    customerPhone: '+91 91234 56789',
-    subdomain:     'brighthorizon',
-    plan:          'GROWTH',
-    status:        'ACTIVE',
-    country:       'India',
-    city:          'Bengaluru',
-    stateProvince: 'Karnataka',
-    addressLine1:  '22 Tech Street',
-    addressLine2:  'Whitefield',
-    zipPostalCode: '560066',
-    timezone:      'UTC+5.5',
-    createdAt:     '2025-03-10T10:30:00Z'
-  },
-  {
-    _id:           'cust_003',
-    customerCode:  'CUST-003',
-    customerName:  'Nexus Retail Solutions',
-    customerEmail: 'ops@nexusretail.com',
-    customerPhone: '+91 70000 11223',
-    subdomain:     'nexusretail',
-    plan:          'FREE',
-    status:        'PENDING',
-    country:       'India',
-    city:          'Delhi',
-    stateProvince: 'Delhi',
-    addressLine1:  '5 Connaught Place',
-    addressLine2:  '',
-    zipPostalCode: '110001',
-    timezone:      'UTC+5.5',
-    createdAt:     '2025-06-01T08:00:00Z'
-  },
-  {
-    _id:           'cust_004',
-    customerCode:  'CUST-004',
-    customerName:  'Global Medics Inc',
-    customerEmail: 'hello@globalmedics.com',
-    customerPhone: '+1 415 000 1234',
-    subdomain:     'globalmedics',
-    plan:          'ENTERPRISE',
-    status:        'ACTIVE',
-    country:       'USA',
-    city:          'San Francisco',
-    stateProvince: 'California',
-    addressLine1:  '300 Market Street',
-    addressLine2:  'Suite 800',
-    zipPostalCode: '94105',
-    timezone:      'UTC-8',
-    createdAt:     '2025-02-20T14:00:00Z'
-  },
-  {
-    _id:           'cust_005',
-    customerCode:  'CUST-005',
-    customerName:  'Sunrise Manufacturing',
-    customerEmail: 'contact@sunrisemfg.in',
-    customerPhone: '+91 80001 99887',
-    subdomain:     'sunrisemfg',
-    plan:          'GROWTH',
-    status:        'INACTIVE',
-    country:       'India',
-    city:          'Pune',
-    stateProvince: 'Maharashtra',
-    addressLine1:  '12 Industrial Estate',
-    addressLine2:  'Pimpri',
-    zipPostalCode: '411018',
-    timezone:      'UTC+5.5',
-    createdAt:     '2024-11-05T07:45:00Z'
+// ─── Thunks ───────────────────────────────────────────────────────────────────
+
+export const fetchAllCustomers = createAsyncThunk(
+  'customer/fetchAll',
+  async ({ page = 1, limit = 20, search = '', status = '' } = {}, { rejectWithValue }) => {
+    try {
+      let url = `/api/v1/super-admin/tenants?page=${page}&limit=${limit}`
+      if (search) url += `&search=${encodeURIComponent(search)}`
+      if (status) url += `&status=${status}`
+      return await axiosRequest.get(url)
+    } catch (err) { return rejectWithValue(err || 'Failed to fetch customers') }
   }
-]
+)
 
-// ─── Helpers ──────────────────────────────────
-let _nextId = 6
+export const fetchPublicPlans = createAsyncThunk(
+  'customer/fetchPlans',
+  async (_, { rejectWithValue }) => {
+    try { return await axiosRequest.get('/api/v1/plans/public') }
+    catch (err) { return rejectWithValue(err || 'Failed to fetch plans') }
+  }
+)
 
-const generateId   = () => `cust_${String(_nextId++).padStart(3, '0')}`
-const generateCode = id  => `CUST-${id.replace('cust_', '').toUpperCase()}`
+export const createCustomer = createAsyncThunk(
+  'customer/create',
+  async (payload, { rejectWithValue }) => {
+    try { return await axiosRequest.post('/api/v1/super-admin/customers', payload) }
+    catch (err) { return rejectWithValue(err || 'Failed to create customer') }
+  }
+)
 
-// ─── Slice ────────────────────────────────────
+export const updateTenantStatus = createAsyncThunk(
+  'customer/updateStatus',
+  async ({ id, status }, { rejectWithValue }) => {
+    try { return await axiosRequest.patch(`/api/v1/super-admin/tenants/${id}/status`, { status }) }
+    catch (err) { return rejectWithValue(err || 'Failed to update status') }
+  }
+)
+
+export const fetchCustomerById = createAsyncThunk(
+  'customer/fetchById',
+  async (id, { rejectWithValue }) => {
+    try { return await axiosRequest.get(`/api/v1/super-admin/tenants/${id}`) }
+    catch (err) { return rejectWithValue(err || 'Failed to fetch customer') }
+  }
+)
+
+// ─── Slice ────────────────────────────────────────────────────────────────────
+
 const customerSlice = createSlice({
   name: 'customer',
-
   initialState: {
-    customers:        DUMMY_CUSTOMERS,
-    total:            DUMMY_CUSTOMERS.length,
+    customers:        [],
+    total:            0,
     selectedCustomer: null,
     loading:          false,
-    error:            null
+    error:            null,
+    plans:            [],
+    plansLoading:     false,
+    createLoading:    false,
+    createError:      null,
   },
-
   reducers: {
-    // ── Add a customer locally (from AddCustomerDrawer form) ──
-    addCustomer(state, action) {
-      const id  = generateId()
-      const now = new Date().toISOString()
+    setSelectedCustomer:   (state, { payload }) => { state.selectedCustomer = payload },
+    clearSelectedCustomer: state => { state.selectedCustomer = null },
+    clearError:            state => { state.error = null; state.createError = null },
+    // Keep backward compat — old pages might call addCustomer/editCustomer
+    addCustomer:    () => {},
+    editCustomer:   () => {},
+    removeCustomer: () => {},
+  },
+  extraReducers: builder => {
+    builder
+      .addCase(fetchAllCustomers.pending,   s => { s.loading = true; s.error = null })
+      .addCase(fetchAllCustomers.fulfilled, (s, { payload }) => {
+        s.loading = false
+        const d = payload?.data ?? payload
+        s.customers = d?.tenants ?? d?.data ?? (Array.isArray(d) ? d : [])
+        s.total     = d?.pagination?.total ?? d?.total ?? s.customers.length
+      })
+      .addCase(fetchAllCustomers.rejected,  (s, { payload }) => { s.loading = false; s.error = payload })
 
-      const newCustomer = {
-        _id:          id,
-        customerCode: generateCode(id),
-        createdAt:    now,
-        status:       'PENDING',   // new tenants always start as PENDING
-        ...action.payload          // form fields: customerName, customerEmail, plan, etc.
-      }
+    builder
+      .addCase(fetchPublicPlans.pending,   s => { s.plansLoading = true })
+      .addCase(fetchPublicPlans.fulfilled, (s, { payload }) => {
+        s.plansLoading = false
+        s.plans = payload?.data ?? payload ?? []
+      })
+      .addCase(fetchPublicPlans.rejected,  s => { s.plansLoading = false })
 
-      state.customers.unshift(newCustomer)
-      state.total += 1
-    },
+    builder
+      .addCase(createCustomer.pending,   s => { s.createLoading = true; s.createError = null })
+      .addCase(createCustomer.fulfilled, s => { s.createLoading = false })
+      .addCase(createCustomer.rejected,  (s, { payload }) => { s.createLoading = false; s.createError = payload })
 
-    // ── Update a customer locally ──────────────
-    editCustomer(state, action) {
-      const { id, data } = action.payload
-      const idx          = state.customers.findIndex(c => c._id === id)
+    builder
+      .addCase(updateTenantStatus.fulfilled, (s, { payload }) => {
+        const updated = payload?.data ?? payload
+        if (updated?._id) {
+          s.customers = s.customers.map(c => c._id === updated._id ? { ...c, ...updated } : c)
+        }
+      })
 
-      if (idx !== -1) {
-        state.customers[idx] = { ...state.customers[idx], ...data }
-      }
-      if (state.selectedCustomer?._id === id) {
-        state.selectedCustomer = { ...state.selectedCustomer, ...data }
-      }
-    },
-
-    // ── Delete a customer locally ──────────────
-    removeCustomer(state, action) {
-      const id        = action.payload
-      state.customers = state.customers.filter(c => c._id !== id)
-      state.total     = Math.max(0, state.total - 1)
-      if (state.selectedCustomer?._id === id) {
-        state.selectedCustomer = null
-      }
-    },
-
-    // ── Set selected customer (for detail / view page) ──
-    setSelectedCustomer(state, action) {
-      state.selectedCustomer = action.payload
-    },
-
-    // ── Clear selected customer on page unmount ──
-    clearSelectedCustomer(state) {
-      state.selectedCustomer = null
-    },
-
-    // ── Dismiss error banner ───────────────────
-    clearError(state) {
-      state.error = null
-    }
+    builder
+      .addCase(fetchCustomerById.fulfilled, (s, { payload }) => {
+        s.selectedCustomer = payload?.data ?? payload
+      })
   }
-
-  // TODO: when /customers API is live, remove the reducers above and
-  // add createAsyncThunk extraReducers for:
-  //   fetchAllCustomers, fetchCustomerById, createCustomer, updateCustomer, deleteCustomer
 })
 
-// ─── Actions ──────────────────────────────────
 export const {
-  addCustomer,
-  editCustomer,
-  removeCustomer,
-  setSelectedCustomer,
-  clearSelectedCustomer,
-  clearError
+  setSelectedCustomer, clearSelectedCustomer, clearError,
+  addCustomer, editCustomer, removeCustomer
 } = customerSlice.actions
 
-// ─── Selectors ────────────────────────────────
-// Used directly in Customer.jsx — state key must match store registration: { customer: customerReducer }
-export const selectAllCustomers     = state => state.customer.customers
-export const selectCustomerTotal    = state => state.customer.total
-export const selectCustomerLoading  = state => state.customer.loading
-export const selectCustomerError    = state => state.customer.error
-export const selectSelectedCustomer = state => state.customer.selectedCustomer
+// ─── Selectors ────────────────────────────────────────────────────────────────
+export const selectAllCustomers     = s => s.customer.customers
+export const selectCustomerTotal    = s => s.customer.total
+export const selectCustomerLoading  = s => s.customer.loading
+export const selectCustomerError    = s => s.customer.error
+export const selectSelectedCustomer = s => s.customer.selectedCustomer
+export const selectPlans            = s => s.customer.plans
+export const selectPlansLoading     = s => s.customer.plansLoading
+export const selectCreateLoading    = s => s.customer.createLoading
+export const selectCreateError      = s => s.customer.createError
 
 export default customerSlice.reducer

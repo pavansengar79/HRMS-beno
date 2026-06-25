@@ -248,7 +248,7 @@ const SUPER_ADMIN_NAV = stamp([
   { sectionTitle: 'PLATFORM' },
   { title: 'Organisations',       icon: 'tabler:building-skyscraper', path: '/organisation' },
   { title: 'Customers',           icon: 'tabler:users-group',         path: '/customers' },
-  { title: 'Plans & Billing',     icon: 'tabler:credit-card',         path: '/pages/pricing' },
+  { title: 'Plans & Billing',     icon: 'tabler:credit-card',         path: '/pages/plan' },
 ])
 
 const EMPLOYEE_NAV = stamp([

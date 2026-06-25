@@ -111,7 +111,7 @@ const LoginPage = () => {
 
   const handleGoogleLogin = () => {
     if (typeof window === 'undefined') return
-    const oauthUrl = new URL(`https://s0380lsz-4000.inc1.devtunnels.ms/api/v1/auth/google`)
+    const oauthUrl = new URL(`https://pulmonary-leggings-hurt.ngrok-free.dev/api/v1/auth/google`)
     oauthUrl.searchParams.set('returnUrl', `${window.location.origin}/auth/google/callback`)
     window.location.href = oauthUrl.toString()
   }

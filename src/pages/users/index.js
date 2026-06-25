@@ -449,6 +449,22 @@ const buildColumns = (canEdit, canDelete, canApprove, canChangeStatus, onEdit, o
   },
   
   {
+    flex: 0.15, minWidth: 140, field: 'designationId', headerName: 'Designation',
+    renderCell: ({ row }) => (
+      <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>
+        {row.designationId?.name || row.designation?.name || '—'}
+      </Typography>
+    )
+  },
+  {
+    flex: 0.18, minWidth: 160, field: 'reportingManagerId', headerName: 'Reporting Manager',
+    renderCell: ({ row }) => (
+      <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>
+        {row.reportingManagerId?.name || row.reportingManager?.name || '—'}
+      </Typography>
+    )
+  },
+  {
     flex: 0.13, minWidth: 120, field: 'phone', headerName: 'Phone',
     renderCell: ({ row }) => (
       <Typography noWrap sx={{ color: 'text.secondary' }}>{row.phone || '—'}</Typography>
@@ -493,8 +509,8 @@ const EmployeeList = () => {
   const permissions = useSelector(selectPermissions)
   const userRole    = useSelector(selectRoleSlug) ?? ''
 
-  const canCreate       = permissions.includes('employee.create')&& userRole === 'unit_admin' || userRole === 'hr_manager'
-  const canEdit         = permissions.includes('employee.update') && userRole === 'unit_admin' || userRole === 'hr_manager'
+  const canCreate       = permissions.includes('employee.create') && (userRole === 'unit_admin' || userRole === 'hr_manager')
+  const canEdit         = permissions.includes('employee.update') && (userRole === 'unit_admin' || userRole === 'hr_manager')
   const canDelete       = permissions.includes('employee.delete')
   const canApprove      = canEdit && userRole === 'unit_admin'
   const canChangeStatus = canEdit

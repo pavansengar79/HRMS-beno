@@ -206,14 +206,34 @@ const leaveSlice = createSlice({
       .addCase(fetchMyLeaves.pending,  state => { state.loading = true;  state.error = null })
       .addCase(fetchMyLeaves.fulfilled, (state, { payload }) => {
         state.loading = false
-        // Normalise: interceptor body  → { success, data: { page, limit, total, data:[] } }
-        //            or already inner  → { page, limit, total, data:[] }
-        const inner = payload?.data?.data !== undefined
-          ? payload.data          // { page, limit, total, data:[] }
-          : payload?.data ?? payload
-        state.leavesRows  = inner?.data  ?? []
-        state.leavesTotal = inner?.total ?? 0
-        state.leavesPage  = inner?.page  ?? 1
+        state.data = payload
+
+        // Normalize: support several API shapes safely.
+        // - { success, data: { requests: [], pagination: { total, page, limit } } }
+        // - { success, data: { page, limit, total, data: [] } }
+        // - { page, limit, total, data: [] }
+        // - { data: [] , total, page }
+        // - [ ...rows ]
+        const inner = payload?.data?.requests !== undefined
+          ? payload.data
+          : payload?.data?.data !== undefined
+            ? payload.data
+            : payload?.data ?? payload
+
+        const rows = Array.isArray(inner?.requests)
+          ? inner.requests
+          : Array.isArray(inner?.data)
+            ? inner.data
+            : Array.isArray(inner)
+              ? inner
+              : []
+
+        const total = inner?.pagination?.total ?? inner?.total ?? (Array.isArray(rows) ? rows.length : 0)
+        const page  = inner?.pagination?.page ?? inner?.page ?? 1
+
+        state.leavesRows  = rows
+        state.leavesTotal = total
+        state.leavesPage  = page
       })
       .addCase(fetchMyLeaves.rejected,  (state, { payload }) => { state.loading = false; state.error = payload })
 

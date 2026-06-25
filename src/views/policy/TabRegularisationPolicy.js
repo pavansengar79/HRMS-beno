@@ -30,6 +30,8 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 // ** Third Party
 import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { useSelector } from 'react-redux'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ** API
@@ -315,6 +317,8 @@ const RegularisationPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
 // ─── TabRegularisationPolicy ──────────────────────────────────────────────────
 
 const TabRegularisationPolicy = () => {
+  const roleSlug   = useSelector(selectRoleSlug)
+  const canActivate = roleSlug === 'unit_admin'
     const [policies, setPolicies] = useState([])
     const [loading, setLoading] = useState(true)
     const [drawerOpen, setDrawerOpen] = useState(false)

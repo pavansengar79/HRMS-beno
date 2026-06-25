@@ -1,320 +1,181 @@
-// ** React Imports
-import { useState, useCallback } from 'react'
+// src/pages/customers/index.js
+// REAL API — GET /api/v1/super-admin/tenants
+import { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import {
+  fetchAllCustomers, updateTenantStatus,
+  selectAllCustomers, selectCustomerTotal, selectCustomerLoading
+} from 'src/store/customer/customerSlice'
+import toast from 'react-hot-toast'
 
-// ** Next Imports
-import Link from 'next/link'
-
-// ** MUI Imports
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
 import Divider from '@mui/material/Divider'
-import MenuItem from '@mui/material/MenuItem'
+import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
-import { DataGrid } from '@mui/x-data-grid'
-import Menu from '@mui/material/Menu'
+import LinearProgress from '@mui/material/LinearProgress'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import TablePagination from '@mui/material/TablePagination'
+import Avatar from '@mui/material/Avatar'
+import Chip from '@mui/material/Chip'
+import { alpha } from '@mui/material/styles'
 
-// ** Icon Imports
 import Icon from 'src/@core/components/icon'
-
-// ** Redux
-import { useDispatch, useSelector } from 'react-redux'
-import {
-  removeCustomer,
-  selectAllCustomers,
-  selectCustomerTotal,
-  selectCustomerLoading
-} from 'src/store/customer/customerSlice'
-
-// ** Custom Components
-import CustomChip from 'src/@core/components/mui/chip'
-import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
-
-// ** Utils
-import { getInitials } from 'src/@core/utils/get-initials'
-
-// ** Table Components
-import TableHeader from 'src/views/apps/user/list/TableHeader'
 import AddCustomerDrawer from './AddCustomerDrawer'
 
-
-// ─── Status chip color map ────────────────────
-const statusColorMap = {
-  ACTIVE:   'success',
-  INACTIVE: 'secondary',
-  PENDING:  'warning'
+const STATUS_MAP = {
+  Active:    { color: '#10b981', label: 'Active'    },
+  Suspended: { color: '#ef4444', label: 'Suspended' },
+  Inactive:  { color: '#94a3b8', label: 'Inactive'  },
+  Trial:     { color: '#f59e0b', label: 'Trial'     },
+  ACTIVE:    { color: '#10b981', label: 'Active'    },
+  SUSPENDED: { color: '#ef4444', label: 'Suspended' },
+  INACTIVE:  { color: '#94a3b8', label: 'Inactive'  },
 }
 
-// ─── Plan chip color map ──────────────────────
-// Tiers: FREE → GROWTH → ENTERPRISE  (BenoSupport commercial model)
-const planColorMap = {
-  FREE:       'secondary',
-  GROWTH:     'info',
-  ENTERPRISE: 'warning'
-}
+const fmtDate = s =>
+  s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
-// ─── Avatar from customer name initials ───────
-const renderAvatar = row => (
-  <CustomAvatar
-    skin='light'
-    color='primary'
-    sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
-  >
-    {getInitials(row.customerName || 'NA')}
-  </CustomAvatar>
-)
-
-// ─── Row Actions Menu ─────────────────────────
-const RowOptions = ({ id }) => {
-  const dispatch = useDispatch()
-  const [anchorEl, setAnchorEl] = useState(null)
-  const open = Boolean(anchorEl)
-
-  const handleOpen  = e => setAnchorEl(e.currentTarget)
-  const handleClose = () => setAnchorEl(null)
-
-  const handleDelete = () => {
-    dispatch(removeCustomer(id))   // local slice action — no API call yet
-    handleClose()
-  }
-
-  return (
-    <>
-      <IconButton size='small' onClick={handleOpen}>
-        <Icon icon='tabler:dots-vertical' />
-      </IconButton>
-      <Menu
-        keepMounted
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        PaperProps={{ style: { minWidth: '8rem' } }}
-      >
-        <MenuItem
-          component={Link}
-          href={`/apps/customer/view/${id}`}
-          onClick={handleClose}
-          sx={{ '& svg': { mr: 2 } }}
-        >
-          <Icon icon='tabler:eye' fontSize={20} />
-          View
-        </MenuItem>
-        <MenuItem onClick={handleClose} sx={{ '& svg': { mr: 2 } }}>
-          <Icon icon='tabler:edit' fontSize={20} />
-          Edit
-        </MenuItem>
-        <MenuItem onClick={handleDelete} sx={{ '& svg': { mr: 2 } }}>
-          <Icon icon='tabler:trash' fontSize={20} />
-          Delete
-        </MenuItem>
-      </Menu>
-    </>
-  )
-}
-
-// ─── DataGrid Columns ─────────────────────────
-const columns = [
-  {
-    flex: 0.05,
-    minWidth: 120,
-    field: 'customerCode',
-    headerName: 'Code',
-    renderCell: ({ row }) => (
-      <Typography noWrap sx={{ fontWeight: 500, color: 'text.secondary' }}>
-        {row.customerCode}
-      </Typography>
-    )
-  },
-  {
-    flex: 0.25,
-    minWidth: 250,
-    field: 'customerName',
-    headerName: 'Customer',
-    renderCell: ({ row }) => (
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        {renderAvatar(row)}
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <Typography
-            noWrap
-            component={Link}
-            href={`/apps/customer/view/${row._id}`}
-            sx={{
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: 'text.secondary',
-              '&:hover': { color: 'primary.main' }
-            }}
-          >
-            {row.customerName}
-          </Typography>
-          <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>
-            {row.customerEmail}
-          </Typography>
-        </Box>
-      </Box>
-    )
-  },
-  {
-    flex: 0.15,
-    minWidth: 140,
-    field: 'customerPhone',
-    headerName: 'Phone',
-    renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary' }}>
-        {row.customerPhone}
-      </Typography>
-    )
-  },
-  {
-    flex: 0.12,
-    minWidth: 110,
-    field: 'plan',
-    headerName: 'Plan',
-    renderCell: ({ row }) => (
-      <CustomChip
-        rounded
-        skin='light'
-        size='small'
-        label={row.plan}
-        color={planColorMap[row.plan] || 'secondary'}
-        sx={{ textTransform: 'capitalize' }}
-      />
-    )
-  },
-  {
-    flex: 0.12,
-    minWidth: 120,
-    field: 'subdomain',
-    headerName: 'Subdomain',
-    renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary' }}>
-        {row.subdomain}
-      </Typography>
-    )
-  },
-  {
-    flex: 0.12,
-    minWidth: 100,
-    field: 'status',
-    headerName: 'Status',
-    renderCell: ({ row }) => (
-      <CustomChip
-        rounded
-        skin='light'
-        size='small'
-        label={row.status}
-        color={statusColorMap[row.status] || 'secondary'}
-        sx={{ textTransform: 'capitalize' }}
-      />
-    )
-  },
-  {
-    flex: 0.1,
-    minWidth: 100,
-    sortable: false,
-    field: 'actions',
-    headerName: 'Actions',
-    renderCell: ({ row }) => <RowOptions id={row._id} />
-  }
-]
-
-// ─── Main Component ───────────────────────────
-// Customer is the TOP of the hierarchy:
-//   Customer → Plan → Organisation → Company → Business Unit → …
-const Customer = () => {
-  const [value, setValue]                     = useState('')
-  const [statusFilter, setStatusFilter]       = useState('')
-  const [planFilter, setPlanFilter]           = useState('')
-  const [addCustomerOpen, setAddCustomerOpen] = useState(false)
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
-
-  // Dummy data is already in initialState — no useEffect fetch needed
+export default function CustomersPage() {
+  const dispatch  = useDispatch()
   const customers = useSelector(selectAllCustomers)
   const total     = useSelector(selectCustomerTotal)
   const loading   = useSelector(selectCustomerLoading)
 
-  // Client-side filtering
-  const filteredRows = customers.filter(row => {
-    const matchSearch =
-      !value ||
-      row.customerName?.toLowerCase().includes(value.toLowerCase()) ||
-      row.customerEmail?.toLowerCase().includes(value.toLowerCase()) ||
-      row.customerCode?.toLowerCase().includes(value.toLowerCase())
+  const [page,    setPage]    = useState(0)
+  const [limit,   setLimit]   = useState(20)
+  const [search,  setSearch]  = useState('')
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
-    const matchStatus = !statusFilter || row.status === statusFilter
-    const matchPlan   = !planFilter   || row.plan   === planFilter
+  useEffect(() => {
+    dispatch(fetchAllCustomers({ page: page + 1, limit, search }))
+  }, [dispatch, page, limit, search])
 
-    return matchSearch && matchStatus && matchPlan
-  })
-
-  const handleFilter = useCallback(val => setValue(val), [])
-  const toggleDrawer = () => setAddCustomerOpen(prev => !prev)
+  const handleStatusToggle = async (c) => {
+    const newStatus = (c.status === 'Active' || c.status === 'ACTIVE') ? 'SUSPENDED' : 'ACTIVE'
+    try {
+      await dispatch(updateTenantStatus({ id: c._id, status: newStatus })).unwrap()
+      toast.success(`Customer ${newStatus === 'SUSPENDED' ? 'suspended' : 'activated'}`)
+      dispatch(fetchAllCustomers({ page: page + 1, limit, search }))
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'Failed to update status')
+    }
+  }
 
   return (
-    <Grid container spacing={6.5}>
+    <Grid container spacing={6}>
       <Grid item xs={12}>
-
         <Card>
-          {/* Filters */}
-          <Box sx={{ p: 5, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-            <CustomTextField
-              select
-              value={statusFilter}
-              label='Status'
-              sx={{ minWidth: 150 }}
-              onChange={e => setStatusFilter(e.target.value)}
-            >
-              <MenuItem value=''>All</MenuItem>
-              <MenuItem value='ACTIVE'>Active</MenuItem>
-              <MenuItem value='INACTIVE'>Inactive</MenuItem>
-              <MenuItem value='PENDING'>Pending</MenuItem>
-            </CustomTextField>
-
-            <CustomTextField
-              select
-              value={planFilter}
-              label='Plan'
-              sx={{ minWidth: 150 }}
-              onChange={e => setPlanFilter(e.target.value)}
-            >
-              <MenuItem value=''>All</MenuItem>
-              <MenuItem value='FREE'>Free</MenuItem>
-              <MenuItem value='GROWTH'>Growth</MenuItem>
-              <MenuItem value='ENTERPRISE'>Enterprise</MenuItem>
-            </CustomTextField>
+          {/* ── Header ── */}
+          <Box sx={{ px: 5, py: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+            <Typography variant='h5' sx={{ fontWeight: 700 }}>Customers</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <CustomTextField
+                size='small' placeholder='Search customers...' value={search}
+                onChange={e => { setSearch(e.target.value); setPage(0) }}
+                sx={{ minWidth: 220 }}
+              />
+              <Button variant='contained' startIcon={<Icon icon='tabler:plus' />}
+                onClick={() => setDrawerOpen(true)}>
+                Add Customer
+              </Button>
+            </Box>
           </Box>
 
-          <Divider sx={{ m: '0 !important' }} />
+          <Divider />
+          {loading && <LinearProgress />}
 
-          <TableHeader
-            value={value}
-            handleFilter={handleFilter}
-            toggle={toggleDrawer}
-          />
+          {/* ── Table ── */}
+          <Table>
+            <TableHead>
+              <TableRow sx={{ '& .MuiTableCell-root': { py: 2, fontWeight: 700, fontSize: 12, color: 'text.secondary', textTransform: 'uppercase' } }}>
+                <TableCell>Customer</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Phone</TableCell>
+                <TableCell>Plan</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Created</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {customers.length === 0 && !loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} sx={{ textAlign: 'center', py: 8 }}>
+                    <Typography variant='body2' color='text.secondary'>No customers found</Typography>
+                  </TableCell>
+                </TableRow>
+              ) : customers.map(c => {
+                const sc   = STATUS_MAP[c.status] || STATUS_MAP['Inactive']
+                const name = c.business_name || c.contact_name || c.name || 'Unknown'
+                const isActive = c.status === 'Active' || c.status === 'ACTIVE'
+                return (
+                  <TableRow key={c._id} hover>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{ width: 34, height: 34, bgcolor: alpha('#6366f1', 0.12), color: '#6366f1', fontSize: 13, fontWeight: 800 }}>
+                          {name.charAt(0).toUpperCase()}
+                        </Avatar>
+                        <Box>
+                          <Typography variant='body2' sx={{ fontWeight: 600 }}>{name}</Typography>
+                          {c.contact_name && c.business_name && (
+                            <Typography variant='caption' color='text.secondary'>{c.contact_name}</Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant='body2'>{c.contact_email || c.email || '—'}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant='body2'>{c.contact_phone || c.phone || '—'}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant='caption' sx={{ fontWeight: 600, color: '#6366f1' }}>
+                        {c.plan_name || c.plan || '—'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={sc.label} size='small'
+                        sx={{ fontWeight: 700, fontSize: 11, bgcolor: alpha(sc.color, 0.1), color: sc.color, border: 'none' }} />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant='body2'>{fmtDate(c.createdAt)}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Button size='small' variant='outlined'
+                        color={isActive ? 'error' : 'success'}
+                        sx={{ height: 28, fontSize: 11, minWidth: 74 }}
+                        onClick={() => handleStatusToggle(c)}>
+                        {isActive ? 'Suspend' : 'Activate'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
 
-          <DataGrid
-            autoHeight
-            rowHeight={62}
-            loading={loading}
-            rows={filteredRows}
-            columns={columns}
-            getRowId={row => row._id}
-            disableRowSelectionOnClick
-            pageSizeOptions={[10, 25, 50]}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            rowCount={filteredRows.length}
+          <TablePagination
+            component='div'
+            count={total}
+            page={page}
+            rowsPerPage={limit}
+            onPageChange={(_, p) => setPage(p)}
+            onRowsPerPageChange={e => { setLimit(parseInt(e.target.value)); setPage(0) }}
+            rowsPerPageOptions={[10, 20, 50]}
           />
         </Card>
       </Grid>
 
-      <AddCustomerDrawer open={addCustomerOpen} toggle={toggleDrawer} />
+      <AddCustomerDrawer open={drawerOpen} toggle={() => setDrawerOpen(v => !v)} />
     </Grid>
   )
 }
-
-export default Customer
