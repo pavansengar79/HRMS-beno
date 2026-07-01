@@ -178,7 +178,10 @@ const SystemConfigPage = () => {
         const cfgRes = await axiosRequest.get('/api/v1/company-config/config').catch(() => null)
         const cfg    = cfgRes?.data || {}
         if (cfg.pan) {
-          setEss(p => ({ ...p, pan: cfg.pan || '', timezone: cfg.timezone || p.timezone, currency: cfg.currency || p.currency, fiscalYear: String(cfg.fiscalYearStart || p.fiscalYear) }))
+          // Convert backend codes to display format
+          const currencyDisplay = cfg.currency ? CURRENCIES.find(c => c.startsWith(cfg.currency)) || cfg.currency : p.timezone
+          const timezoneDisplay = cfg.timezone ? TIMEZONES.find(t => t.startsWith(cfg.timezone)) || cfg.timezone : p.timezone
+          setEss(p => ({ ...p, pan: cfg.pan || '', timezone: timezoneDisplay, currency: currencyDisplay, fiscalYear: String(cfg.fiscalYearStart || p.fiscalYear) }))
           setCompleted(p => ({ ...p, 0: true }))
         }
         const ww = Array.isArray(cfg.workWeek) ? cfg.workWeek : []
@@ -194,7 +197,10 @@ const SystemConfigPage = () => {
     if (!ess.pan) { toast.error('PAN is required'); return }
     setSaving(true)
     try {
-      await axiosRequest.put('/api/v1/company-config/config', { pan: ess.pan, timezone: ess.timezone, currency: ess.currency, fiscalYearStart: Number(ess.fiscalYear) })
+      // Extract currency code (first 3 characters) and timezone code
+      const currencyCode = ess.currency.substring(0, 3)
+      const timezoneCode = ess.timezone.split(' ')[0].replace('(', '')
+      await axiosRequest.put('/api/v1/company-config/config', { pan: ess.pan, timezone: timezoneCode, currency: currencyCode, fiscalYearStart: Number(ess.fiscalYear) })
       setCompleted(p => ({ ...p, 0: true })); toast.success('Essentials saved'); setActiveStep(1)
     } catch (err) { toast.error(err?.response?.data?.message || 'Save failed') }
     finally { setSaving(false) }
