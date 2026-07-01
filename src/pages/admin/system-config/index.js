@@ -172,7 +172,7 @@ const SystemConfigPage = () => {
           const company   = companies[0] || null
           if (company) {
             setCompanyId(company._id)
-            setProfile(p => ({ ...p, legalName: company.company_name || '', brandName: company.brand_name || '', cin: company.cin || '', tan: company.tan || '', gst: company.gst || '', pf: company.pf_registration || '', esic: company.esic_registration || '', ptState: company.pt_state || 'Karnataka', industry: company.industry || 'Information Technology', regAddress: company.registered_address?.street ? `${company.registered_address.street}, ${company.registered_address.city}` : '' }))
+            setProfile(p => ({ ...p, legalName: company.company_name || '', brandName: company.brand_name || '', cin: company.cin || '', tan: company.tan || '', gst: company.gst || '', pf: company.pf_registration || company.epfo || '', esic: company.esic_registration || company.esic || '', ptState: company.pt_state || 'Karnataka', industry: company.industry || 'Information Technology', regAddress: company.registered_address?.street ? `${company.registered_address.street}, ${company.registered_address.city}` : '' }))
           }
         }
         const cfgRes = await axiosRequest.get('/api/v1/company-config/config').catch(() => null)
@@ -204,7 +204,18 @@ const SystemConfigPage = () => {
     if (!companyId) { toast.error('No company loaded'); return }
     setSaving(true)
     try {
-      await axiosRequest.put(`/api/v1/companies/${companyId}`, { company_name: profile.legalName, brand_name: profile.brandName, cin: profile.cin, tan: profile.tan, gst: profile.gst, pf_registration: profile.pf, esic_registration: profile.esic, pt_state: profile.ptState, registered_address: { street: profile.regAddress, city: '', state: profile.ptState, pincode: '', country: 'India' } })
+      await axiosRequest.put(`/api/v1/companies/${companyId}`, { 
+        company_name: profile.legalName, 
+        brand_name: profile.brandName, 
+        cin: profile.cin, 
+        tan: profile.tan, 
+        gst: profile.gst, 
+        pf_registration: profile.pf, 
+        esic_registration: profile.esic, 
+        pt_state: profile.ptState,
+        industry: profile.industry,
+        registered_address: { street: profile.regAddress, city: '', state: profile.ptState, pincode: '', country: 'India' } 
+      })
       setCompleted(p => ({ ...p, 1: true })); toast.success('Company details saved'); setActiveStep(2)
     } catch (err) { toast.error(err?.response?.data?.message || 'Save failed') }
     finally { setSaving(false) }

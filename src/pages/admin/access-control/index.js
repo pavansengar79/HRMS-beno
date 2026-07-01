@@ -164,6 +164,7 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
   const [saving, setSaving] = useState(false)
   // When defaultLevel is locked from context, the dropdown is hidden
   const levelLocked = Boolean(defaultLevel)
+  
   useEffect(() => {
     if (editRole) {
       setForm({ name: editRole.name || '', level: editRole.level || defaultLevel || 'unit', description: editRole.description || '',
@@ -172,11 +173,31 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
       setForm({ name: '', level: defaultLevel || 'unit', description: '', selectedPermissions: [] })
     }
   }, [editRole, open, defaultLevel])
+  
+  // Filter permissions based on selected level
+  // Level hierarchy: org can see org/company/unit, company can see company/unit, unit can see unit
+  const LEVEL_HIERARCHY = {
+    org: ['org', 'company', 'unit'],
+    company: ['company', 'unit'],
+    unit: ['unit']
+  }
+  
+  const filteredPermissions = (permissions || []).filter(p => {
+    if (!p.scope || p.scope.length === 0) return true
+    const allowedScopes = LEVEL_HIERARCHY[form.level] || [form.level]
+    return p.scope.some(s => allowedScopes.includes(s))
+  })
+  
   const togglePerm = id => setForm(prev => ({
     ...prev,
     selectedPermissions: prev.selectedPermissions.includes(id)
       ? prev.selectedPermissions.filter(x => x !== id) : [...prev.selectedPermissions, id],
   }))
+  
+  // Clear selected permissions when level changes (only for new roles)
+  const handleLevelChange = newLevel => {
+    setForm(prev => ({ ...prev, level: newLevel, selectedPermissions: [] }))
+  }
   const handleSubmit = async e => {
     e.preventDefault()
     if (!form.name.trim()) { toast.error('Role name is required'); return }
@@ -203,7 +224,7 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
   }
   // Group permissions by category
   const grouped = {}
-  ;(permissions || []).forEach(p => { const c = p.category || 'General'; if (!grouped[c]) grouped[c] = []; grouped[c].push(p) })
+  ;(filteredPermissions || []).forEach(p => { const c = p.category || 'General'; if (!grouped[c]) grouped[c] = []; grouped[c].push(p) })
   return (
     <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth component='form' onSubmit={handleSubmit}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -221,7 +242,7 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
               <CustomTextField fullWidth label='Level' value={form.level} disabled
                 helperText='Auto-set from your current context' />
             ) : (
-              <CustomTextField fullWidth select label='Level' value={form.level} onChange={e => setForm(p => ({ ...p, level: e.target.value }))}>
+              <CustomTextField fullWidth select label='Level' value={form.level} onChange={e => handleLevelChange(e.target.value)}>
                 <MenuItem value='unit'>Unit</MenuItem>
                 <MenuItem value='company'>Company</MenuItem>
                 <MenuItem value='org'>Organisation</MenuItem>
@@ -234,19 +255,31 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
           </Grid>
         </Grid>
         <Typography variant='overline' color='text.secondary' display='block' mb={1}>Assign Permissions</Typography>
-        {permissions.length === 0
-          ? <Typography variant='caption' color='text.disabled'>No assignable permissions loaded</Typography>
+        {!levelLocked && (
+          <Alert severity='info' sx={{ mb: 2 }}>
+            Showing permissions available at <strong>{form.level}</strong> level
+          </Alert>
+        )}
+        {filteredPermissions.length === 0
+          ? <Typography variant='caption' color='text.disabled'>No assignable permissions for this level</Typography>
           : Object.entries(grouped).map(([cat, perms]) => (
               <Box key={cat} sx={{ mb: 2 }}>
                 <Typography variant='caption' color='text.secondary' sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', display: 'block', mb: 1 }}>{cat}</Typography>
                 <Stack spacing={0.5}>
-                  {perms.map(p => (
+                  {perms.filter(p => filteredPermissions.some(fp => fp._id === p._id)).map(p => (
                     <Box key={p._id} sx={{ px: 2, py: 0.5, bgcolor: 'action.hover', borderRadius: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Checkbox size='small' checked={form.selectedPermissions.includes(p._id)} onChange={() => togglePerm(p._id)} />
-                      <Box>
+                      <Box sx={{ flex: 1 }}>
                         <Typography variant='body2' sx={{ fontFamily: 'monospace', fontWeight: 600, lineHeight: 1.3 }}>{p.label || p.name}</Typography>
                         {p.frRef && <Typography variant='caption' color='text.disabled'>{p.frRef}</Typography>}
                       </Box>
+                      {p.scope && p.scope.length > 0 && (
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          {p.scope.map(s => (
+                            <Chip key={s} label={s} size='small' variant='outlined' color='primary' sx={{ fontSize: '0.65rem', height: 20 }} />
+                          ))}
+                        </Box>
+                      )}
                     </Box>
                   ))}
                 </Stack>

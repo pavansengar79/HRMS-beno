@@ -72,6 +72,7 @@ const buildOrgNav = companies => stamp([
   { title: 'Reports & Analytics', icon: 'tabler:chart-bar',        path: '/charts/recharts' },
   { sectionTitle: 'ADMINISTRATION' },
   { title: 'Admin Users',      icon: 'tabler:user-shield',         path: '/admin-users' },
+  { title: 'Roles & Permissions', icon: 'tabler:lock',             path: '/admin/access-control' },
   { title: 'Access Control',   icon: 'tabler:lock',                path: '/admin/access-control' },
   { title: 'General Features', icon: 'tabler:adjustments',         path: '/admin/general-features' },
 ])
@@ -133,7 +134,7 @@ const buildCompanyNav = (company, units, orgId, showBack = true) => {
     { sectionTitle: 'ADMINISTRATION' },
     { title: 'Admin Users',        icon: 'tabler:user-shield',
       path: `/admin-users?company=${companyId}` },
-    { title: 'Access Control',     icon: 'tabler:lock',         path: '/admin/access-control' },
+    { title: 'Roles & Permissions', icon: 'tabler:lock',         path: '/admin/access-control' },
     { title: 'System Config',      icon: 'tabler:settings',     path: '/admin/system-config' },
     { title: 'General Features',   icon: 'tabler:adjustments',  path: '/admin/general-features' },
   ])
@@ -190,6 +191,7 @@ const buildUnitNav = (unit, company, orgId, showBack = true) => {
     { title: 'Leaves',             icon: 'tabler:calendar-user',    path: p('leaves'),      badgeContent: 'New',  badgeColor: 'error'   },
     { title: 'Payroll',            icon: 'tabler:cash',             path: p('payroll'),     badgeContent: 'Run',  badgeColor: 'warning' },
     { title: 'Holidays',           icon: 'tabler:calendar-event',   path: p('holidays') },
+    { title: 'Shifts',             icon: 'tabler:clock',            path: p('shift') },
 
     // ── COMPLIANCE ────────────────────────────────────────────────────────
     { sectionTitle: 'COMPLIANCE' },
@@ -226,6 +228,7 @@ const buildUnitAdminNav = (user, units) => {
     { title: 'Leaves',             icon: 'tabler:calendar-user',    path: '/leaves',      badgeContent: 'New',  badgeColor: 'error'   },
     { title: 'Payroll',            icon: 'tabler:cash',             path: '/payroll',     badgeContent: 'Run',  badgeColor: 'warning' },
     { title: 'Holidays',           icon: 'tabler:calendar-event',   path: '/holidays' },
+    { title: 'Shifts',             icon: 'tabler:clock',            path: '/shift' },
 
     { sectionTitle: 'COMPLIANCE' },
     { title: 'Policies',           icon: 'tabler:shield-check',     path: '/policy' },
