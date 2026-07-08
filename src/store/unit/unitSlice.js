@@ -1,8 +1,16 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 const BASE = '/api/v1/units'
-export const fetchUnits = createAsyncThunk('unit/fetchAll', async (_, { rejectWithValue }) => {
-  try { const res = await axiosRequest.get(BASE); return res.units || res.data || [] }
+
+// Accept companyId param - org_admin/company_admin can view specific company's units
+export const fetchUnits = createAsyncThunk('unit/fetchAll', async (companyId, { rejectWithValue }) => {
+  try {
+    const params = new URLSearchParams()
+    if (companyId) params.append('companyId', companyId)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    const res = await axiosRequest.get(`${BASE}${query}`)
+    return res.units || res.data || []
+  }
   catch (e) { return rejectWithValue(typeof e === 'string' ? e : e?.message || 'Failed') }
 })
 export const createUnit = createAsyncThunk('unit/create', async (p, { rejectWithValue }) => {

@@ -62,26 +62,30 @@ const MONTH_OPTIONS = (() => {
   return opts
 })()
 
-export default function UnitDashboard() {
+export default function UnitDashboard({ companyId, unitId }) {
   const dispatch = useDispatch()
   const theme = useTheme(); const isDark = theme.palette.mode === 'dark'
   const { data, loading, error } = useSelector(s => s.dashboard)
   const now = new Date()
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
-  useEffect(() => { dispatch(fetchUnitDashboard(month)) }, [dispatch, month])
+  // Pass companyId and unitId to API for org_admin/company_admin navigation
+  useEffect(() => { dispatch(fetchUnitDashboard({ month, companyId, unitId })) }, [dispatch, month, companyId, unitId])
 
   const handleLeaveAction = async (id, status) => {
     try {
       await dispatch(updateLeaveStatus({ id, status, remarks: `${status} from dashboard` })).unwrap()
       toast.success(`Leave ${status.toLowerCase()}`)
-      dispatch(fetchUnitDashboard(month))
+      dispatch(fetchUnitDashboard({ month, companyId, unitId }))
     } catch (e) { toast.error(String(e)) }
   }
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}><CircularProgress /></Box>
   if (error)   return <Alert severity='error' sx={{ m: 4 }}>{String(error)}</Alert>
   if (!data)   return null
+
+  // Debug log to see API response
+  console.log('[UnitDashboard] API data received:', data)
 
   const users       = data.users        || {}
   const employees   = data.employees    || {}
@@ -91,6 +95,9 @@ export default function UnitDashboard() {
   const monthlyAtt  = data.monthlyAttendance  || {}
   const pendLeaves  = data.pendingLeaves      || []
   const holidays    = data.upcomingHolidays   || []
+  const recentUsers = data.recentUsers        || []
+  const recentActivity = data.recentActivity  || []
+  const rolesData   = data.roles         || {}
 
   const KPIS = [
     { label: 'Team Size',         value: employees.total ?? users.total, sub: `${depts.total ?? 0} departments`, icon: 'tabler:users', color: '#6366f1', trend: 'Stable', trendUp: true },
@@ -239,6 +246,83 @@ export default function UnitDashboard() {
           </Box>
         ))}
       </Card>
+
+      {/* Recent Users Section */}
+      <Grid container spacing={4} sx={{ mt: 2 }}>
+        <Grid item xs={12} md={8}>
+          <Card>
+            <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Recent Users</Typography>
+              <Typography variant='caption' color='text.secondary'>Latest team members in this unit</Typography>
+            </Box>
+            {recentUsers.length === 0 ? (
+              <Box sx={{ p: 4, textAlign: 'center' }}><Typography variant='body2' color='text.secondary'>No users found</Typography></Box>
+            ) : (
+              <Box sx={{ p: 2 }}>
+                <Stack spacing={1.5}>
+                  {recentUsers.slice(0, 5).map(u => (
+                    <Box key={u.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1.5, borderRadius: 2, bgcolor: alpha('#6366f1', 0.04) }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{ width: 36, height: 36, bgcolor: alpha('#6366f1', 0.15), color: '#6366f1', fontSize: 14, fontWeight: 700 }}>
+                          {(u.name || 'U').charAt(0).toUpperCase()}
+                        </Avatar>
+                        <Box>
+                          <Typography variant='body2' sx={{ fontWeight: 600 }}>{u.name}</Typography>
+                          <Typography variant='caption' color='text.secondary'>{u.email}</Typography>
+                        </Box>
+                      </Box>
+                      <Stack direction='row' spacing={1} alignItems='center'>
+                        <Chip label={u.role} size='small' sx={{ fontSize: 10, height: 22, bgcolor: alpha('#10b981', 0.1), color: '#10b981' }} />
+                        <Chip label={u.status} size='small' sx={{ fontSize: 10, height: 22, bgcolor: alpha(u.status === 'ACTIVE' ? '#10b981' : '#ef4444', 0.1), color: u.status === 'ACTIVE' ? '#10b981' : '#ef4444' }} />
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <Card sx={{ height: '100%' }}>
+            <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Unit Roles</Typography>
+              <Typography variant='caption' color='text.secondary'>{rolesData.total?.length || 0} total roles</Typography>
+            </Box>
+            {rolesData.total?.length > 0 ? (
+              <Box sx={{ p: 2 }}>
+                <Stack spacing={1}>
+                  {rolesData.total.slice(0, 4).map(r => (
+                    <Box key={r._id} sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: 2, bgcolor: alpha('#f59e0b', 0.06) }}>
+                      <Avatar sx={{ width: 32, height: 32, bgcolor: alpha('#f59e0b', 0.15), color: '#f59e0b', fontSize: 12, fontWeight: 700 }}>
+                        {(r.name || 'U').charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant='body2' sx={{ fontWeight: 600, fontSize: 13 }}>{r.name}</Typography>
+                        <Typography variant='caption' color='text.secondary' sx={{ fontSize: 11 }}>{r.email}</Typography>
+                      </Box>
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            ) : (
+              <Box sx={{ p: 4, textAlign: 'center' }}><Typography variant='body2' color='text.secondary'>No roles data</Typography></Box>
+            )}
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Recent Activity Banner */}
+      {recentActivity.length > 0 && (
+        <Card sx={{ mt: 3, bgcolor: alpha('#6366f1', 0.05), border: '1px solid', borderColor: alpha('#6366f1', 0.15) }}>
+          <Box sx={{ px: 4, py: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Icon icon='tabler:activity' fontSize={20} style={{ color: '#6366f1' }} />
+            <Typography variant='body2' sx={{ fontWeight: 600 }}>
+              Recent Activity: {recentActivity.map(a => a.type).join(', ')}
+            </Typography>
+          </Box>
+        </Card>
+      )}
     </Box>
   )
 }

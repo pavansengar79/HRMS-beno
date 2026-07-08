@@ -29,6 +29,9 @@ import Divider from '@mui/material/Divider'
 import { alpha, useTheme } from '@mui/material/styles'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import Icon from 'src/@core/components/icon'
+import { useRouter } from 'next/router'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
+import PayrollTabs from '../PayrollTabs'
 
 const fmt = n => n == null ? '—' : '₹' + Math.round(n).toLocaleString('en-IN')
 const fmtDate = s => s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
@@ -50,6 +53,8 @@ const MONTH_OPTIONS = (() => {
 
 export default function RunPayroll() {
   const dispatch = useDispatch()
+  const router = useRouter()
+  const roleSlug = useSelector(selectRoleSlug)
   const theme = useTheme(); const isDark = theme.palette.mode === 'dark'
   const { payslips, payslipsTotal, payslipsLoading, runLoading, lastResult } = useSelector(s => s.payroll)
   const { allEmployees } = useSelector(s => s.employee)
@@ -57,6 +62,11 @@ export default function RunPayroll() {
   const now = new Date()
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
   const [actionLoading, setActionLoading] = useState(null)
+
+  // Employees can't run payroll — bounce them to their own payslips.
+  useEffect(() => {
+    if (roleSlug === 'employee') router.replace('/payroll/my')
+  }, [roleSlug, router])
 
   useEffect(() => {
     dispatch(fetchAllEmployees({}))
@@ -115,11 +125,11 @@ export default function RunPayroll() {
   const publishedPayslips = payslips.filter(p => p.status === 'PUBLISHED')
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 } }}>
+    <PayrollTabs activeTab='run-payroll'>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
         <Box>
-          <Typography variant='h5' sx={{ fontWeight: 800 }}>Run Payroll</Typography>
+          <Typography variant='h6' sx={{ fontWeight: 700 }}>Run Payroll</Typography>
           <Typography variant='body2' color='text.secondary'>Process payroll for all employees</Typography>
         </Box>
         <CustomTextField select value={month} onChange={e => setMonth(e.target.value)} size='small' sx={{ minWidth: 160 }}>
@@ -245,6 +255,6 @@ export default function RunPayroll() {
           </TableBody>
         </Table>
       </Card>
-    </Box>
+    </PayrollTabs>
   )
 }

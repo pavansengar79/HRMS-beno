@@ -19,11 +19,12 @@ import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import { getInitials } from 'src/@core/utils/get-initials'
 import AddCompanyDrawer from './AddCompanyDrawer'
+import ResponsiblePersonDialog from './ResponsiblePersonDialog'
 import toast from 'react-hot-toast'
 
 const statusColorMap = { Active: 'success', Inactive: 'secondary', ACTIVE: 'success', INACTIVE: 'secondary' }
 
-const RowOptions = ({ id }) => {
+const RowOptions = ({ id, companyName, onAssignResponsible }) => {
   const dispatch = useDispatch()
   const [anchorEl, setAnchorEl] = useState(null)
   const handleDelete = async () => {
@@ -40,6 +41,9 @@ const RowOptions = ({ id }) => {
         <MenuItem component={Link} href={`/company/${id}/details/account`} onClick={() => setAnchorEl(null)} sx={{ '& svg': { mr: 2 } }}>
           <Icon icon='tabler:eye' fontSize={20} />View
         </MenuItem>
+        <MenuItem onClick={() => { onAssignResponsible(id, companyName); setAnchorEl(null) }} sx={{ '& svg': { mr: 2 } }}>
+          <Icon icon='tabler:user-plus' fontSize={20} />Assign Responsible
+        </MenuItem>
         <MenuItem onClick={handleDelete} sx={{ '& svg': { mr: 2 } }}>
           <Icon icon='tabler:trash' fontSize={20} />Delete
         </MenuItem>
@@ -48,43 +52,82 @@ const RowOptions = ({ id }) => {
   )
 }
 
-const columns = [
-  { flex: 0.25, minWidth: 240, field: 'company_name', headerName: 'Company',
-    renderCell: ({ row }) => (
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <CustomAvatar skin='light' color='primary' sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500 }}>
-          {getInitials(row.company_name || 'NA')}
-        </CustomAvatar>
-        <Box>
-          <Typography noWrap component={Link} href={`/company/${row._id}/details/account`}
-            sx={{ fontWeight: 500, textDecoration: 'none', color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
-            {row.company_name || 'Unnamed'}
-          </Typography>
-          <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>{row.company_email}</Typography>
-        </Box>
-      </Box>
-    )
-  },
-  { flex: 0.12, minWidth: 100, field: 'company_code', headerName: 'Code',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '0.75rem' }}>{row.company_code}</Typography> },
-  { flex: 0.15, minWidth: 130, field: 'company_phone', headerName: 'Phone',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.company_phone || '—'}</Typography> },
-  { flex: 0.1, minWidth: 100, field: 'status', headerName: 'Status',
-    renderCell: ({ row }) => <CustomChip rounded skin='light' size='small' label={row.status || 'Active'} color={statusColorMap[row.status] || 'success'} /> },
-  { flex: 0.12, minWidth: 110, field: 'createdAt', headerName: 'Created',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>
-      {row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-    </Typography> },
-  { flex: 0.08, minWidth: 80, sortable: false, field: 'actions', headerName: 'Actions', renderCell: ({ row }) => <RowOptions id={row._id} /> }
-]
-
 const Company = () => {
   const [search, setSearch]               = useState('')
   const [addOpen, setAddOpen]             = useState(false)
+  const [dialogOpen, setDialogOpen]             = useState(false)
+  const [selectedCompany, setSelectedCompany]   = useState(null)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
   const dispatch  = useDispatch()
   const companies = useSelector(selectAllCompanies)
   const loading   = useSelector(selectCompanyLoading)
+
+  const onAssignResponsible = (companyId, companyName) => {
+    setSelectedCompany({ id: companyId, name: companyName })
+    setDialogOpen(true)
+  }
+
+  const columns = [
+    { flex: 0.25, minWidth: 240, field: 'company_name', headerName: 'Company',
+      renderCell: ({ row }) => (
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <CustomAvatar skin='light' color='primary' sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500 }}>
+            {getInitials(row.company_name || 'NA')}
+          </CustomAvatar>
+          <Box>
+            <Typography noWrap component={Link} href={`/company/${row._id}/details/account`}
+              sx={{ fontWeight: 500, textDecoration: 'none', color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
+              {row.company_name || 'Unnamed'}
+            </Typography>
+            <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>{row.company_email}</Typography>
+          </Box>
+        </Box>
+      )
+    },
+    { flex: 0.12, minWidth: 100, field: 'company_code', headerName: 'Code',
+      renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '0.75rem' }}>{row.company_code}</Typography> },
+    { flex: 0.15, minWidth: 130, field: 'company_phone', headerName: 'Phone',
+      renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.company_phone || '—'}</Typography> },
+    { 
+      flex: 0.18, 
+      minWidth: 200, 
+      field: 'responsible_person', 
+      headerName: 'Responsible Person',
+      renderCell: ({ row }) => {
+        if (row.admin && row.admin.name) {
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <CustomAvatar skin='light' color='success' sx={{ width: 32, height: 32, fontSize: '0.75rem' }}>
+                {getInitials(row.admin.name)}
+              </CustomAvatar>
+              <Box>
+                <Typography variant='body2' sx={{ fontWeight: 500, color: 'text.secondary' }}>
+                  {row.admin.name}
+                </Typography>
+                <Typography variant='caption' sx={{ color: 'text.disabled' }}>
+                  {row.admin.email}
+                </Typography>
+              </Box>
+            </Box>
+          )
+        }
+        return (
+          <Typography variant='body2' sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+            Not assigned
+          </Typography>
+        )
+      }
+    },
+    { flex: 0.1, minWidth: 100, field: 'status', headerName: 'Status',
+      renderCell: ({ row }) => <CustomChip rounded skin='light' size='small' label={row.status || 'Active'} color={statusColorMap[row.status] || 'success'} /> },
+    { flex: 0.12, minWidth: 110, field: 'createdAt', headerName: 'Created',
+      renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>
+        {row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+      </Typography> },
+    { flex: 0.08, minWidth: 80, sortable: false, field: 'actions', headerName: 'Actions', renderCell: ({ row }) => (
+      <RowOptions id={row._id} companyName={row.company_name} onAssignResponsible={onAssignResponsible} />
+    ) }
+  ]
 
   useEffect(() => {
     dispatch(fetchAllCompanies())
@@ -115,6 +158,13 @@ const Company = () => {
         </Card>
       </Grid>
       <AddCompanyDrawer open={addOpen} toggle={() => setAddOpen(p => !p)} />
+      <ResponsiblePersonDialog
+        open={dialogOpen}
+        onClose={() => { setDialogOpen(false); setSelectedCompany(null) }}
+        companyId={selectedCompany?.id}
+        companyName={selectedCompany?.name}
+        onSuccess={() => dispatch(fetchAllCompanies())}
+      />
     </Grid>
   )
 }

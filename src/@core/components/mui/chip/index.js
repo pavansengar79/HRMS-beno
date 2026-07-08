@@ -25,6 +25,10 @@ const Chip = props => {
   const propsToPass = { ...props }
   propsToPass.rounded = undefined
 
+  // Only apply custom styles if color is valid and skin is light
+  const isValidColor = color && colors[color]
+  const chipSx = skin === 'light' && isValidColor ? Object.assign({}, colors[color], sx) : sx
+
   return (
     <MuiChip
       {...propsToPass}
@@ -33,7 +37,7 @@ const Chip = props => {
         'MuiChip-rounded': rounded,
         'MuiChip-light': skin === 'light'
       })}
-      sx={skin === 'light' && color ? Object.assign(colors[color], sx) : sx}
+      sx={chipSx}
     />
   )
 }

@@ -73,10 +73,12 @@ const STATUS_CONFIG = {
 
 const defaultValues = {
   name: '',
+  description: '',
   effectiveFrom: '',
   effectiveTo: '',
   applicableFor: {
     departments: [],
+    designations: [],
     roles: [],
     locations: [],
     employmentTypes: []
@@ -94,6 +96,7 @@ const defaultValues = {
     enabled: true,
     calculation: 'per_day',
     perDayFormula: 'monthly_salary/working_days',
+    perHourFormula: 'daily_rate/standard_hours',
     roundingRule: 'round2',
     includeHolidaysInLOP: false,
     includeWeekendsInLOP: false
@@ -110,6 +113,36 @@ const defaultValues = {
     countWeekendsBetween: false,
     countHolidaysBetween: false
   },
+  // TDS Configuration - Enterprise Tax Calculation
+  tdsConfig: {
+    enabled: true,
+    taxRegime: 'new',
+    standardDeduction: 50000,
+    professionalTaxExempt: true,
+    hraExemptionMethod: 'actual',
+    newRegimeRebate: true,
+    newRegimeSurcharge: true,
+    educationCessRate: 4,
+    surchargeSlabs: []
+  },
+  // Investment Configuration - Tax Exemption Limits
+  investmentConfig: {
+    enabled: true,
+    max80C: 150000,
+    max80CCD: 50000,
+    max80D: 75000,
+    max80E: null,
+    max80EEA: 150000,
+    max80TTA: 10000,
+    max80G: null,
+    max80EEB: 50000,
+    max80DD: 75000,
+    max80DDB: 40000,
+    max80U: 75000,
+    submissionDeadline: '01-15',
+    proofDeadline: '02-15'
+  },
+  // Tax Compliance - Statutory Deductions
   taxCompliance: {
     tdsEnabled: true,
     tdsSurchargeEnabled: false,
@@ -124,8 +157,18 @@ const defaultValues = {
     esiWageCeiling: 21000,
     ptEnabled: false,
     ptState: '',
+    lwfEnabled: false,
+    lwfState: '',
+    lwfEmployeeRate: 0,
+    lwfEmployerRate: 0,
     gratuityEnabled: false,
     gratuityRate: 4.81
+  },
+  // Salary Structure - Component Configuration
+  salaryStructure: {
+    fixedComponents: [],
+    reimbursements: [],
+    variablePay: []
   },
   overtimePay: {
     enabled: false,
@@ -191,13 +234,41 @@ const StatusChip = ({ status }) => {
 // ─── Applicability Section ────────────────────────────────────────────────────
 
 const ApplicabilitySection = ({ control }) => {
+  const [roles, setRoles] = useState([])
+  const [designations, setDesignations] = useState([])
+  const [departments, setDepartments] = useState([])
+  const [loading, setLoading] = useState(true)
   const [roleInput, setRoleInput] = useState('')
   const [locationInput, setLocationInput] = useState('')
+  const [designationInput, setDesignationInput] = useState('')
 
-  const addTag = (field, val) => {
-    const trimmed = val.trim().replace(/,$/, '')
-    if (trimmed && !field.value?.includes(trimmed)) {
-      field.onChange([...(field.value || []), trimmed])
+  // Fetch roles, designations, and departments on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [rolesRes, desigRes, deptRes] = await Promise.all([
+          axiosRequest.get('/api/v1/roles').catch(() => ({ data: { data: [] } })),
+          axiosRequest.get('/api/v1/designations').catch(() => ({ data: { data: [] } })),
+          axiosRequest.get('/api/v1/departments').catch(() => ({ data: { data: [] } }))
+        ])
+        
+        setRoles(rolesRes?.data?.data || rolesRes?.data || [])
+        setDesignations(desigRes?.data?.data || desigRes?.data || [])
+        setDepartments(deptRes?.data?.data || deptRes?.data || [])
+      } catch (error) {
+        console.error('Failed to fetch applicability data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const addTag = (field, value) => {
+    const tag = value.trim()
+    if (tag && !(field.value || []).includes(tag)) {
+      field.onChange([...(field.value || []), tag])
     }
   }
 
@@ -232,32 +303,66 @@ const ApplicabilitySection = ({ control }) => {
           />
         </Grid>
 
-        {/* Roles */}
+        {/* Roles - Multi-select dropdown */}
         <Grid item xs={12} sm={6}>
           <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Roles</Typography>
           <Controller name='applicableFor.roles' control={control}
             render={({ field }) => (
-              <Box>
-                <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-                  {(field.value || []).map((r, i) => (
-                    <Chip key={i} label={r} size='small' variant='tonal' color='secondary'
-                      onDelete={() => field.onChange(field.value.filter((_, idx) => idx !== i))}
-                    />
-                  ))}
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <CustomTextField size='small' fullWidth placeholder='e.g. manager'
-                    value={roleInput} onChange={e => setRoleInput(e.target.value)}
-                    onKeyDown={e => {
-                      if ((e.key === 'Enter' || e.key === ',') && roleInput.trim()) {
-                        e.preventDefault(); addTag(field, roleInput); setRoleInput('')
-                      }
-                    }}
-                  />
-                  <Button size='small' variant='tonal' onClick={() => { addTag(field, roleInput); setRoleInput('') }}>Add</Button>
-                </Box>
-                <Typography variant='caption' color='text.secondary'>Press Enter or comma to add</Typography>
-              </Box>
+              <CustomTextField
+                {...field}
+                select
+                fullWidth
+                SelectProps={{ multiple: true }}
+                placeholder='Select roles'
+                helperText='Select applicable roles'
+                disabled={loading}
+                value={field.value || []}
+                onChange={e => field.onChange(e.target.value)}
+              >
+                {roles.length === 0 ? (
+                  <MenuItem disabled>
+                    <Typography color='text.secondary'>No roles available</Typography>
+                  </MenuItem>
+                ) : (
+                  roles.map(role => (
+                    <MenuItem key={role._id || role.id || role.slug || role} value={role.slug || role.name || role}>
+                      {role.name || role}
+                    </MenuItem>
+                  ))
+                )}
+              </CustomTextField>
+            )}
+          />
+        </Grid>
+
+        {/* Departments - Multi-select dropdown */}
+        <Grid item xs={12} sm={6}>
+          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Departments</Typography>
+          <Controller name='applicableFor.departments' control={control}
+            render={({ field }) => (
+              <CustomTextField
+                {...field}
+                select
+                fullWidth
+                SelectProps={{ multiple: true }}
+                placeholder='Select departments'
+                helperText='Select applicable departments'
+                disabled={loading}
+                value={field.value || []}
+                onChange={e => field.onChange(e.target.value)}
+              >
+                {departments.length === 0 ? (
+                  <MenuItem disabled>
+                    <Typography color='text.secondary'>No departments available</Typography>
+                  </MenuItem>
+                ) : (
+                  departments.map(dept => (
+                    <MenuItem key={dept._id || dept.id || dept.name || dept} value={dept._id || dept.name || dept}>
+                      {dept.name || dept}
+                    </MenuItem>
+                  ))
+                )}
+              </CustomTextField>
             )}
           />
         </Grid>
@@ -281,7 +386,9 @@ const ApplicabilitySection = ({ control }) => {
                     value={locationInput} onChange={e => setLocationInput(e.target.value)}
                     onKeyDown={e => {
                       if ((e.key === 'Enter' || e.key === ',') && locationInput.trim()) {
-                        e.preventDefault(); addTag(field, locationInput); setLocationInput('')
+                        e.preventDefault()
+                        addTag(field, locationInput)
+                        setLocationInput('')
                       }
                     }}
                   />
@@ -289,6 +396,38 @@ const ApplicabilitySection = ({ control }) => {
                 </Box>
                 <Typography variant='caption' color='text.secondary'>Matches employee city</Typography>
               </Box>
+            )}
+          />
+        </Grid>
+
+        {/* Designations - Multi-select dropdown */}
+        <Grid item xs={12} sm={6}>
+          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Designations</Typography>
+          <Controller name='applicableFor.designations' control={control}
+            render={({ field }) => (
+              <CustomTextField
+                {...field}
+                select
+                fullWidth
+                SelectProps={{ multiple: true }}
+                placeholder='Select designations'
+                helperText='Select applicable designations'
+                disabled={loading}
+                value={field.value || []}
+                onChange={e => field.onChange(e.target.value)}
+              >
+                {designations.length === 0 ? (
+                  <MenuItem disabled>
+                    <Typography color='text.secondary'>No designations available</Typography>
+                  </MenuItem>
+                ) : (
+                  designations.map(desig => (
+                    <MenuItem key={desig._id || desig.id || desig.name || desig} value={desig._id || desig.name || desig}>
+                      {desig.name || desig}
+                    </MenuItem>
+                  ))
+                )}
+              </CustomTextField>
             )}
           />
         </Grid>
@@ -311,9 +450,27 @@ const SectionHeader = ({ title, subtitle }) => (
 
 const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
   const [saving, setSaving] = useState(false)
+  const [ptStates, setPtStates] = useState([])
   const isEdit = Boolean(editData?._id)
 
-  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm({ defaultValues })
+  // Fetch PT states on mount
+  useEffect(() => {
+    const fetchPTStates = async () => {
+      try {
+        const res = await axiosRequest.get('/api/v1/payroll-policies/meta/pt-states')
+        if (res?.success && res?.data) {
+          setPtStates(res.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch PT states:', error)
+      }
+    }
+    if (open) {
+      fetchPTStates()
+    }
+  }, [open])
+
+  const { control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({ defaultValues })
 
   const lopEnabled          = watch('lop.enabled')
   const lopCalc             = watch('lop.calculation')
@@ -322,19 +479,33 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
   const pfEnabled           = watch('taxCompliance.pfEnabled')
   const esiEnabled          = watch('taxCompliance.esiEnabled')
   const ptEnabled           = watch('taxCompliance.ptEnabled')
+  const lwfEnabled          = watch('taxCompliance.lwfEnabled')
   const gratuityEnabled     = watch('taxCompliance.gratuityEnabled')
   const proRataEnabled      = watch('proRata.enabled')
   const arrearEnabled       = watch('arrear.enabled')
+  const tdsConfigEnabled    = watch('tdsConfig.enabled')
+  const investmentConfigEnabled = watch('investmentConfig.enabled')
+
+  // Reset LWF fields when LWF is disabled
+  useEffect(() => {
+    if (!lwfEnabled) {
+      setValue('taxCompliance.lwfState', '')
+      setValue('taxCompliance.lwfEmployeeRate', 0)
+      setValue('taxCompliance.lwfEmployerRate', 0)
+    }
+  }, [lwfEnabled, setValue])
 
   useEffect(() => {
     if (open) {
       if (editData) {
         reset({
           name: editData.name || '',
+          description: editData.description || '',
           effectiveFrom: editData.effectiveFrom ? editData.effectiveFrom.split('T')[0] : '',
           effectiveTo: editData.effectiveTo ? editData.effectiveTo.split('T')[0] : '',
           applicableFor: {
             departments: editData.applicableFor?.departments || [],
+            designations: editData.applicableFor?.designations || [],
             roles: editData.applicableFor?.roles || [],
             locations: editData.applicableFor?.locations || [],
             employmentTypes: editData.applicableFor?.employmentTypes || []
@@ -352,9 +523,39 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             enabled: editData.lop?.enabled ?? true,
             calculation: editData.lop?.calculation || 'per_day',
             perDayFormula: editData.lop?.perDayFormula || 'monthly_salary/working_days',
+            perHourFormula: editData.lop?.perHourFormula || 'daily_rate/standard_hours',
             roundingRule: editData.lop?.roundingRule || 'round2',
             includeHolidaysInLOP: editData.lop?.includeHolidaysInLOP ?? false,
             includeWeekendsInLOP: editData.lop?.includeWeekendsInLOP ?? false
+          },
+          // TDS Configuration
+          tdsConfig: {
+            enabled: editData.tdsConfig?.enabled ?? true,
+            taxRegime: editData.tdsConfig?.taxRegime || 'new',
+            standardDeduction: editData.tdsConfig?.standardDeduction ?? 50000,
+            professionalTaxExempt: editData.tdsConfig?.professionalTaxExempt ?? true,
+            hraExemptionMethod: editData.tdsConfig?.hraExemptionMethod || 'actual',
+            newRegimeRebate: editData.tdsConfig?.newRegimeRebate ?? true,
+            newRegimeSurcharge: editData.tdsConfig?.newRegimeSurcharge ?? true,
+            educationCessRate: editData.tdsConfig?.educationCessRate ?? 4,
+            surchargeSlabs: editData.tdsConfig?.surchargeSlabs || []
+          },
+          // Investment Configuration
+          investmentConfig: {
+            enabled: editData.investmentConfig?.enabled ?? true,
+            max80C: editData.investmentConfig?.max80C ?? 150000,
+            max80CCD: editData.investmentConfig?.max80CCD ?? 50000,
+            max80D: editData.investmentConfig?.max80D ?? 75000,
+            max80E: editData.investmentConfig?.max80E ?? null,
+            max80EEA: editData.investmentConfig?.max80EEA ?? 150000,
+            max80TTA: editData.investmentConfig?.max80TTA ?? 10000,
+            max80G: editData.investmentConfig?.max80G ?? null,
+            max80EEB: editData.investmentConfig?.max80EEB ?? 50000,
+            max80DD: editData.investmentConfig?.max80DD ?? 75000,
+            max80DDB: editData.investmentConfig?.max80DDB ?? 40000,
+            max80U: editData.investmentConfig?.max80U ?? 75000,
+            submissionDeadline: editData.investmentConfig?.submissionDeadline || '01-15',
+            proofDeadline: editData.investmentConfig?.proofDeadline || '02-15'
           },
           deductionPriority: {
             leaveDeductionPriority: editData.deductionPriority?.leaveDeductionPriority || ['CL', 'SL', 'AL'],
@@ -382,8 +583,18 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             esiWageCeiling: editData.taxCompliance?.esiWageCeiling ?? 21000,
             ptEnabled: editData.taxCompliance?.ptEnabled ?? false,
             ptState: editData.taxCompliance?.ptState || '',
+            lwfEnabled: editData.taxCompliance?.lwfEnabled ?? false,
+            lwfState: editData.taxCompliance?.lwfState || '',
+            lwfEmployeeRate: editData.taxCompliance?.lwfEmployeeRate ?? 0,
+            lwfEmployerRate: editData.taxCompliance?.lwfEmployerRate ?? 0,
             gratuityEnabled: editData.taxCompliance?.gratuityEnabled ?? false,
             gratuityRate: editData.taxCompliance?.gratuityRate ?? 4.81
+          },
+          // Salary Structure
+          salaryStructure: {
+            fixedComponents: editData.salaryStructure?.fixedComponents || [],
+            reimbursements: editData.salaryStructure?.reimbursements || [],
+            variablePay: editData.salaryStructure?.variablePay || []
           },
           overtimePay: {
             enabled: editData.overtimePay?.enabled ?? false,
@@ -440,7 +651,31 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
           esiEmployeeRate: Number(data.taxCompliance.esiEmployeeRate),
           esiEmployerRate: Number(data.taxCompliance.esiEmployerRate),
           esiWageCeiling: Number(data.taxCompliance.esiWageCeiling),
+          lwfEmployeeRate: Number(data.taxCompliance.lwfEmployeeRate),
+          lwfEmployerRate: Number(data.taxCompliance.lwfEmployerRate),
           gratuityRate: Number(data.taxCompliance.gratuityRate)
+        },
+        tdsConfig: {
+          ...data.tdsConfig,
+          standardDeduction: Number(data.tdsConfig.standardDeduction),
+          educationCessRate: Number(data.tdsConfig.educationCessRate)
+        },
+        investmentConfig: {
+          ...data.investmentConfig,
+          max80C: Number(data.investmentConfig.max80C),
+          max80CCD: Number(data.investmentConfig.max80CCD),
+          max80D: Number(data.investmentConfig.max80D),
+          max80E: data.investmentConfig.max80E ? Number(data.investmentConfig.max80E) : null,
+          max80EEA: Number(data.investmentConfig.max80EEA),
+          max80TTA: Number(data.investmentConfig.max80TTA),
+          max80G: data.investmentConfig.max80G ? Number(data.investmentConfig.max80G) : null,
+          max80EEB: Number(data.investmentConfig.max80EEB),
+          max80DD: Number(data.investmentConfig.max80DD),
+          max80DDB: Number(data.investmentConfig.max80DDB),
+          max80U: Number(data.investmentConfig.max80U)
+        },
+        salaryStructure: {
+          ...data.salaryStructure
         },
         overtimePay: {
           ...data.overtimePay,
@@ -524,7 +759,7 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
         <Box>
           <SectionHeader title='Policy Details' />
           <Grid container spacing={4}>
-            <Grid item xs={12} sm={8}>
+            <Grid item xs={12} sm={4}>
               <Controller name='name' control={control} rules={{ required: 'Policy name is required' }}
                 render={({ field }) => (
                   <CustomTextField {...field} fullWidth label='Policy Name *'
@@ -538,6 +773,15 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
               {isEdit && editData?.status && (
                 <Box sx={{ pt: 2 }}><StatusChip status={editData.status} /></Box>
               )}
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Controller name='description' control={control}
+                render={({ field }) => (
+                  <CustomTextField {...field} fullWidth label='Description' multiline rows={1}
+                    placeholder='Brief description of this policy'
+                  />
+                )}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <Controller name='effectiveFrom' control={control}
@@ -696,12 +940,22 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                   )}
                 />
               </Grid>
-              <Grid item xs={12} sm={8}>
+              <Grid item xs={12} sm={6}>
                 <Controller name='lop.perDayFormula' control={control}
                   render={({ field }) => (
                     <CustomTextField {...field} fullWidth label='Per-Day Formula'
                       placeholder='monthly_salary/working_days'
-                      helperText='Formula used to calculate per-day deduction amount'
+                      helperText='Formula for per-day deduction'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Controller name='lop.perHourFormula' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth label='Per-Hour Formula'
+                      placeholder='daily_rate/standard_hours'
+                      helperText='Formula for per-hour deduction'
                     />
                   )}
                 />
@@ -805,9 +1059,9 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
           <SectionHeader title='Tax Compliance' subtitle='PF, ESI, TDS, PT and Gratuity configuration' />
           <Grid container spacing={4}>
 
-            {/* TDS */}
+            {/* TDS Basic Settings */}
             <Grid item xs={12}>
-              <Typography variant='body2' fontWeight={600} color='text.secondary' sx={{ mb: 1 }}>TDS</Typography>
+              <Typography variant='body2' fontWeight={600} color='text.secondary' sx={{ mb: 1 }}>TDS Basic Settings</Typography>
             </Grid>
             <Grid item xs={6} sm={4}>
               <SwitchRow name='taxCompliance.tdsEnabled' label='TDS Enabled' />
@@ -815,6 +1069,47 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             <Grid item xs={6} sm={4}>
               <SwitchRow name='taxCompliance.tdsSurchargeEnabled' label='TDS Surcharge' />
             </Grid>
+            
+            <Grid item xs={12}><Divider /></Grid>
+            
+            {/* LWF - Labour Welfare Fund */}
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant='body2' fontWeight={600} color='text.secondary'>Labour Welfare Fund (LWF)</Typography>
+                <SwitchRow name='taxCompliance.lwfEnabled' label='Enable LWF' />
+              </Box>
+            </Grid>
+            {lwfEnabled && (
+              <>
+                <Grid item xs={12} sm={6}>
+                  <Controller name='taxCompliance.lwfState' control={control}
+                    render={({ field }) => (
+                      <CustomTextField {...field} fullWidth label='LWF State'
+                        placeholder='e.g. Maharashtra'
+                      />
+                    )}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Controller name='taxCompliance.lwfEmployeeRate' control={control}
+                    render={({ field }) => (
+                      <CustomTextField {...field} fullWidth type='number' label='Employee Rate (%)'
+                        inputProps={{ step: 0.01, min: 0 }}
+                      />
+                    )}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Controller name='taxCompliance.lwfEmployerRate' control={control}
+                    render={({ field }) => (
+                      <CustomTextField {...field} fullWidth type='number' label='Employer Rate (%)'
+                        inputProps={{ step: 0.01, min: 0 }}
+                      />
+                    )}
+                  />
+                </Grid>
+              </>
+            )}
 
             <Grid item xs={12}><Divider /></Grid>
 
@@ -911,16 +1206,89 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
               </Box>
             </Grid>
             {ptEnabled && (
-              <Grid item xs={6} sm={4}>
-                <Controller name='taxCompliance.ptState' control={control}
-                  render={({ field }) => (
-                    <CustomTextField {...field} fullWidth label='PT State'
-                      placeholder='e.g. Maharashtra'
-                      helperText='PT slab depends on state'
-                    />
-                  )}
-                />
-              </Grid>
+              <>
+                <Grid item xs={12} sm={6}>
+                  <Controller name='taxCompliance.ptState' control={control}
+                    render={({ field }) => (
+                      <CustomTextField
+                        {...field}
+                        select
+                        fullWidth
+                        label='PT State'
+                        helperText='Select state for PT calculation'
+                        InputProps={{
+                          endAdornment: field.value && ptStates.find(s => s.code === field.value) && (
+                            <InputAdornment position='end'>
+                              <Tooltip
+                                title={
+                                  <Box sx={{ p: 1, maxWidth: 300 }}>
+                                    <Typography variant='subtitle2' sx={{ mb: 1 }}>
+                                      {ptStates.find(s => s.code === field.value)?.name} PT Slabs
+                                    </Typography>
+                                    <Box sx={{ mb: 0.5 }}>
+                                      {ptStates.find(s => s.code === field.value)?.slabs?.map((s, i) => (
+                                        <Box key={i} sx={{ mb: 0.5 }}>
+                                          <Typography variant='body2'>
+                                            ₹{s.minGross?.toLocaleString() || 0} - ₹{s.maxGross?.toLocaleString() || '∞'}: ₹{s.monthlyAmount}/month
+                                          </Typography>
+                                        </Box>
+                                      ))}
+                                    </Box>
+                                    <Typography variant='caption' color='text.secondary'>
+                                      Max Annual: ₹{ptStates.find(s => s.code === field.value)?.maxAnnual?.toLocaleString() || 0}
+                                    </Typography>
+                                    {ptStates.find(s => s.code === field.value)?.note && (
+                                      <Typography variant='caption' display='block' color='warning.main'>
+                                        {ptStates.find(s => s.code === field.value).note}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                                arrow
+                                placement='left'
+                              >
+                                <IconButton size='small' edge='end'>
+                                  <Icon icon='tabler:info-circle' fontSize='1.25rem' />
+                                </IconButton>
+                              </Tooltip>
+                            </InputAdornment>
+                          )
+                        }}
+                      >
+                        <MenuItem value=''>
+                          <Typography color='text.secondary'>Select State</Typography>
+                        </MenuItem>
+                        {ptStates.map(state => (
+                          <MenuItem key={state.code} value={state.code}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                              <Typography>{state.name}</Typography>
+                              {state.maxAnnual === 0 ? (
+                                <Chip label='No PT' size='small' color='success' sx={{ ml: 1 }} />
+                              ) : (
+                                <Typography variant='caption' color='text.secondary'>
+                                  ₹{state.maxAnnual}/yr
+                                </Typography>
+                              )}
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </CustomTextField>
+                    )}
+                  />
+                </Grid>
+                {watch('taxCompliance.ptState') && ptStates.find(s => s.code === watch('taxCompliance.ptState')) && (
+                  <Grid item xs={12} sm={6}>
+                    <Alert severity='info' sx={{ mt: 1 }}>
+                      <Typography variant='body2' fontWeight={600}>
+                        {ptStates.find(s => s.code === watch('taxCompliance.ptState'))?.name} PT Structure
+                      </Typography>
+                      <Typography variant='caption' display='block'>
+                        Max Annual: ₹{ptStates.find(s => s.code === watch('taxCompliance.ptState'))?.maxAnnual?.toLocaleString()}
+                      </Typography>
+                    </Alert>
+                  </Grid>
+                )}
+              </>
             )}
 
             <Grid item xs={12}><Divider /></Grid>
@@ -949,7 +1317,240 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
 
         <Divider />
 
-        {/* ── 8. Overtime Pay ──────────────────────────────────── */}
+        {/* ── 8. TDS Tax Configuration ─────────────────────────── */}
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <SectionHeader title='TDS Tax Configuration' subtitle='Tax regime settings and exemptions' />
+            <SwitchRow name='tdsConfig.enabled' label='Enable TDS Config' />
+          </Box>
+          {tdsConfigEnabled && (
+            <Grid container spacing={4}>
+              <Grid item xs={6} sm={4}>
+                <Controller name='tdsConfig.taxRegime' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} select fullWidth label='Default Tax Regime'>
+                      <MenuItem value='old'>Old Regime</MenuItem>
+                      <MenuItem value='new'>New Regime</MenuItem>
+                    </CustomTextField>
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='tdsConfig.standardDeduction' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Standard Deduction (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='Default: ₹50,000'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <SwitchRow name='tdsConfig.professionalTaxExempt' label='PT Exemption in TDS' />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='tdsConfig.hraExemptionMethod' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} select fullWidth label='HRA Exemption Method'>
+                      <MenuItem value='actual'>Actual HRA</MenuItem>
+                      <MenuItem value='standard'>Standard Deduction</MenuItem>
+                      <MenuItem value='none'>No Exemption</MenuItem>
+                    </CustomTextField>
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <SwitchRow name='tdsConfig.newRegimeRebate' label='New Regime Rebate (87A)' />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <SwitchRow name='tdsConfig.newRegimeSurcharge' label='New Regime Surcharge' />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='tdsConfig.educationCessRate' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Education Cess Rate (%)'
+                      inputProps={{ step: 0.1, min: 0 }}
+                      helperText='Default: 4%'
+                    />
+                  )}
+                />
+              </Grid>
+            </Grid>
+          )}
+        </Box>
+
+        <Divider />
+
+        {/* ── 9. Investment Declaration Configuration ───────────── */}
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <SectionHeader title='Investment Declaration' subtitle='Investment exemption limits under different sections' />
+            <SwitchRow name='investmentConfig.enabled' label='Enable Investment Config' />
+          </Box>
+          {investmentConfigEnabled && (
+            <Grid container spacing={4}>
+              {/* Section 80C */}
+              <Grid item xs={12}>
+                <Typography variant='body2' fontWeight={600} color='text.secondary'>Section 80C & 80CCD</Typography>
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80C' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80C (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='Investment limit: ₹1,50,000'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80CCD' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80CCD (NPS) (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='NPS limit: ₹50,000'
+                    />
+                  )}
+                />
+              </Grid>
+
+              <Grid item xs={12}><Divider /></Grid>
+
+              {/* Health Insurance Sections */}
+              <Grid item xs={12}>
+                <Typography variant='body2' fontWeight={600} color='text.secondary'>Health Insurance & Medical</Typography>
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80D' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80D (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='Health insurance: ₹75,000'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80DDB' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80DDB (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='Medical treatment: ₹40,000'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80DD' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80DD (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='Disabled dependent: ₹75,000'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80U' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80U (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='Self disability: ₹75,000'
+                    />
+                  )}
+                />
+              </Grid>
+
+              <Grid item xs={12}><Divider /></Grid>
+
+              {/* Other Sections */}
+              <Grid item xs={12}>
+                <Typography variant='body2' fontWeight={600} color='text.secondary'>Education & Other Exemptions</Typography>
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80E' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80E Education Loan (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='No upper limit'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80EEA' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80EEA Home Interest (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='Home loan: ₹1,50,000'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80EEB' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80EEB EV Loan (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='EV loan: ₹50,000'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80TTA' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80TTA Savings (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='Savings interest: ₹10,000'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.max80G' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max 80G Donations (₹)'
+                      inputProps={{ min: 0 }}
+                      helperText='Charitable donations'
+                    />
+                  )}
+                />
+              </Grid>
+
+              <Grid item xs={12}><Divider /></Grid>
+
+              {/* Deadlines */}
+              <Grid item xs={12}>
+                <Typography variant='body2' fontWeight={600} color='text.secondary'>Declaration Deadlines</Typography>
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.submissionDeadline' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth label='Submission Deadline'
+                      placeholder='MM-DD'
+                      helperText='e.g. 01-15 for Jan 15'
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                <Controller name='investmentConfig.proofDeadline' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth label='Proof Submission Deadline'
+                      placeholder='MM-DD'
+                      helperText='e.g. 02-15 for Feb 15'
+                    />
+                  )}
+                />
+              </Grid>
+            </Grid>
+          )}
+        </Box>
+
+        <Divider />
+
+        {/* ── 10. Overtime Pay ──────────────────────────────────── */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
             <SectionHeader title='Overtime Pay' />
@@ -996,7 +1597,7 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
 
         <Divider />
 
-        {/* ── 9. Pro-Rata ──────────────────────────────────────── */}
+        {/* ── 11. Pro-Rata ──────────────────────────────────────── */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
             <SectionHeader title='Pro-Rata Calculation' subtitle='For joiners and exits mid-cycle' />
@@ -1035,7 +1636,7 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
 
         <Divider />
 
-        {/* ── 10. Arrear ───────────────────────────────────────── */}
+        {/* ── 12. Arrear ───────────────────────────────────────── */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
             <SectionHeader title='Arrear' subtitle='Back-calculate pay for prior months' />
@@ -1062,7 +1663,7 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
 
         <Divider />
 
-        {/* ── 11. Payslip Config ───────────────────────────────── */}
+        {/* ── 13. Payslip Config ───────────────────────────────── */}
         <Box>
           <SectionHeader title='Payslip Configuration' subtitle='Controls what appears on the generated payslip' />
           <Grid container spacing={3}>

@@ -6,6 +6,7 @@ import OrganisationDashboard from './organisationDashboard'
 import CompanyDashboard      from './companyAdminDashboard'
 import UnitDashboard         from './unitDashboard'
 import HRDashboard           from './hrDashboard'
+import ManagerDashboard      from './managerDashboard'
 import EmployeeDashboard     from './employeeDashboard'
 
 const DASHBOARD_MAP = {
@@ -16,7 +17,8 @@ const DASHBOARD_MAP = {
   company_hr_manager: CompanyDashboard,
   unit_admin:         UnitDashboard,
   hr_manager:         HRDashboard,
-  manager:            HRDashboard,
+  manager:            ManagerDashboard,
+  Manager:            ManagerDashboard,
   employee:           EmployeeDashboard,
 }
 

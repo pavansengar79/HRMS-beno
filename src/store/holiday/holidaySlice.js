@@ -18,53 +18,87 @@ export const HOLIDAY_TYPES = {
 
 /**
  * GET /holidays?year=YYYY
+ * Accept companyId for org_admin/company_admin navigation
  */
 export const fetchHolidays = createAsyncThunk(
   'holiday/fetchHolidays',
-  async ({ year, types = [] }, { rejectWithValue }) => {
+  async ({ year, types = [], companyId }, { rejectWithValue }) => {
     try {
-      console.log('fetchHolidays called', { year, types })
+      console.log('🔄 fetchHolidays called', { year, types, companyId })
 
-      const params = new URLSearchParams()
-      params.append('year', year)
-
-      // Optional server-side filtering
-      // if (
-      //   Array.isArray(types) &&
-      //   types.length > 0 &&
-      //   types.length < Object.keys(HOLIDAY_TYPES).length
-      // ) {
-      //   types.forEach(type => params.append('type', type))
-      // }
-
-      const url = `/api/v1/holidays?${params.toString()}`
-
-      console.log('REQUEST URL:', url)
-
-      const response = await axiosRequest.get(url)
-
-      console.log('FULL AXIOS RESPONSE:', response)
-      console.log('RESPONSE DATA:', response?.data)
-
-      /**
-       * Depending on interceptor,
-       * sometimes API data is already returned directly.
-       */
-
-      const res = response?.data || response
-
-      console.log('FINAL RESPONSE:', res)
-
-      if (res) {
-        return Array.isArray(res) ? res : []
+      // Check authentication token first
+      if (typeof window !== 'undefined') {
+        const token = window.localStorage.getItem('accessToken')
+        console.log('🔑 Token exists:', !!token)
+        if (!token) {
+          console.error('❌ No authentication token found')
+          return rejectWithValue('Please log in to view holidays')
+        }
       }
 
-      return rejectWithValue(
-        res?.message || 'Failed to fetch holidays'
-      )
+      // Fetch BOTH master holidays AND company holidays
+      const [masterRes, companyRes] = await Promise.all([
+        axiosRequest.get(`/api/v1/holidays/master?year=${year}`).catch(err => {
+          console.error('❌ Master holidays fetch failed:', err.response?.data || err.message)
+          return null
+        }),
+        axiosRequest.get(`/api/v1/holidays?year=${year}${companyId ? `&companyId=${companyId}` : ''}`).catch(err => {
+          console.error('❌ Company holidays fetch failed:', err.response?.data || err.message)
+          return null
+        })
+      ])
+
+      console.log('📦 MASTER RESPONSE:', masterRes)
+      console.log('📦 COMPANY RESPONSE:', companyRes)
+
+      // Extract data from responses - handle multiple response formats
+      let masterHolidays = []
+      let companyHolidays = []
+      
+      // Handle master holidays
+      if (masterRes) {
+        if (Array.isArray(masterRes)) {
+          masterHolidays = masterRes
+        } else if (masterRes.data && Array.isArray(masterRes.data)) {
+          masterHolidays = masterRes.data
+        } else if (masterRes.success && masterRes.data) {
+          masterHolidays = masterRes.data
+        }
+        console.log('✅ Master holidays extracted:', masterHolidays.length, 'holidays')
+      }
+      
+      // Handle company holidays
+      if (companyRes) {
+        if (Array.isArray(companyRes)) {
+          companyHolidays = companyRes
+        } else if (companyRes.data && Array.isArray(companyRes.data)) {
+          companyHolidays = companyRes.data
+        } else if (companyRes.success && companyRes.data) {
+          companyHolidays = companyRes.data
+        }
+        console.log('✅ Company holidays extracted:', companyHolidays.length, 'holidays')
+      }
+
+      // Merge: Company holidays override master holidays on same date
+      const mergedHolidays = [...masterHolidays]
+      
+      companyHolidays.forEach(companyHoliday => {
+        const existingIndex = mergedHolidays.findIndex(
+          h => new Date(h.date).toDateString() === new Date(companyHoliday.date).toDateString()
+        )
+        if (existingIndex >= 0) {
+          mergedHolidays[existingIndex] = companyHoliday
+        } else {
+          mergedHolidays.push(companyHoliday)
+        }
+      })
+
+      console.log('🎉 FINAL MERGED HOLIDAYS:', mergedHolidays.length, 'holidays')
+
+      return mergedHolidays
     } catch (err) {
-      console.log('FETCH HOLIDAYS ERROR:', err)
-      console.log('ERROR RESPONSE:', err?.response)
+      console.error('💥 FETCH HOLIDAYS ERROR:', err)
+      console.error('💥 ERROR RESPONSE:', err?.response)
 
       return rejectWithValue(
         err?.response?.data?.message ||

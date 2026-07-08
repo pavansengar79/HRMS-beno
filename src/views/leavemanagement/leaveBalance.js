@@ -108,7 +108,8 @@ const AdjustDialog = ({ open, onClose, onConfirm, balance, loading }) => {
 // API fields: totalAllocated, used, pending, remaining, carriedForward, encashed
 
 const BalanceCard = ({ bal, canAdjust, onAdjust }) => {
-  const total     = bal.totalAllocated ?? 0
+  // Support both backend field names: "allocated" (new) and "totalAllocated" (legacy)
+  const total     = bal.allocated ?? bal.totalAllocated ?? 0
   const used      = bal.used           ?? 0
   const pending   = bal.pending        ?? 0
   const remaining = bal.remaining      ?? 0
@@ -333,8 +334,8 @@ const TabLeaveBalance = () => {
         </Alert>
       ) : (
         <Grid container spacing={4}>
-          {balances.map(bal => (
-            <Grid item xs={12} sm={6} md={4} key={bal._id}>
+          {balances.map((bal, idx) => (
+            <Grid item xs={12} sm={6} md={4} key={bal._id || bal.leaveTypeId?._id || idx}>
               <BalanceCard bal={bal} canAdjust={canAdjust} onAdjust={openAdjust} />
             </Grid>
           ))}

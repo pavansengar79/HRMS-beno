@@ -31,9 +31,29 @@ export const deleteCompany = createAsyncThunk('company/delete', async (id, { rej
   catch (err) { return rejectWithValue(err?.message || 'Failed') }
 })
 
+// ─── Company Modules ────────────────────────────────────────────────────────
+
+export const getCompanyModules = createAsyncThunk('company/getModules', async (companyId, { rejectWithValue }) => {
+  try {
+    const res = await axiosRequest.get(`${BASE}/${companyId}/modules`)
+    return res.data || res
+  } catch (err) {
+    return rejectWithValue(err?.message || 'Failed to fetch modules')
+  }
+})
+
+export const updateCompanyModules = createAsyncThunk('company/updateModules', async ({ companyId, modules }, { rejectWithValue }) => {
+  try {
+    const res = await axiosRequest.put(`${BASE}/${companyId}/modules`, { modules })
+    return res.data || res
+  } catch (err) {
+    return rejectWithValue(err?.message || 'Failed to update modules')
+  }
+})
+
 const companySlice = createSlice({
   name: 'company',
-  initialState: { list: [], total: 0, selectedCompany: null, loading: false, detailLoading: false, error: null },
+  initialState: { list: [], total: 0, selectedCompany: null, modules: [], loading: false, detailLoading: false, error: null },
   reducers: { clearSelectedCompany: state => { state.selectedCompany = null; state.error = null } },
   extraReducers: builder => {
     builder
@@ -53,6 +73,11 @@ const companySlice = createSlice({
         if (idx !== -1) s.list[idx] = payload
         if (s.selectedCompany) s.selectedCompany = payload
       })
+      // Company Modules
+      .addCase(getCompanyModules.pending, s => { s.loading = true; s.error = null })
+      .addCase(getCompanyModules.fulfilled, (s, { payload }) => { s.loading = false; s.modules = payload || [] })
+      .addCase(getCompanyModules.rejected, (s, { payload }) => { s.loading = false; s.error = payload })
+      .addCase(updateCompanyModules.fulfilled, (s, { payload }) => { s.modules = payload || [] })
   }
 })
 

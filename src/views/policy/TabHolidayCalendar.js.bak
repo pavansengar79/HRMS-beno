@@ -1,0 +1,976 @@
+// ** React Imports
+import { useState, useEffect, useCallback } from 'react'
+
+// ** MUI Imports
+import Box from '@mui/material/Box'
+import Card from '@mui/material/Card'
+import Grid from '@mui/material/Grid'
+import Button from '@mui/material/Button'
+import Divider from '@mui/material/Divider'
+import MenuItem from '@mui/material/MenuItem'
+import Typography from '@mui/material/Typography'
+import CardHeader from '@mui/material/CardHeader'
+import CardContent from '@mui/material/CardContent'
+import CircularProgress from '@mui/material/CircularProgress'
+import Chip from '@mui/material/Chip'
+import IconButton from '@mui/material/IconButton'
+import Tooltip from '@mui/material/Tooltip'
+import Alert from '@mui/material/Alert'
+import Switch from '@mui/material/Switch'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Drawer from '@mui/material/Drawer'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import Paper from '@mui/material/Paper'
+import Avatar from '@mui/material/Avatar'
+
+// ** Icon Imports
+import Icon from 'src/@core/components/icon'
+
+// ** Custom Components
+import CustomTextField from 'src/@core/components/mui/text-field'
+
+// ** Third Party
+import { useForm, Controller } from 'react-hook-form'
+import toast from 'react-hot-toast'
+import axiosRequest from 'src/utils/AxiosInterceptor'
+
+// ────────────────────────────────────────────────────────────────
+// Constants
+// ────────────────────────────────────────────────────────────────
+
+const HOLIDAY_TYPES = [
+  { label: 'National', value: 'NATIONAL' },
+  { label: 'Festival', value: 'FESTIVAL' },
+  { label: 'Regional', value: 'REGIONAL' },
+  { label: 'Optional', value: 'OPTIONAL' }
+]
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+]
+
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+const defaultValues = {
+  name: '',
+  date: '',
+  type: 'NATIONAL',
+  year: new Date().getFullYear(),
+  isRecurring: false
+}
+
+// ────────────────────────────────────────────────────────────────
+// Type Chip Color Helper
+// ────────────────────────────────────────────────────────────────
+
+const getTypeColor = type => {
+  switch (type) {
+    case 'NATIONAL':
+      return 'primary'
+    case 'FESTIVAL':
+      return 'success'
+    case 'REGIONAL':
+      return 'warning'
+    case 'OPTIONAL':
+      return 'secondary'
+    default:
+      return 'default'
+  }
+}
+
+// ────────────────────────────────────────────────────────────────
+// Calendar Grid Component
+// ────────────────────────────────────────────────────────────────
+
+const CalendarGrid = ({ year, month, holidays, onDayClick }) => {
+  const today = new Date()
+  
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate()
+  }
+  
+  const getFirstDayOfMonth = (year, month) => {
+    return new Date(year, month, 1).getDay()
+  }
+  
+  const daysInMonth = getDaysInMonth(year, month)
+  const firstDay = getFirstDayOfMonth(year, month)
+  const daysArray = []
+  
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    daysArray.push({ day: null, empty: true })
+  }
+  
+  // Actual days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day)
+    const dateStr = date.toISOString().split('T')[0]
+    
+    // Find holidays on this day
+    const dayHolidays = holidays.filter(h => {
+      const hDate = new Date(h.date)
+      return hDate.getFullYear() === year && 
+             hDate.getMonth() === month && 
+             hDate.getDate() === day
+    })
+    
+    const isToday = today.getFullYear() === year && 
+                    today.getMonth() === month && 
+                    today.getDate() === day
+    
+    daysArray.push({ 
+      day, 
+      empty: false, 
+      holidays: dayHolidays,
+      isToday,
+      date,
+      dateStr
+    })
+  }
+  
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1 }}>
+      {/* Day Headers */}
+      {DAYS.map(day => (
+        <Box
+          key={day}
+          sx={{
+            textAlign: 'center',
+            fontWeight: 600,
+            py: 1,
+            color: 'text.secondary',
+            fontSize: '0.75rem'
+          }}
+        >
+          {day}
+        </Box>
+      ))}
+      
+      {/* Calendar Days */}
+      {daysArray.map((item, idx) => (
+        <Box
+          key={idx}
+          onClick={() => !item.empty && onDayClick && onDayClick(item)}
+          sx={{
+            minHeight: 80,
+            p: 1,
+            borderRadius: 1,
+            cursor: item.empty ? 'default' : 'pointer',
+            backgroundColor: item.empty ? 'transparent' : item.isToday ? 'primary.lightBackground' : 'background.paper',
+            border: theme => item.empty ? 'none' : `1px solid ${item.isToday ? theme.palette.primary.main : theme.palette.divider}`,
+            transition: 'all 0.15s ease',
+            opacity: item.empty ? 0 : 1,
+            '&:hover': item.empty ? {} : {
+              backgroundColor: 'action.hover',
+              boxShadow: 2
+            }
+          }}
+        >
+          {!item.empty && (
+            <>
+              <Typography 
+                variant='body2' 
+                sx={{ 
+                  fontWeight: item.isToday ? 700 : 400,
+                  color: item.isToday ? 'primary.main' : 'text.primary'
+                }}
+              >
+                {item.day}
+              </Typography>
+              
+              {item.holidays && item.holidays.length > 0 && (
+                <Box sx={{ mt: 0.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  {item.holidays.slice(0, 2).map((h, i) => (
+                    <Chip
+                      key={i}
+                      label={h.name}
+                      size='small'
+                      color={getTypeColor(h.type)}
+                      variant={h.isMaster ? 'outlined' : 'tonal'}
+                      sx={{ 
+                        fontSize: '0.65rem',
+                        height: 20,
+                        '& .MuiChip-label': { px: 0.5 }
+                      }}
+                    />
+                  ))}
+                  {item.holidays.length > 2 && (
+                    <Typography variant='caption' color='text.secondary' sx={{ fontSize: '0.65rem' }}>
+                      +{item.holidays.length - 2} more
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </>
+          )}
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────
+// Holiday List Item Component
+// ────────────────────────────────────────────────────────────────
+
+const HolidayListItem = ({ holiday, onEdit, onDelete, onToggle }) => {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        mb: 1,
+        border: theme => `1px solid ${theme.palette.divider}`,
+        borderRadius: 1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        opacity: holiday.isActive ? 1 : 0.5,
+        transition: 'all 0.2s ease',
+        '&:hover': { boxShadow: 2 }
+      }}
+    >
+      <Avatar sx={{ bgcolor: theme => theme.palette[getTypeColor(holiday.type)]?.light || theme.palette.grey[200] }}>
+        <Icon icon={holiday.type === 'NATIONAL' ? 'tabler:flag' : holiday.type === 'FESTIVAL' ? 'tabler:confetti' : 'tabler:calendar'} />
+      </Avatar>
+      
+      <Box sx={{ flex: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant='subtitle2' fontWeight={600}>
+            {holiday.name}
+          </Typography>
+          {holiday.isMaster && (
+            <Chip size='small' label='Master' color='info' variant='outlined' sx={{ height: 20 }} />
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+          <Typography variant='caption' color='text.secondary'>
+            {new Date(holiday.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </Typography>
+          <Chip size='small' label={holiday.type} color={getTypeColor(holiday.type)} variant='tonal' />
+          {holiday.isRecurring && (
+            <Tooltip title='Recurring'>
+              <Icon icon='tabler:repeat' fontSize={16} />
+            </Tooltip>
+          )}
+          {!holiday.isActive && (
+            <Chip size='small' label='Inactive' color='error' variant='outlined' />
+          )}
+        </Box>
+      </Box>
+      
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        {!holiday.isMaster && (
+          <>
+            <Tooltip title='Toggle Active'>
+              <IconButton size='small' onClick={() => onToggle(holiday)}>
+                <Icon icon={holiday.isActive ? 'tabler:eye' : 'tabler:eye-off'} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title='Edit'>
+              <IconButton size='small' onClick={() => onEdit(holiday)}>
+                <Icon icon='tabler:pencil' />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title='Delete'>
+              <IconButton size='small' color='error' onClick={() => onDelete(holiday)}>
+                <Icon icon='tabler:trash' />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
+        {holiday.isMaster && (
+          <Tooltip title='Import to Company'>
+            <IconButton size='small' color='primary' onClick={() => onEdit({ ...holiday, _id: null })}>
+              <Icon icon='tabler:download' />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+    </Paper>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────
+// Day Detail Modal
+// ────────────────────────────────────────────────────────────────
+
+const DayDetailModal = ({ open, onClose, dayData, onAddHoliday }) => {
+  if (!dayData) return null
+  
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth>
+      <DialogTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant='h6'>
+            {dayData.date?.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </Typography>
+          <IconButton size='small' onClick={onClose}>
+            <Icon icon='tabler:x' />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+      
+      <DialogContent>
+        {dayData.holidays && dayData.holidays.length > 0 ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {dayData.holidays.map((holiday, idx) => (
+              <Box key={idx} sx={{ p: 2, borderRadius: 1, bgcolor: 'background.neutral' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant='subtitle2' fontWeight={600}>{holiday.name}</Typography>
+                  {holiday.isRecurring && (
+                    <Tooltip title='Recurring'>
+                      <Icon icon='tabler:repeat' fontSize={16} />
+                    </Tooltip>
+                  )}
+                </Box>
+                <Box sx={{ mt: 0.5, display: 'flex', gap: 1, alignItems: 'center' }}>
+                  <Chip size='small' label={holiday.type} color={getTypeColor(holiday.type)} variant='tonal' />
+                  <Typography variant='caption' color='text.secondary'>
+                    {holiday.country || 'IN'}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Alert severity='info'>No holidays on this day</Alert>
+        )}
+      </DialogContent>
+      
+      <DialogActions>
+        <Button variant='outlined' onClick={onClose}>Close</Button>
+        <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={onAddHoliday}>
+          Add Holiday
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────
+// Drawer
+// ────────────────────────────────────────────────────────────────
+
+const HolidayDrawer = ({ open, onClose, editData, onSuccess }) => {
+  const [saving, setSaving] = useState(false)
+
+  const isEdit = Boolean(editData?._id)
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors }
+  } = useForm({
+    defaultValues
+  })
+
+  useEffect(() => {
+    if (open) {
+      reset(
+        editData
+          ? {
+              name: editData.name || '',
+              date: editData.date ? editData.date.split('T')[0] : '',
+              type: editData.type || 'NATIONAL',
+              year: editData.year || new Date().getFullYear(),
+              isRecurring: editData.isRecurring || false
+            }
+          : defaultValues
+      )
+    }
+  }, [open, editData, reset])
+
+  const onSubmit = async values => {
+    setSaving(true)
+
+    try {
+      const payload = {
+        ...values,
+        year: Number(values.year)
+      }
+
+      let res
+
+      if (isEdit) {
+        res = await axiosRequest.put(`/api/v1/holidays/${editData._id}`, payload)
+      } else {
+        res = await axiosRequest.post('/api/v1/holidays', payload)
+      }
+
+      if (res?.data?.success) {
+        toast.success(`Holiday ${isEdit ? 'updated' : 'created'} successfully`)
+        onSuccess(res.data.data, isEdit)
+        onClose()
+      }
+    } catch (error) {
+      toast.error(error || 'Something went wrong')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Drawer
+      anchor='right'
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: {
+            xs: '100%',
+            sm: 520
+          }
+        }
+      }}
+    >
+      {/* Header */}
+      <Box
+        sx={{
+          px: 5,
+          py: 4,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: theme => `1px solid ${theme.palette.divider}`
+        }}
+      >
+        <Typography variant='h6'>
+          {isEdit ? 'Edit Holiday' : 'Create Holiday'}
+        </Typography>
+
+        <IconButton size='small' onClick={onClose}>
+          <Icon icon='tabler:x' />
+        </IconButton>
+      </Box>
+
+      {/* Form */}
+      <Box
+        component='form'
+        onSubmit={handleSubmit(onSubmit)}
+        sx={{
+          p: 5,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 5,
+          height: '100%'
+        }}
+      >
+        <Grid container spacing={4}>
+          <Grid item xs={12}>
+            <Controller
+              name='name'
+              control={control}
+              rules={{
+                required: 'Holiday name is required'
+              }}
+              render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  fullWidth
+                  label='Holiday Name'
+                  placeholder='Republic Day'
+                  error={!!errors.name}
+                  helperText={errors.name?.message}
+                />
+              )}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <Controller
+              name='date'
+              control={control}
+              rules={{
+                required: 'Date is required'
+              }}
+              render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  fullWidth
+                  type='date'
+                  label='Date'
+                  InputLabelProps={{ shrink: true }}
+                  error={!!errors.date}
+                  helperText={errors.date?.message}
+                />
+              )}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <Controller
+              name='year'
+              control={control}
+              rules={{
+                required: 'Year required'
+              }}
+              render={({ field }) => (
+                <CustomTextField
+                  {...field}
+                  fullWidth
+                  type='number'
+                  label='Year'
+                  error={!!errors.year}
+                  helperText={errors.year?.message}
+                />
+              )}
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <Controller
+              name='type'
+              control={control}
+              render={({ field }) => (
+                <CustomTextField {...field} select fullWidth label='Holiday Type'>
+                  {HOLIDAY_TYPES.map(item => (
+                    <MenuItem key={item.value} value={item.value}>
+                      {item.label}
+                    </MenuItem>
+                  ))}
+                </CustomTextField>
+              )}
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <Controller
+              name='isRecurring'
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Switch checked={field.value} onChange={field.onChange} color='primary' />}
+                  label='Recurring Holiday (Same date every year)'
+                />
+              )}
+            />
+          </Grid>
+        </Grid>
+
+        {/* Footer */}
+        <Box
+          sx={{
+            mt: 'auto',
+            pt: 5,
+            display: 'flex',
+            gap: 3,
+            justifyContent: 'flex-end'
+          }}
+        >
+          <Button
+            variant='tonal'
+            color='secondary'
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type='submit'
+            variant='contained'
+            disabled={saving}
+            startIcon={
+              saving ? <CircularProgress size={18} color='inherit' /> : null
+            }
+          >
+            {saving
+              ? 'Saving...'
+              : isEdit
+              ? 'Update Holiday'
+              : 'Create Holiday'}
+          </Button>
+        </Box>
+      </Box>
+    </Drawer>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────
+// Main Component
+// ────────────────────────────────────────────────────────────────
+
+const TabHolidayCalendar = () => {
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth()
+
+  const [holidays, setHolidays] = useState([])
+  const [masterHolidays, setMasterHolidays] = useState([])
+  const [loading, setLoading] = useState(true)
+  
+  const [viewMode, setViewMode] = useState('calendar') // 'calendar' | 'list'
+  const [selectedYear, setSelectedYear] = useState(currentYear)
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+  const [filterType, setFilterType] = useState('')
+  
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [editData, setEditData] = useState(null)
+  
+  const [dayModal, setDayModal] = useState({ open: false, data: null })
+  const [deleteModal, setDeleteModal] = useState({ open: false, data: null })
+
+  // ────────────────────────────────────────────────────────────
+  // Fetch Holidays
+  // ────────────────────────────────────────────────────────────
+
+  const fetchHolidays = useCallback(async () => {
+    setLoading(true)
+    
+    try {
+      // Check authentication first
+      if (typeof window !== 'undefined') {
+        const token = window.localStorage.getItem('accessToken')
+        console.log('🔑 Token exists:', !!token)
+        if (!token) {
+          toast.error('Please log in to view holidays')
+          setLoading(false)
+          return
+        }
+      }
+      
+      // Always fetch master holidays (platform-level)
+      console.log('🔄 Fetching master holidays for year:', selectedYear)
+      const masterRes = await axiosRequest.get(`/api/v1/holidays/master?year=${selectedYear}`)
+      
+      console.log('📦 Full response:', masterRes)
+      console.log('📦 Type:', typeof masterRes)
+      console.log('📦 Keys:', masterRes ? Object.keys(masterRes) : 'null')
+      
+      // After interceptor, masterRes IS the response.data already
+      // So it should be { success: true, data: [...], count: N }
+      if (masterRes && masterRes.success && Array.isArray(masterRes.data)) {
+        console.log('✅ Master holidays loaded:', masterRes.data.length, 'holidays')
+        setMasterHolidays(masterRes.data)
+      } else {
+        console.log('❌ Unexpected response format:', masterRes)
+        setMasterHolidays([])
+      }
+      
+      // Fetch company-specific holidays
+      const params = new URLSearchParams({ year: selectedYear })
+      if (filterType) params.append('type', filterType)
+      
+      const res = await axiosRequest.get(`/api/v1/holidays?${params.toString()}`)
+      console.log('📦 Company holidays response:', res)
+      
+      if (res && res.success && Array.isArray(res.data)) {
+        console.log('✅ Company holidays loaded:', res.data.length, 'holidays')
+        setHolidays(res.data)
+      } else {
+        setHolidays([])
+      }
+    } catch (error) {
+      console.error('💥 Failed to load holidays:', error)
+      console.error('💥 Error response:', error?.response)
+      const errorMsg = error?.response?.data?.message || error?.message || 'Unknown error'
+      
+      if (errorMsg.includes('Token required') || errorMsg.includes('Token invalid')) {
+        toast.error('Please log in to view holidays')
+        console.error('🔐 Authentication issue - check if you are logged in')
+      } else {
+        toast.error('Failed to load holidays: ' + errorMsg)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedYear, filterType])
+
+  useEffect(() => {
+    fetchHolidays()
+  }, [fetchHolidays])
+
+  // ────────────────────────────────────────────────────────────
+  // Handlers
+  // ────────────────────────────────────────────────────────────
+
+  const handleSuccess = (record, isEdit) => {
+    setHolidays(prev => {
+      if (isEdit) {
+        return prev.map(item => item._id === record._id ? record : item)
+      }
+      return [record, ...prev]
+    })
+  }
+
+  const handleToggle = async (holiday) => {
+    try {
+      const res = await axiosRequest.patch(`/api/v1/holidays/${holiday._id}/toggle`)
+      if (res?.success) {
+        toast.success(res.message || 'Status updated')
+        
+        setHolidays(prev => prev.map(item => 
+          item._id === holiday._id ? { ...item, isActive: !item.isActive } : item
+        ))
+      }
+    } catch (error) {
+      toast.error('Failed to update status')
+    }
+  }
+
+  const handleDelete = async () => {
+    const id = deleteModal?.data?._id
+    
+    try {
+      const res = await axiosRequest.delete(`/api/v1/holidays/${id}`)
+      
+      if (res?.success) {
+        setHolidays(prev => prev.filter(item => item._id !== id))
+        toast.success('Holiday deleted successfully')
+        setDeleteModal({ open: false, data: null })
+      }
+    } catch (error) {
+      toast.error('Delete failed')
+    }
+  }
+
+  const handleDayClick = (dayData) => {
+    if (dayData.holidays && dayData.holidays.length > 0) {
+      setDayModal({ open: true, data: dayData })
+    }
+  }
+
+  const handleAddFromDayModal = () => {
+    setDayModal({ open: false, data: null })
+    setEditData(null)
+    setDrawerOpen(true)
+  }
+
+  // Combine company holidays with master holidays
+  // Company holidays take precedence over master holidays on same dates
+  const displayHolidays = (() => {
+    const combined = [...holidays]
+    const companyDates = new Set(holidays.map(h => new Date(h.date).toDateString()))
+    
+    // Add master holidays that don't conflict with company holidays
+    masterHolidays.forEach(master => {
+      const masterDate = new Date(master.date).toDateString()
+      if (!companyDates.has(masterDate)) {
+        combined.push({ ...master, isMaster: true })
+      }
+    })
+    
+    return combined
+  })()
+
+  return (
+    <>
+      <Card>
+        {/* Header */}
+        <CardHeader
+          title='Holiday Calendar'
+          subheader='Manage company holidays and view calendar'
+          action={
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Year Filter */}
+              <CustomTextField
+                select
+                size='small'
+                value={selectedYear}
+                sx={{ minWidth: 100 }}
+                onChange={e => setSelectedYear(Number(e.target.value))}
+              >
+                {[2024, 2025, 2026, 2027, 2028].map(year => (
+                  <MenuItem key={year} value={year}>{year}</MenuItem>
+                ))}
+              </CustomTextField>
+              
+              {/* Type Filter */}
+              <CustomTextField
+                select
+                size='small'
+                value={filterType}
+                sx={{ minWidth: 120 }}
+                onChange={e => setFilterType(e.target.value)}
+                label='Type'
+              >
+                <MenuItem value=''>All Types</MenuItem>
+                {HOLIDAY_TYPES.map(item => (
+                  <MenuItem key={item.value} value={item.value}>{item.label}</MenuItem>
+                ))}
+              </CustomTextField>
+              
+              {/* View Toggle */}
+              <Button
+                variant={viewMode === 'calendar' ? 'contained' : 'tonal'}
+                onClick={() => setViewMode('calendar')}
+                sx={{ minWidth: 80 }}
+              >
+                Calendar
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'contained' : 'tonal'}
+                onClick={() => setViewMode('list')}
+                sx={{ minWidth: 80 }}
+              >
+                List
+              </Button>
+              
+              {/* Add Button */}
+              <Button
+                variant='contained'
+                startIcon={<Icon icon='tabler:plus' />}
+                onClick={() => {
+                  setEditData(null)
+                  setDrawerOpen(true)
+                }}
+              >
+                Add Holiday
+              </Button>
+            </Box>
+          }
+        />
+
+        <Divider />
+
+        {/* Content */}
+        <CardContent>
+          {loading ? (
+            <Box sx={{ py: 10, display: 'flex', justifyContent: 'center' }}>
+              <CircularProgress />
+            </Box>
+          ) : viewMode === 'calendar' ? (
+            <>
+              {/* Calendar View */}
+              {/* Month Navigation */}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                <IconButton onClick={() => setSelectedMonth(prev => prev === 0 ? 11 : prev - 1)}>
+                  <Icon icon='tabler:chevron-left' />
+                </IconButton>
+                
+                <Typography variant='h5' fontWeight={600}>
+                  {MONTHS[selectedMonth]} {selectedYear}
+                </Typography>
+                
+                <IconButton onClick={() => setSelectedMonth(prev => prev === 11 ? 0 : prev + 1)}>
+                  <Icon icon='tabler:chevron-right' />
+                </IconButton>
+              </Box>
+              
+              {/* Calendar Grid */}
+              <CalendarGrid
+                year={selectedYear}
+                month={selectedMonth}
+                holidays={displayHolidays}
+                onDayClick={handleDayClick}
+              />
+              
+              {/* Legend */}
+              <Box sx={{ mt: 4, display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Typography variant='body2' color='text.secondary'>Legend:</Typography>
+                {HOLIDAY_TYPES.map(type => (
+                  <Box key={type.value} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip size='small' label={type.label} color={getTypeColor(type.value)} variant='tonal' />
+                  </Box>
+                ))}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Chip size='small' label='Master' variant='outlined' color='info' />
+                  <Typography variant='caption'>Platform Holiday</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Icon icon='tabler:repeat' fontSize={18} />
+                  <Typography variant='caption'>Recurring</Typography>
+                </Box>
+              </Box>
+              
+              {/* Summary Stats */}
+              <Box sx={{ mt: 3, p: 2, bgcolor: 'background.neutral', borderRadius: 1 }}>
+                <Grid container spacing={3}>
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant='caption' color='text.secondary'>Total Holidays</Typography>
+                    <Typography variant='h6' fontWeight={600}>{displayHolidays.length}</Typography>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant='caption' color='text.secondary'>National</Typography>
+                    <Typography variant='h6' fontWeight={600}>
+                      {displayHolidays.filter(h => h.type === 'NATIONAL').length}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant='caption' color='text.secondary'>Recurring</Typography>
+                    <Typography variant='h6' fontWeight={600}>
+                      {displayHolidays.filter(h => h.isRecurring).length}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant='caption' color='text.secondary'>Active</Typography>
+                    <Typography variant='h6' fontWeight={600}>
+                      {displayHolidays.filter(h => h.isActive).length}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
+            </>
+          ) : (
+            <>
+              {/* List View */}
+              <Box sx={{ mb: 2 }}>
+                <Alert severity='info'>
+                  Showing {holidays.length} company holidays + {masterHolidays.length} master holidays (platform-level).
+                  Master holidays are shown with outlined style.
+                </Alert>
+              </Box>
+              
+              {displayHolidays.length === 0 ? (
+                <Alert severity='info'>No holidays found for {selectedYear}</Alert>
+              ) : (
+                <Box>
+                  {displayHolidays.map(holiday => (
+                    <HolidayListItem
+                      key={holiday._id || `master-${holiday.name}`}
+                      holiday={holiday}
+                      onEdit={(data) => {
+                        setEditData(data)
+                        setDrawerOpen(true)
+                      }}
+                      onDelete={(data) => setDeleteModal({ open: true, data })}
+                      onToggle={handleToggle}
+                    />
+                  ))}
+                </Box>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Drawer */}
+      <HolidayDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        editData={editData}
+        onSuccess={handleSuccess}
+      />
+
+      {/* Day Detail Modal */}
+      <DayDetailModal
+        open={dayModal.open}
+        onClose={() => setDayModal({ open: false, data: null })}
+        dayData={dayModal.data}
+        onAddHoliday={handleAddFromDayModal}
+      />
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteModal.open} onClose={() => setDeleteModal({ open: false, data: null })}>
+        <DialogTitle>Delete Holiday</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <strong>{deleteModal?.data?.name}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant='tonal' onClick={() => setDeleteModal({ open: false, data: null })}>Cancel</Button>
+          <Button variant='contained' color='error' onClick={handleDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  )
+}
+
+export default TabHolidayCalendar

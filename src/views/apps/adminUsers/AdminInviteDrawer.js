@@ -60,8 +60,15 @@ const AdminInviteDrawer = ({ open, onClose, onSuccess }) => {
   console.log("userLevel",userLevel)
   const needsDept = userLevel === 'unit' && selectedRoleSlug === 'employee'
 
-  // Roles filtered to only show roles at exactly the user's own level
-  const assignableRoles = roles.filter(r => !r.level || r.level === userLevel)
+  // Roles filtered by level hierarchy
+  // org admin sees org+company, company admin sees company+unit, unit admin sees unit only
+  const LEVEL_HIERARCHY = {
+    org:     ['org', 'company'],           // org can create org + company admins
+    company: ['company', 'unit'],          // company can create company + unit admins
+    unit:    ['unit'],                     // unit can only create unit-level users
+  }
+  const allowedLevels = LEVEL_HIERARCHY[userLevel] || [userLevel]
+  const assignableRoles = roles.filter(r => !r.level || allowedLevels.includes(r.level))
 
   // ── Load roles (+ departments if unit level) on open ──────────────────────
   useEffect(() => {

@@ -12,23 +12,49 @@ export const fetchOrgDashboard = createAsyncThunk('dashboard/org', async (_, { r
   catch (err) { return rejectWithValue(err) }
 })
 
-export const fetchCompanyDashboard = createAsyncThunk('dashboard/company', async (_, { rejectWithValue }) => {
-  try { return await axiosRequest.get('/api/v1/dashboard/company') }
+// Accept companyId param - org_admin can view specific company dashboard
+export const fetchCompanyDashboard = createAsyncThunk('dashboard/company', async (companyId, { rejectWithValue }) => {
+  try {
+    const params = new URLSearchParams()
+    if (companyId) params.append('companyId', companyId)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return await axiosRequest.get(`/api/v1/dashboard/company${query}`)
+  }
   catch (err) { return rejectWithValue(err) }
 })
 
-export const fetchUnitDashboard = createAsyncThunk('dashboard/unit', async (month, { rejectWithValue }) => {
-  try { return await axiosRequest.get(`/api/v1/dashboard/unit${month ? `?month=${month}` : ''}`) }
+// Accept unitId and companyId param - org_admin/company_admin can view specific unit dashboard
+export const fetchUnitDashboard = createAsyncThunk('dashboard/unit', async ({ unitId, month, companyId }, { rejectWithValue }) => {
+  try {
+    const params = new URLSearchParams()
+    if (unitId) params.append('unitId', unitId)
+    if (month) params.append('month', month)
+    if (companyId) params.append('companyId', companyId)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    console.log('[fetchUnitDashboard] API call:', `/api/v1/dashboard/unit${query}`, { unitId, month, companyId })
+    return await axiosRequest.get(`/api/v1/dashboard/unit${query}`)
+  }
   catch (err) { return rejectWithValue(err) }
 })
 
-export const fetchHRDashboard = createAsyncThunk('dashboard/hr', async (month, { rejectWithValue }) => {
-  try { return await axiosRequest.get(`/api/v1/dashboard/hr${month ? `?month=${month}` : ''}`) }
+export const fetchHRDashboard = createAsyncThunk('dashboard/hr', async ({ month, unitId }, { rejectWithValue }) => {
+  try {
+    const params = new URLSearchParams()
+    if (unitId) params.append('unitId', unitId)
+    if (month) params.append('month', month)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    return await axiosRequest.get(`/api/v1/dashboard/hr${query}`)
+  }
   catch (err) { return rejectWithValue(err) }
 })
 
 export const fetchEmployeeDashboard = createAsyncThunk('dashboard/employee', async (month, { rejectWithValue }) => {
   try { return await axiosRequest.get(`/api/v1/dashboard/employee${month ? `?month=${month}` : ''}`) }
+  catch (err) { return rejectWithValue(err) }
+})
+
+export const fetchManagerDashboard = createAsyncThunk('dashboard/manager', async (month, { rejectWithValue }) => {
+  try { return await axiosRequest.get(`/api/v1/dashboard/manager${month ? `?month=${month}` : ''}`) }
   catch (err) { return rejectWithValue(err) }
 })
 

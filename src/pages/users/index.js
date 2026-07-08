@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 
 // ** Next Imports
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 
 // ** MUI Imports
 import Box from '@mui/material/Box'
@@ -28,6 +29,10 @@ import { DataGrid } from '@mui/x-data-grid'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
+
+// ** Bulk Operations
+import BulkImportDialog from 'src/components/bulk/BulkImportDialog'
+import BulkExportButton from 'src/components/bulk/BulkExportButton'
 
 // ** Redux
 import { useDispatch, useSelector } from 'react-redux'
@@ -504,6 +509,7 @@ const buildColumns = (canEdit, canDelete, canApprove, canChangeStatus, onEdit, o
 // ─────────────────────────────────────────────────────────────────────────────
 const EmployeeList = () => {
   const dispatch    = useDispatch()
+  const router      = useRouter()
   const employees   = useSelector(selectEmployeeList)
   const loading     = useSelector(selectEmployeeLoading)
   const permissions = useSelector(selectPermissions)
@@ -593,7 +599,30 @@ const EmployeeList = () => {
     <Grid container spacing={6.5}>
       <Grid item xs={12}>
         <Card>
-          <CardHeader title='Search Filters' />
+          <CardHeader title='Search Filters' action={
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              {canCreate && (
+                <>
+                  <Button
+                    variant='outlined'
+                    startIcon={<Icon icon='mdi:file-excel' />}
+                    onClick={() => router.push('/users/bulk-import')}
+                  >
+                    Bulk Import
+                  </Button>
+                  <BulkImportDialog
+                    entityType='employees'
+                    onImportComplete={() => dispatch(fetchAllEmployees())}
+                  />
+                </>
+              )}
+              <BulkExportButton
+                entityType='employees'
+                data={filteredRows}
+                filename='employees-export'
+              />
+            </Box>
+          } />
           <CardContent>
             <Grid container spacing={6}>
               <Grid item sm={4} xs={12}>
@@ -624,7 +653,9 @@ const EmployeeList = () => {
 
           <Divider sx={{ m: '0 !important' }} />
 
-{canCreate &&  <TableHeader value={search} handleFilter={handleFilter}  toggle={canCreate ? handleOpenAdd : undefined}  onInviteSuccess={() => dispatch(fetchAllUsers())} /> }
+<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, px: 6, py: 3 }}>
+  {canCreate && <TableHeader value={search} handleFilter={handleFilter} toggle={canCreate ? handleOpenAdd : undefined} onInviteSuccess={() => dispatch(fetchAllEmployees())} />}
+</Box>
          
 
           <DataGrid

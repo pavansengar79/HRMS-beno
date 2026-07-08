@@ -29,14 +29,7 @@ const MODULES = [
   { id:"employee",   name:"Employee Management",  icon:"👤", desc:"Profiles, lifecycle, designations",    required:true,  plans:["starter","growth","pro","enterprise"] },
   { id:"attendance", name:"Attendance",           icon:"🕐", desc:"Check-in/out, biometric, WFH, reports", required:false, plans:["growth","pro","enterprise"] },
   { id:"leave",      name:"Leave Management",     icon:"🌴", desc:"Policy, approval workflow, balance",    required:false, plans:["growth","pro","enterprise"] },
-  { id:"payroll",    name:"Payroll",              icon:"💳", desc:"Salary structure, pay runs, payslips",  required:false, plans:["growth","pro","enterprise"] },
-  { id:"appraisal",  name:"Performance & Appraisal",icon:"⭐", desc:"Goals, reviews, ratings",           required:false, plans:["pro","enterprise"] },
-  { id:"recruitment",name:"Recruitment",          icon:"🎯", desc:"Job postings, pipeline, offers",        required:false, plans:["pro","enterprise"] },
-  { id:"training",   name:"Training & LMS",       icon:"🎓", desc:"Courses, certifications, completion",   required:false, plans:["pro","enterprise"] },
-  { id:"expenses",   name:"Expense Management",   icon:"🧾", desc:"Claims, approvals, reimbursement",      required:false, plans:["enterprise"] },
-  { id:"analytics",  name:"Advanced Analytics",   icon:"📊", desc:"Custom dashboards, BI exports",         required:false, plans:["enterprise"] },
-  { id:"assets",     name:"Asset Management",     icon:"💼", desc:"Assign, track, return assets",          required:false, plans:["enterprise"] },
-  { id:"helpdesk",   name:"HR Helpdesk",          icon:"🎧", desc:"Tickets, SLA, knowledge base",          required:false, plans:["enterprise"] },
+  { id:"payroll",    name:"Payroll",              icon:"💳", desc:"Salary structure, pay runs, payslips",  required:false, plans:["growth","pro","enterprise"] }
 ];
 
 const PLANS = [

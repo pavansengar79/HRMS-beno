@@ -158,7 +158,7 @@ const TabCompanyConfig = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const res = await axiosRequest.get('api/v1/company-config/config')
+        const res = await axiosRequest.get('/api/v1/company-config/config')
 
         if (res?.success && res.data) {
           const d = res.data
@@ -215,7 +215,7 @@ const TabCompanyConfig = () => {
       ...(data.standardHoursPerDay    != null && { standardHoursPerDay:    Number(data.standardHoursPerDay) }),
     }
 
-    const res = await axiosRequest.post('api/v1/company-config/config', payload)
+    const res = await axiosRequest.post('/api/v1/company-config/config', payload)
 
     if (res?.success) {
       toast.success(res.message || 'Company config created')
@@ -252,7 +252,7 @@ const TabCompanyConfig = () => {
       payload[key] = numericKeys.includes(key) ? Number(val) : val
     })
 
-    const res = await axiosRequest.put('api/v1/company-config/config', payload)
+    const res = await axiosRequest.put('/api/v1/company-config/config', payload)
 
     if (res?.success) {
       toast.success(res.message || 'Company config updated')

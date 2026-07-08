@@ -20,39 +20,177 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import InputAdornment from '@mui/material/InputAdornment'
+import CircularProgress from '@mui/material/CircularProgress'
 import { DataGrid } from '@mui/x-data-grid'
 import { alpha } from '@mui/material/styles'
 import Icon from 'src/@core/components/icon'
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import CustomAvatar from 'src/@core/components/mui/avatar'
+import { getInitials } from 'src/@core/utils/get-initials'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchUnits, deleteUnit, selectAllUnits, selectUnitLoading } from 'src/store/unit/unitSlice'
 import { fetchLOBs, createLOB, deleteLOB, updateLOB, selectAllLOBs, selectLOBLoading } from 'src/store/lob/lobSlice'
 import toast from 'react-hot-toast'
 import AddUnitDrawer from './AddUnitDrawer'
+import EditUnitDrawer from './EditUnitDrawer'
+import axiosRequest from 'src/utils/AxiosInterceptor'
+import { selectCompanyId, selectRoleSlug } from 'src/store/auth/authSlice'
 
-// ─── Unit row options ──────────────────────────────────────────────────────────
-const RowOptions = ({ id }) => {
-  const dispatch = useDispatch()
-  const [anchorEl, setAnchorEl] = useState(null)
-  const handleDelete = async () => {
-    try { await dispatch(deleteUnit(id)).unwrap(); toast.success('Unit deleted') }
-    catch (err) { toast.error(typeof err === 'string' ? err : err?.message || 'Failed') }
-    setAnchorEl(null)
+// ─── Assign Responsible Person Dialog ──────────────────────────────────────────────────────────
+const AssignResponsibleDialog = ({ open, onClose, unit, onSuccess }) => {
+  const userCompanyId = useSelector(selectCompanyId)
+  const userRoleSlug = useSelector(selectRoleSlug)
+  
+  const [roles, setRoles] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState({ name: '', email: '', roleId: '' })
+
+  useEffect(() => {
+    if (!open) return
+    const fetchRoles = async () => {
+      setLoading(true)
+      try {
+        // Fetch unit-level roles (unit_admin, hr_manager)
+        const res = await axiosRequest.get('/api/v1/roles/')
+        const allRoles = res?.data || []
+        // Filter to only unit-level roles
+        const unitRoles = allRoles.filter(r => r.level === 'unit' || r.slug === 'unit_admin' || r.slug === 'hr_manager')
+        setRoles(unitRoles)
+        // Auto-select unit_admin if available
+        const unitAdminRole = unitRoles.find(r => r.slug === 'unit_admin')
+        if (unitAdminRole) {
+          setFormData(p => ({ ...p, roleId: unitAdminRole._id }))
+        }
+      } catch (err) {
+        toast.error('Failed to load roles')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchRoles()
+  }, [open])
+
+  const handleChange = (field) => (e) => {
+    setFormData(p => ({ ...p, [field]: e.target.value }))
   }
+
+  const handleAssign = async () => {
+    if (!formData.name.trim()) { toast.error('Name is required'); return }
+    if (!formData.email.trim()) { toast.error('Email is required'); return }
+    if (!formData.roleId) { toast.error('Role is required'); return }
+    
+    setSaving(true)
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        roleId: formData.roleId,
+        unit_id: unit._id
+      }
+      
+      // If current user is org_admin, they need to specify company_id
+      // If current user is company_admin, company_id comes from their token
+      if (userRoleSlug === 'org_admin') {
+        payload.company_id = unit.company_id?._id || unit.company_id
+      }
+      
+      await axiosRequest.post('/api/v1/users/invite', payload)
+      toast.success('Responsible person invited successfully')
+      onSuccess?.()
+      onClose()
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to invite user')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleReset = () => {
+    setFormData({ name: '', email: '', roleId: '' })
+  }
+
+  const handleClose = () => {
+    handleReset()
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth='sm' fullWidth>
+      <DialogTitle sx={{ fontWeight: 700 }}>Assign Responsible Person</DialogTitle>
+      <DialogContent>
+        <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
+          Invite a new admin for <strong>{unit?.name}</strong>. Credentials will be emailed to them.
+        </Typography>
+        
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress /></Box>
+        ) : (
+          <Stack spacing={3}>
+            <CustomTextField
+              fullWidth label='Admin Name'
+              value={formData.name} onChange={handleChange('name')}
+              placeholder='Enter admin name'
+            />
+            <CustomTextField
+              fullWidth label='Admin Email'
+              type='email'
+              value={formData.email} onChange={handleChange('email')}
+              placeholder='admin@company.com'
+            />
+            <CustomTextField
+              select fullWidth label='Assign Role'
+              value={formData.roleId} onChange={handleChange('roleId')}
+            >
+              {roles.length === 0 ? (
+                <MenuItem disabled>No unit-level roles available</MenuItem>
+              ) : (
+                roles.map(r => (
+                  <MenuItem key={r._id} value={r._id}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      <Typography variant='body2' sx={{ fontWeight: 500 }}>{r.name}</Typography>
+                      {r.level && (
+                        <Typography variant='caption' sx={{ color: 'text.disabled', textTransform: 'capitalize' }}>
+                          {r.level} level
+                        </Typography>
+                      )}
+                    </Box>
+                  </MenuItem>
+                ))
+              )}
+            </CustomTextField>
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button variant='outlined' color='secondary' onClick={handleClose}>Cancel</Button>
+        <Button variant='contained' onClick={handleAssign} disabled={saving || loading}>
+          {saving ? <CircularProgress size={20} /> : 'Assign'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
+// ─── Unit Actions Cell ──────────────────────────────────────────────────────────
+const UnitActionsCell = ({ row, onEdit, onAssign, onDelete }) => {
+  const [anchorEl, setAnchorEl] = useState(null)
   return (
     <>
       <IconButton size='small' onClick={e => setAnchorEl(e.currentTarget)}><Icon icon='tabler:dots-vertical' /></IconButton>
       <Menu keepMounted anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         PaperProps={{ style: { minWidth: '8rem' } }}>
-        <MenuItem onClick={handleDelete} sx={{ '& svg': { mr: 2 } }}><Icon icon='tabler:trash' fontSize={20} />Delete</MenuItem>
+        <MenuItem onClick={() => { setAnchorEl(null); onEdit?.(row._id) }} sx={{ '& svg': { mr: 2 } }}><Icon icon='tabler:pencil' fontSize={20} />Edit</MenuItem>
+        <MenuItem onClick={() => { setAnchorEl(null); onAssign?.(row._id) }} sx={{ '& svg': { mr: 2 } }}><Icon icon='tabler:user-plus' fontSize={20} />Assign Responsible</MenuItem>
+        <MenuItem onClick={() => { setAnchorEl(null); onDelete?.(row._id) }} sx={{ '& svg': { mr: 2 }, color: 'error.main' }}><Icon icon='tabler:trash' fontSize={20} />Delete</MenuItem>
       </Menu>
     </>
   )
 }
 
-const columns = [
+const getColumns = (handleEdit, handleAssign, handleDelete) => [
   { flex: 0.2, minWidth: 180, field: 'name', headerName: 'Unit Name',
     renderCell: ({ row }) => (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -71,13 +209,45 @@ const columns = [
   { flex: 0.18, minWidth: 150, field: 'company_id', headerName: 'Company',
     renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{row.company_id?.company_name || '—'}</Typography>
   },
+  { 
+    flex: 0.2, 
+    minWidth: 180, 
+    field: 'admin', 
+    headerName: 'Responsible Person',
+    renderCell: ({ row }) => {
+      if (row.admin && row.admin.name) {
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <CustomAvatar skin='light' color='success' sx={{ width: 32, height: 32, fontSize: '0.75rem' }}>
+              {getInitials(row.admin.name)}
+            </CustomAvatar>
+            <Box>
+              <Typography variant='body2' sx={{ fontWeight: 500, color: 'text.secondary' }}>
+                {row.admin.name}
+              </Typography>
+              <Typography variant='caption' sx={{ color: 'text.disabled' }}>
+                {row.admin.email}
+              </Typography>
+            </Box>
+          </Box>
+        )
+      }
+      return (
+        <Typography variant='body2' sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+          Not assigned
+        </Typography>
+      )
+    }
+  },
   { flex: 0.12, minWidth: 110, field: 'location', headerName: 'Location',
     renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{row.location || '—'}</Typography>
   },
   { flex: 0.1, minWidth: 90, field: 'status', headerName: 'Status',
     renderCell: ({ row }) => <CustomChip rounded skin='light' size='small' label={row.status || 'Active'} color={row.status === 'Active' ? 'success' : 'secondary'} />
   },
-  { flex: 0.08, minWidth: 80, sortable: false, field: 'actions', headerName: 'Actions', renderCell: ({ row }) => <RowOptions id={row._id} /> }
+  { flex: 0.08, minWidth: 80, sortable: false, field: 'actions', headerName: 'Actions', 
+    renderCell: ({ row }) => <UnitActionsCell row={row} onEdit={handleEdit} onAssign={handleAssign} onDelete={handleDelete} />
+  }
 ]
 
 // ─── LOB Management section ───────────────────────────────────────────────────
@@ -201,6 +371,10 @@ const LOBSection = () => {
 const UnitsPage = () => {
   const [search, setSearch]   = useState('')
   const [addOpen, setAddOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editUnitId, setEditUnitId] = useState(null)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [assignUnitId, setAssignUnitId] = useState(null)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
   const dispatch = useDispatch()
   const units    = useSelector(selectAllUnits)
@@ -214,6 +388,28 @@ const UnitsPage = () => {
     row.location?.toLowerCase().includes(search.toLowerCase()) ||
     row.lob_id?.name?.toLowerCase().includes(search.toLowerCase())
   )
+
+  const handleEdit = (id) => {
+    setEditUnitId(id)
+    setEditOpen(true)
+  }
+
+  const handleAssign = (id) => {
+    setAssignUnitId(id)
+    setAssignOpen(true)
+  }
+
+  const handleDelete = async (id) => {
+    try { await dispatch(deleteUnit(id)).unwrap(); toast.success('Unit deleted') }
+    catch (err) { toast.error(typeof err === 'string' ? err : err?.message || 'Failed') }
+  }
+
+  const handleAssignSuccess = () => {
+    dispatch(fetchUnits())
+  }
+
+  const assignUnit = units.find(u => u._id === assignUnitId)
+  const columns = getColumns(handleEdit, handleAssign, handleDelete)
 
   return (
     <Box>
@@ -261,6 +457,8 @@ const UnitsPage = () => {
       </Card>
 
       <AddUnitDrawer open={addOpen} toggle={() => setAddOpen(p => !p)} />
+      <EditUnitDrawer open={editOpen} unitId={editUnitId} onClose={() => { setEditOpen(false); setEditUnitId(null) }} onSuccess={() => dispatch(fetchUnits())} />
+      <AssignResponsibleDialog open={assignOpen} unit={assignUnit} onClose={() => { setAssignOpen(false); setAssignUnitId(null) }} onSuccess={handleAssignSuccess} />
     </Box>
   )
 }

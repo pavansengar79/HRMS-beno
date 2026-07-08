@@ -34,6 +34,8 @@ import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
 import TablePagination from '@mui/material/TablePagination'
 import InputAdornment from '@mui/material/InputAdornment'
+import Autocomplete from '@mui/material/Autocomplete'
+import TextField from '@mui/material/TextField'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
@@ -54,6 +56,37 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 
 const EMPLOYMENT_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']
 
+// ─── Hook to fetch dropdown options ───────────────────────────────────────────
+const useApplicabilityOptions = () => {
+  const [departments, setDepartments] = useState([])
+  const [designations, setDesignations] = useState([])
+  const [roles, setRoles] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        setLoading(true)
+        const [deptRes, desigRes, roleRes] = await Promise.all([
+          axiosRequest.get('/api/v1/departments'),
+          axiosRequest.get('/api/v1/designations'),
+          axiosRequest.get('/api/v1/roles')
+        ])
+        setDepartments(deptRes?.data || [])
+        setDesignations(desigRes?.data || [])
+        setRoles(roleRes?.data || [])
+      } catch (err) {
+        console.error('Failed to load applicability options:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchOptions()
+  }, [])
+
+  return { departments, designations, roles, loading }
+}
+
 const STATUS_CONFIG = {
   active:   { color: 'success', icon: 'tabler:circle-check',    label: 'Active'   },
   inactive: { color: 'warning', icon: 'tabler:circle-pause',    label: 'Inactive' },
@@ -67,44 +100,60 @@ const defaultPolicyLeaveEntry = {
   leaveTypeId: '',
   name: '',
   code: '',
-  color: '#10B981',         // ✅ backend uses 'color', not 'colorCode'
+  color: '#10B981',
+  description: '',
   isPaid: true,
   isActive: true,
   isPublic: true,
-  genderRestriction: 'ALL', // ✅ string only, not object
+  genderRestriction: 'ALL',
   applicableEmploymentTypes: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'],
   minTenureMonths: 0,
   cooldownDays: 0,
   credit: {
     totalPerYear: 0,
-    frequency: 'MONTHLY',
+    frequency: 'YEARLY',
     perCycle: 0,
-    accrualType: 'YEARLY'
+    accrualType: 'YEARLY',
+    accrualDay: 1,
+    roundingRule: 'ROUND',
+    probationApplicable: false
   },
   balance: {
-    maxBalance: 0,
+    maxBalance: null,
     allowNegative: false,
-    maxNegative: 0
+    maxNegative: 0,
+    resetCycle: 'YEARLY'
   },
   carryForward: {
     allowed: false,
     max: 0,
-    expiryDays: 0
+    expiryDays: 90,
+    expiryAction: 'LAPSE',
+    carryForwardOn: 'YEAR_END'
   },
   encashment: {
     allowed: false,
-    maxDays: 0
+    maxDays: 0,
+    minBalance: 0,
+    applicableAt: ['YEAR_END'],
+    taxable: true
   },
   application: {
     minDays: 0.5,
     maxDays: null,
+    maxPerMonth: null,
     advanceNoticeDays: 0,
     allowBackdated: false,
-    allowHalfDay: true
+    backdatedAllowedDays: 0,
+    allowHalfDay: true,
+    allowContinuousWithHoliday: true,
+    requireReasonMinLength: 10,
+    cooldownDays: 0
   },
   documentRule: {
     required: false,
-    afterDays: 0
+    afterDays: null,
+    allowedTypes: ['pdf', 'jpg', 'jpeg', 'png']
   },
   sandwichRule: {
     override: false,
@@ -120,10 +169,14 @@ const defaultPolicyValues = {
   effectiveFrom: '',
   effectiveTo: null,
   status: 'active',
+  changeNote: '',
+  approvalFlow: {
+    type: 'L1_L2'
+  },
   applicableFor: {
     departments: [],
+    designations: [],
     roles: [],
-    locations: [],
     employmentTypes: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']
   },
   sandwichRule: {
@@ -417,22 +470,17 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Controller name={`${p}.credit.totalPerYear`} control={control}
-                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Days / Year' />}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <Controller name={`${p}.credit.perCycle`} control={control}
-                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Per Cycle' />}
+                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Total Days / Year' />}
                       />
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Controller name={`${p}.credit.frequency`} control={control}
                         render={({ field }) => (
-                          <CustomTextField {...field} select fullWidth label='Frequency'>
+                          <CustomTextField {...field} select fullWidth label='Credit Frequency'>
+                            <MenuItem value='NONE'>None</MenuItem>
                             <MenuItem value='MONTHLY'>Monthly</MenuItem>
                             <MenuItem value='QUARTERLY'>Quarterly</MenuItem>
                             <MenuItem value='YEARLY'>Yearly</MenuItem>
-                            <MenuItem value='NONE'>None</MenuItem>
                           </CustomTextField>
                         )}
                       />
@@ -441,11 +489,37 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                       <Controller name={`${p}.credit.accrualType`} control={control}
                         render={({ field }) => (
                           <CustomTextField {...field} select fullWidth label='Accrual Type'>
+                            <MenuItem value='NONE'>None</MenuItem>
                             <MenuItem value='MONTHLY'>Monthly</MenuItem>
                             <MenuItem value='QUARTERLY'>Quarterly</MenuItem>
                             <MenuItem value='YEARLY'>Yearly</MenuItem>
-                            <MenuItem value='NONE'>None</MenuItem>
                           </CustomTextField>
+                        )}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <Controller name={`${p}.credit.accrualDay`} control={control}
+                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Accrual Day' inputProps={{ min: 1, max: 31 }} />}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={4}>
+                      <Controller name={`${p}.credit.roundingRule`} control={control}
+                        render={({ field }) => (
+                          <CustomTextField {...field} select fullWidth label='Rounding Rule'>
+                            <MenuItem value='ROUND'>Round (Nearest)</MenuItem>
+                            <MenuItem value='FLOOR'>Floor (Round Down)</MenuItem>
+                            <MenuItem value='CEIL'>Ceiling (Round Up)</MenuItem>
+                          </CustomTextField>
+                        )}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={8} sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Controller name={`${p}.credit.probationApplicable`} control={control}
+                        render={({ field }) => (
+                          <FormControlLabel
+                            control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                            label='Probation Applicable (credit counts during probation)'
+                          />
                         )}
                       />
                     </Grid>
@@ -458,7 +532,17 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                     </Grid>
                     <Grid item xs={6} sm={4}>
                       <Controller name={`${p}.balance.maxBalance`} control={control}
-                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Max Balance (days)' />}
+                        render={({ field }) => (
+                          <CustomTextField
+                            {...field}
+                            fullWidth
+                            type='number'
+                            label='Max Balance (days)'
+                            placeholder='No limit'
+                            value={field.value ?? ''}
+                            onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                          />
+                        )}
                       />
                     </Grid>
                     <Grid item xs={6} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
@@ -466,7 +550,7 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                         render={({ field }) => (
                           <FormControlLabel
                             control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
-                            label='Allow Negative'
+                            label='Allow Negative Balance'
                           />
                         )}
                       />
@@ -476,10 +560,21 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                         render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Max Negative Days' />}
                       />
                     </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Controller name={`${p}.balance.resetCycle`} control={control}
+                        render={({ field }) => (
+                          <CustomTextField {...field} select fullWidth label='Reset Cycle'>
+                            <MenuItem value='YEARLY'>Yearly</MenuItem>
+                            <MenuItem value='FISCAL_YEAR'>Fiscal Year</MenuItem>
+                            <MenuItem value='NEVER'>Never</MenuItem>
+                          </CustomTextField>
+                        )}
+                      />
+                    </Grid>
 
                     <Grid item xs={12}><Divider /></Grid>
 
-                    {/* Carry Forward — ✅ directly using carryForward.allowed */}
+                    {/* Carry Forward */}
                     <Grid item xs={12}>
                       <Typography variant='overline' color='text.secondary'>Carry Forward</Typography>
                     </Grid>
@@ -496,10 +591,9 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                     {cfAllowed && (
                       <>
                         <Grid item xs={6} sm={4}>
-                          {/* ✅ directly carryForward.max */}
                           <Controller name={`${p}.carryForward.max`} control={control}
                             render={({ field }) => (
-                              <CustomTextField {...field} fullWidth type='number' label='CF Limit (days)' />
+                              <CustomTextField {...field} fullWidth type='number' label='Max Carry Forward (days)' />
                             )}
                           />
                         </Grid>
@@ -508,16 +602,36 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                             render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Expiry (days)' />}
                           />
                         </Grid>
+                        <Grid item xs={6} sm={4}>
+                          <Controller name={`${p}.carryForward.expiryAction`} control={control}
+                            render={({ field }) => (
+                              <CustomTextField {...field} select fullWidth label='Expiry Action'>
+                                <MenuItem value='LAPSE'>Lapse (Auto-expire)</MenuItem>
+                                <MenuItem value='ENCASH'>Encash (Pay out)</MenuItem>
+                              </CustomTextField>
+                            )}
+                          />
+                        </Grid>
+                        <Grid item xs={6} sm={4}>
+                          <Controller name={`${p}.carryForward.carryForwardOn`} control={control}
+                            render={({ field }) => (
+                              <CustomTextField {...field} select fullWidth label='Carry Forward On'>
+                                <MenuItem value='YEAR_END'>Year End</MenuItem>
+                                <MenuItem value='MONTH_END'>Month End</MenuItem>
+                              </CustomTextField>
+                            )}
+                          />
+                        </Grid>
                       </>
                     )}
 
                     <Grid item xs={12}><Divider /></Grid>
 
-                    {/* Encashment — ✅ directly using encashment.allowed */}
+                    {/* Encashment */}
                     <Grid item xs={12}>
                       <Typography variant='overline' color='text.secondary'>Encashment</Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6} sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
                       <Controller name={`${p}.encashment.allowed`} control={control}
                         render={({ field }) => (
                           <FormControlLabel
@@ -528,22 +642,61 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                       />
                     </Grid>
                     {encAllowed && (
-                      <Grid item xs={12} sm={6}>
-                        <Controller name={`${p}.encashment.maxDays`} control={control}
-                          render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Max Encashment Days' />}
-                        />
-                      </Grid>
+                      <>
+                        <Grid item xs={6} sm={4}>
+                          <Controller name={`${p}.encashment.maxDays`} control={control}
+                            render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Max Encashment Days' />}
+                          />
+                        </Grid>
+                        <Grid item xs={6} sm={4}>
+                          <Controller name={`${p}.encashment.minBalance`} control={control}
+                            render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Min Balance Required' />}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={8}>
+                          <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>Applicable At</Typography>
+                          <Controller name={`${p}.encashment.applicableAt`} control={control}
+                            render={({ field }) => (
+                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                {['YEAR_END', 'RESIGNATION', 'RETIREMENT', 'ANYTIME'].map(type => {
+                                  const checked = field.value?.includes(type)
+                                  return (
+                                    <Chip key={type} label={type.replace('_', ' ')} clickable size='small'
+                                      color={checked ? 'primary' : 'default'}
+                                      variant={checked ? 'filled' : 'outlined'}
+                                      onClick={() => {
+                                        const cur = field.value || []
+                                        field.onChange(checked ? cur.filter(t => t !== type) : [...cur, type])
+                                      }}
+                                    />
+                                  )
+                                })}
+                              </Box>
+                            )}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Controller name={`${p}.encashment.taxable`} control={control}
+                            render={({ field }) => (
+                              <FormControlLabel
+                                control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                                label='Taxable'
+                              />
+                            )}
+                          />
+                        </Grid>
+                      </>
                     )}
 
                     <Grid item xs={12}><Divider /></Grid>
 
-                    {/* Application Rules — ✅ all nested under application.* */}
+                    {/* Application Rules */}
                     <Grid item xs={12}>
                       <Typography variant='overline' color='text.secondary'>Application Rules</Typography>
                     </Grid>
                     <Grid item xs={6} sm={3}>
                       <Controller name={`${p}.application.minDays`} control={control}
-                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Min Days' />}
+                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Min Days' inputProps={{ step: 0.5, min: 0.5 }} />}
                       />
                     </Grid>
                     <Grid item xs={6} sm={3}>
@@ -557,14 +710,6 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                       />
                     </Grid>
                     <Grid item xs={6} sm={3}>
-                      {/* ✅ directly application.advanceNoticeDays */}
-                      <Controller name={`${p}.application.advanceNoticeDays`} control={control}
-                        render={({ field }) => (
-                          <CustomTextField {...field} fullWidth type='number' label='Min Notice Days' />
-                        )}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
                       <Controller name={`${p}.application.maxPerMonth`} control={control}
                         render={({ field }) => (
                           <CustomTextField fullWidth type='number' label='Max Per Month' placeholder='No limit'
@@ -574,30 +719,66 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                         )}
                       />
                     </Grid>
-                    <Grid item xs={12} sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {/* ✅ directly application.allowHalfDay */}
-                      <Controller name={`${p}.application.allowHalfDay`} control={control}
+                    <Grid item xs={6} sm={3}>
+                      <Controller name={`${p}.application.advanceNoticeDays`} control={control}
                         render={({ field }) => (
-                          <FormControlLabel
-                            control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
-                            label='Allow Half Day'
-                          />
+                          <CustomTextField {...field} fullWidth type='number' label='Min Notice Days' />
                         )}
                       />
-                      <Controller name={`${p}.application.allowBackdated`} control={control}
-                        render={({ field }) => (
-                          <FormControlLabel
-                            control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
-                            label='Allow Backdated'
-                          />
-                        )}
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        <Controller name={`${p}.application.allowHalfDay`} control={control}
+                          render={({ field }) => (
+                            <FormControlLabel
+                              control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                              label='Allow Half Day'
+                            />
+                          )}
+                        />
+                        <Controller name={`${p}.application.allowBackdated`} control={control}
+                          render={({ field }) => (
+                            <FormControlLabel
+                              control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                              label='Allow Backdated'
+                            />
+                          )}
+                        />
+                        <Controller name={`${p}.application.allowContinuousWithHoliday`} control={control}
+                          render={({ field }) => (
+                            <FormControlLabel
+                              control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                              label='Allow Continuous with Holiday'
+                            />
+                          )}
+                        />
+                        <Controller name={`${p}.sandwichRule.enabled`} control={control}
+                          render={({ field }) => (
+                            <FormControlLabel
+                              control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                              label='Sandwich Rule'
+                            />
+                          )}
+                        />
+                      </Box>
+                    </Grid>
+                    {watch(`${p}.application.allowBackdated`) && (
+                      <Grid item xs={12} sm={4}>
+                        <Controller name={`${p}.application.backdatedAllowedDays`} control={control}
+                          render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Backdated Allowed Days' />}
+                        />
+                      </Grid>
+                    )}
+                    <Grid item xs={12} sm={4}>
+                      <Controller name={`${p}.application.requireReasonMinLength`} control={control}
+                        render={({ field }) => <CustomTextField {...field} fullWidth type='number' label='Min Reason Length (chars)' />}
                       />
-                      {/* ✅ directly sandwichRule.enabled */}
-                      <Controller name={`${p}.sandwichRule.enabled`} control={control}
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <Controller name={`${p}.application.cooldownDays`} control={control}
                         render={({ field }) => (
-                          <FormControlLabel
-                            control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
-                            label='Sandwich Rule'
+                          <CustomTextField {...field} fullWidth type='number' label='Cooldown Days'
+                            helperText='Days before applying same leave type again'
                           />
                         )}
                       />
@@ -609,51 +790,84 @@ const LeaveTypesSection = ({ control, watch, setValue, masterLeaveTypes, masterL
                     <Grid item xs={12}>
                       <Typography variant='overline' color='text.secondary'>Document Rule</Typography>
                     </Grid>
-                    <Grid item xs={12} sm={6} sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Grid item xs={12} sm={4} sx={{ display: 'flex', alignItems: 'center' }}>
                       <Controller name={`${p}.documentRule.required`} control={control}
                         render={({ field }) => (
                           <FormControlLabel
                             control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
-                            label='Document Required'
+                            label='Document Required (e.g., medical certificate)'
                           />
                         )}
                       />
                     </Grid>
                     {docReq && (
-                      <Grid item xs={12} sm={6}>
-                        {/* ✅ directly documentRule.afterDays */}
-                        <Controller name={`${p}.documentRule.afterDays`} control={control}
-                          render={({ field }) => (
-                            <CustomTextField fullWidth type='number' label='Required After (days)'
-                              value={field.value ?? ''}
-                              onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-                            />
-                          )}
-                        />
-                      </Grid>
+                      <>
+                        <Grid item xs={12} sm={4}>
+                          <Controller name={`${p}.documentRule.afterDays`} control={control}
+                            render={({ field }) => (
+                              <CustomTextField fullWidth type='number' label='Required After (days)'
+                                helperText='Require doc only if leave exceeds X days'
+                                value={field.value ?? ''}
+                                onChange={e => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                              />
+                            )}
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                          <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>Allowed File Types</Typography>
+                          <Controller name={`${p}.documentRule.allowedTypes`} control={control}
+                            render={({ field }) => (
+                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                {['pdf', 'jpg', 'jpeg', 'png'].map(type => {
+                                  const checked = field.value?.includes(type)
+                                  return (
+                                    <Chip key={type} label={type.toUpperCase()} clickable size='small'
+                                      color={checked ? 'primary' : 'default'}
+                                      variant={checked ? 'filled' : 'outlined'}
+                                      onClick={() => {
+                                        const cur = field.value || []
+                                        field.onChange(checked ? cur.filter(t => t !== type) : [...cur, type])
+                                      }}
+                                    />
+                                  )
+                                })}
+                              </Box>
+                            )}
+                          />
+                        </Grid>
+                      </>
                     )}
 
                     <Grid item xs={12}><Divider /></Grid>
 
-                    {/* Applicability */}
+                    {/* Applicability & Restrictions */}
                     <Grid item xs={12}>
-                      <Typography variant='overline' color='text.secondary'>Applicability</Typography>
+                      <Typography variant='overline' color='text.secondary'>Applicability & Restrictions</Typography>
                     </Grid>
-                    {/* ✅ Single genderRestriction field (string), duplicate applicableGender removed */}
                     <Grid item xs={12} sm={6}>
                       <Controller name={`${p}.genderRestriction`} control={control}
                         render={({ field }) => (
-                          <CustomTextField {...field} select fullWidth label='Applicable Gender'>
-                            <MenuItem value='ALL'>All</MenuItem>
-                            <MenuItem value='MALE'>Male</MenuItem>
-                            <MenuItem value='FEMALE'>Female</MenuItem>
+                          <CustomTextField {...field} select fullWidth label='Gender Restriction'
+                            helperText='e.g., Maternity Leave → Female only'>
+                            <MenuItem value='ALL'>All Genders</MenuItem>
+                            <MenuItem value='MALE'>Male Only</MenuItem>
+                            <MenuItem value='FEMALE'>Female Only</MenuItem>
                             <MenuItem value='OTHER'>Other</MenuItem>
                           </CustomTextField>
                         )}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>
-                      <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>Employment Types</Typography>
+                      <Controller name={`${p}.minTenureMonths`} control={control}
+                        render={({ field }) => (
+                          <CustomTextField {...field} fullWidth type='number' label='Min Tenure (months)'
+                            helperText='Employee must complete X months before eligible'
+                          />
+                        )}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>Applicable Employment Types</Typography>
                       <Controller name={`${p}.applicableEmploymentTypes`} control={control}
                         render={({ field }) => (
                           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -691,6 +905,7 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
   const [saving, setSaving] = useState(false)
   const isEdit = Boolean(editData?._id)
   const { leaveTypes: masterLeaveTypes, loading: masterLoading } = useMasterLeaveTypes()
+  const { departments: departmentOptions, designations: designationOptions, roles: roleOptions, loading: applicabilityLoading } = useApplicabilityOptions()
 
   const { control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
     defaultValues: defaultPolicyValues
@@ -757,6 +972,16 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
   delete metaData.totalLeaveTypesCount
   delete metaData.activeLeaveTypes
 
+  // Extract IDs from selected objects for applicability
+  if (metaData.applicableFor) {
+    metaData.applicableFor = {
+      departments: (metaData.applicableFor.departments || []).map(d => d._id || d.id || d),
+      designations: (metaData.applicableFor.designations || []).map(d => d._id || d.id || d),
+      roles: (metaData.applicableFor.roles || []).map(r => r._id || r.id || r.slug || r),
+      employmentTypes: metaData.applicableFor.employmentTypes || []
+    }
+  }
+
   const cleanMeta = stripIds(metaData)
   const cleanLeaveTypes = stripIds(leaveTypes)
 
@@ -820,12 +1045,63 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             Policy Details
           </Typography>
           <Grid container spacing={4}>
-            <Grid item xs={12} sm={8}>
+            <Grid item xs={12} sm={6}>
               <Controller name='name' control={control} rules={{ required: 'Policy name required' }}
                 render={({ field }) => (
                   <CustomTextField {...field} fullWidth label='Policy Name *'
+                    placeholder='e.g., Standard Leave Policy 2026'
                     error={!!errors.name} helperText={errors.name?.message}
                   />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <Controller name='effectiveFrom' control={control} rules={{ required: 'Effective from date required' }}
+                render={({ field }) => (
+                  <CustomTextField {...field} fullWidth type='date' label='Effective From *'
+                    InputLabelProps={{ shrink: true }}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <Controller name='effectiveTo' control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    fullWidth type='date' label='Effective To'
+                    InputLabelProps={{ shrink: true }}
+                    placeholder='Leave blank for no end date'
+                    value={field.value ?? ''}
+                    onChange={e => field.onChange(e.target.value || null)}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Controller name='approvalFlow.type' control={control}
+                render={({ field }) => (
+                  <CustomTextField {...field} select fullWidth label='Approval Flow *'
+                    helperText='L1 = Manager only · L1_L2 = Manager → HR · AUTO = Auto-approve'
+                  >
+                    <MenuItem value='L1'>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Icon icon='tabler:user' fontSize='1rem' />
+                        L1 — Manager Only
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value='L1_L2'>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Icon icon='tabler:users' fontSize='1rem' />
+                        L1 → L2 — Manager → HR
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value='AUTO'>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Icon icon='tabler:robot' fontSize='1rem' />
+                        AUTO — Auto Approve
+                      </Box>
+                    </MenuItem>
+                  </CustomTextField>
                 )}
               />
             </Grid>
@@ -833,8 +1109,9 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
               <Controller name='status' control={control}
                 render={({ field }) => (
                   <CustomTextField {...field} select fullWidth label='Status'>
-                    <MenuItem value='active'>Active</MenuItem>
                     <MenuItem value='draft'>Draft</MenuItem>
+                    <MenuItem value='active'>Active</MenuItem>
+                    <MenuItem value='inactive'>Inactive</MenuItem>
                   </CustomTextField>
                 )}
               />
@@ -842,33 +1119,46 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             <Grid item xs={12}>
               <Controller name='description' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth multiline rows={2} label='Description' />
-                )}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Controller name='effectiveFrom' control={control}
-                render={({ field }) => (
-                  <CustomTextField {...field} fullWidth type='date' label='Effective From'
-                    InputLabelProps={{ shrink: true }}
+                  <CustomTextField {...field} fullWidth multiline rows={2} label='Description'
+                    placeholder='Brief description of this leave policy'
                   />
                 )}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <Controller name='effectiveTo' control={control}
+            <Grid item xs={12}>
+              <Controller name='changeNote' control={control}
                 render={({ field }) => (
-                  <CustomTextField
-                    fullWidth type='date' label='Effective To (optional)'
-                    InputLabelProps={{ shrink: true }}
-                    value={field.value ?? ''}
-                    onChange={e => field.onChange(e.target.value || null)}
+                  <CustomTextField {...field} fullWidth label='Change Note'
+                    placeholder='Describe what changed in this version (for audit trail)'
+                    helperText='Required for tracking policy version history'
                   />
                 )}
               />
             </Grid>
           </Grid>
         </Box>
+
+        {/* Approval Flow Info */}
+        {watch('approvalFlow.type') === 'L1_L2' && (
+          <Alert severity='info' sx={{ mt: 2 }}>
+            <Typography variant='body2'>
+              <strong>L1 → L2 Flow:</strong> Leave requests will first go to the employee's Reporting Manager.
+              After L1 approval, it will route to HR Manager (role: <code>hr_manager</code>) in the same unit.
+            </Typography>
+            <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
+              ⚠️ Ensure employees have Reporting Manager assigned, and unit has an active HR Manager user.
+            </Typography>
+          </Alert>
+        )}
+
+        {watch('approvalFlow.type') === 'AUTO' && (
+          <Alert severity='warning' sx={{ mt: 2 }}>
+            <Typography variant='body2'>
+              <strong>AUTO Approval:</strong> All leave requests will be automatically approved without human review.
+              Use only for leave types that don't require approval (e.g., Comp Off).
+            </Typography>
+          </Alert>
+        )}
 
         <Divider />
 
@@ -877,16 +1167,20 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
           <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 3 }}>
             Applicability
           </Typography>
+          <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
+            Leave all empty for a catch-all policy. Priority: Role {'>'} Department {'>'} Location {'>'} Employment Type {'>'} Catch-all
+          </Typography>
           <Grid container spacing={4}>
+            {/* Employment Types */}
             <Grid item xs={12}>
-              <Typography variant='body2' color='text.secondary' sx={{ mb: 1.5 }}>Employment Types</Typography>
+              <Typography variant='body2' fontWeight={500} sx={{ mb: 1.5 }}>Employment Types</Typography>
               <Controller name='applicableFor.employmentTypes' control={control}
                 render={({ field }) => (
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     {EMPLOYMENT_TYPES.map(type => {
                       const checked = field.value?.includes(type)
                       return (
-                        <Chip key={type} label={type} clickable size='small'
+                        <Chip key={type} label={type.replace('_', ' ')} clickable size='small'
                           color={checked ? 'primary' : 'default'}
                           variant={checked ? 'filled' : 'outlined'}
                           onClick={() => {
@@ -899,6 +1193,111 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                   </Box>
                 )}
               />
+            </Grid>
+
+            {/* Departments — Autocomplete multi-select */}
+            <Grid item xs={12} sm={6}>
+              <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Departments</Typography>
+              <Controller name='applicableFor.departments' control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    multiple
+                    size='small'
+                    loading={applicabilityLoading}
+                    options={departmentOptions}
+                    getOptionLabel={option => option.name || ''}
+                    isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
+                    value={field.value || []}
+                    onChange={(_, newValue) => field.onChange(newValue)}
+                    renderInput={params => (
+                      <TextField {...params} placeholder='Select departments' />
+                    )}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip
+                          {...getTagProps({ index })}
+                          key={option._id || option.id}
+                          label={option.name}
+                          size='small'
+                          variant='tonal'
+                          color='primary'
+                        />
+                      ))
+                    }
+                  />
+                )}
+              />
+              <Typography variant='caption' color='text.secondary'>Target specific departments</Typography>
+            </Grid>
+
+            {/* Designations — Autocomplete multi-select */}
+            <Grid item xs={12} sm={6}>
+              <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Designations</Typography>
+              <Controller name='applicableFor.designations' control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    multiple
+                    size='small'
+                    loading={applicabilityLoading}
+                    options={designationOptions}
+                    getOptionLabel={option => option.name || ''}
+                    isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
+                    value={field.value || []}
+                    onChange={(_, newValue) => field.onChange(newValue)}
+                    renderInput={params => (
+                      <TextField {...params} placeholder='Select designations' />
+                    )}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip
+                          {...getTagProps({ index })}
+                          key={option._id || option.id}
+                          label={option.name}
+                          size='small'
+                          variant='tonal'
+                          color='warning'
+                        />
+                      ))
+                    }
+                  />
+                )}
+              />
+              <Typography variant='caption' color='text.secondary'>Target specific job titles</Typography>
+            </Grid>
+
+            {/* Roles — Autocomplete multi-select */}
+            <Grid item xs={12} sm={6}>
+              <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Roles</Typography>
+              <Controller name='applicableFor.roles' control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    multiple
+                    size='small'
+                    loading={applicabilityLoading}
+                    options={roleOptions}
+                    getOptionLabel={option => option.name || option.slug || ''}
+                    isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
+                    value={field.value || []}
+                    onChange={(_, newValue) => field.onChange(newValue)}
+                    renderInput={params => (
+                      <TextField {...params} placeholder='Select roles' />
+                    )}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip
+                          {...getTagProps({ index })}
+                          key={option._id || option.id}
+                          label={option.name || option.slug}
+                          size='small'
+                          variant='tonal'
+                          color='secondary'
+                        />
+                      ))
+                    }
+                  />
+                )}
+              />
+              <Typography variant='caption' color='text.secondary'>Target specific roles</Typography>
             </Grid>
           </Grid>
         </Box>

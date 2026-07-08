@@ -13,6 +13,14 @@ import lobReducer from './lob/lobSlice'
 import hierarchyReducer from './hierarchy/hierarchySlice'
 import payrollReducer from './payroll/payrollSlice'
 import dashboardReducer from './dashboard/dashboardSlice'
+import superAdminReducer from './superAdmin/superAdminSlice'
+import payrollPolicyReducer from './payrollPolicy/payrollPolicySlice'
+import investmentDeclarationReducer from './payrollPolicy/investmentDeclarationSlice'
+import shiftReducer from './shift/shiftSlice'
+import rosterReducer from './shift/rosterSlice'
+import shiftSwapReducer from './shift/shiftSwapSlice'
+import regularizationReducer from './attendanceRegularization/regularizationSlice'
+import delegationReducer from './delegation/delegationSlice'
 
 const store = configureStore({
   reducer: {
@@ -29,6 +37,14 @@ const store = configureStore({
     hierarchy: hierarchyReducer,
     payroll: payrollReducer,
     dashboard: dashboardReducer,
+    superAdmin: superAdminReducer,
+    payrollPolicy: payrollPolicyReducer,
+    investmentDeclaration: investmentDeclarationReducer,
+    shifts: shiftReducer,
+    rosters: rosterReducer,
+    shiftSwaps: shiftSwapReducer,
+    regularization: regularizationReducer,
+    delegation: delegationReducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({ serializableCheck: false })

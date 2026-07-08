@@ -1,4 +1,16 @@
-import { createSlice } from '@reduxjs/toolkit'
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+import axiosRequest from 'src/utils/AxiosInterceptor'
+
+// ─── Get Current User Profile ────────────────────────────────────────────────
+
+export const getCurrentUser = createAsyncThunk('auth/getCurrentUser', async (_, { rejectWithValue }) => {
+  try {
+    const res = await axiosRequest.get('/api/v1/auth/me')
+    return res?.data || res
+  } catch (err) {
+    return rejectWithValue(err?.message || 'Failed to fetch user')
+  }
+})
 
 const buildPermissions = (rawPermissions = []) => {
   const flat = [], grouped = {}
@@ -57,6 +69,33 @@ const authSlice = createSlice({
     setError:   (state, { payload }) => { state.error = payload; state.loading = false },
     clearError: state => { state.error = null },
   },
+  extraReducers: builder => {
+    builder
+      .addCase(getCurrentUser.pending, state => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(getCurrentUser.fulfilled, (state, { payload }) => {
+        state.loading = false
+        if (payload?.user) {
+          const { role, subscription, ...userWithoutRole } = payload.user
+          state.user = userWithoutRole
+          state.subscription = subscription || null
+          if (role) {
+            state.role = role?.display_name || role?.name || null
+            state.roleSlug = role?.slug || null
+            state.roleId = role?.id || role?._id || null
+            const { flat, grouped } = buildPermissions(role?.permissions || [])
+            state.permissions = flat
+            state.permissionsByModule = grouped
+          }
+        }
+      })
+      .addCase(getCurrentUser.rejected, (state, { payload }) => {
+        state.loading = false
+        state.error = payload
+      })
+  }
 })
 
 export const { setCredentials, rehydrateAuth, clearCredentials, setLoading, setError, clearError } = authSlice.actions
@@ -74,6 +113,28 @@ export const selectSubscription    = s => s.auth.subscription
 export const selectPermissions     = s => s.auth.permissions
 export const selectPermissionsByModule = s => s.auth.permissionsByModule
 
+// ─── Helper functions to get IDs from localStorage userData object ────
+const getStoredOrgId = () => {
+  try {
+    const userData = JSON.parse(localStorage.getItem('userData') || '{}')
+    return userData?.org_id || userData?.organisation_id || userData?.organization_id || null
+  } catch { return null }
+}
+
+const getStoredCompanyId = () => {
+  try {
+    const userData = JSON.parse(localStorage.getItem('userData') || '{}')
+    return userData?.company_id || null
+  } catch { return null }
+}
+
+const getStoredUnitId = () => {
+  try {
+    const userData = JSON.parse(localStorage.getItem('userData') || '{}')
+    return userData?.unit_id || null
+  } catch { return null }
+}
+
 // Organisation ID — tries common field names the API may use on the user object
 export const selectOrgId = s =>
   s.auth.user?.org_id             ||
@@ -81,4 +142,21 @@ export const selectOrgId = s =>
   s.auth.user?.organization_id    ||
   s.auth.user?.organisation?._id  ||
   s.auth.user?.organization?._id  ||
+  getStoredOrgId() ||
+  null
+
+// Company ID — for company-level users (company_admin, company_hr_manager)
+export const selectCompanyId = s =>
+  s.auth.user?.company_id         ||
+  s.auth.user?.company?._id       ||
+  s.auth.user?.companyId          ||
+  getStoredCompanyId() ||
+  null
+
+// Unit ID — for unit-level users (unit_admin, unit_hr_manager)
+export const selectUnitId = s =>
+  s.auth.user?.unit_id            ||
+  s.auth.user?.unit?._id          ||
+  s.auth.user?.unitId             ||
+  getStoredUnitId() ||
   null

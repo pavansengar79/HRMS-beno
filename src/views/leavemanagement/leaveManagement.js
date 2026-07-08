@@ -47,14 +47,11 @@ const TabList = styled(MuiTabList)(({ theme }) => ({
 }))
 
 const TABS = [
- 
-  { value: 'types',     label: 'Leave Types',     icon: 'tabler:category'       },
-  { value: 'initialize', label: 'Initialize',       icon: 'tabler:refresh'        },
-    { value: 'balance',   label: 'Balance',          icon: 'tabler:scale'          },
-     { value: 'requests',  label: 'Leave Requests', icon: 'tabler:clipboard-list' },
-  // { value: 'approval',  label: 'Approval',        icon: 'tabler:checks'         },
-
-
+  { value: 'requests',  label: 'Leave Requests', icon: 'tabler:clipboard-list' },
+  { value: 'approval',  label: 'Pending Approval', icon: 'tabler:checks' },
+  { value: 'balance',   label: 'Balance',          icon: 'tabler:scale' },
+  { value: 'types',     label: 'Leave Types',     icon: 'tabler:category' },
+  { value: 'initialize', label: 'Initialize',       icon: 'tabler:refresh' },
 ]
 
 const LeaveManagement = ({ tab }) => {

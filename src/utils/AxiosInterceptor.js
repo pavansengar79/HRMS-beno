@@ -1,4 +1,5 @@
 import axios from 'axios'
+import toast from 'react-hot-toast'
 import authConfig from 'src/configs/auth'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
@@ -38,6 +39,11 @@ axiosRequest.interceptors.response.use(
     const data    = error?.response?.data
     const message = data?.message
 
+    // ── Show error toast for all API errors ───────────────────────────────────
+    if (message && typeof window !== 'undefined') {
+      toast.error(message)
+    }
+
     // ── 401 / token expired ──────────────────────────────────────────────────
     if (status === 401 || message === 'Token invalid or expired') {
       if (typeof window !== 'undefined') {
@@ -66,6 +72,17 @@ axiosRequest.interceptors.response.use(
         window.location.href =  '/pages/pricing'
       }
 
+      return Promise.reject(data)
+    }
+
+    // ── 403 FEATURE_NOT_IN_PLAN ──────────────────────────────────────────────
+    if (status === 403 && data?.code === 'FEATURE_NOT_IN_PLAN') {
+      if (typeof window !== 'undefined') {
+        toast.error('This feature is not included in your current plan. Contact your admin to upgrade.', {
+          duration: 6000,
+          icon: '⚠️'
+        })
+      }
       return Promise.reject(data)
     }
 

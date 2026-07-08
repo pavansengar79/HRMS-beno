@@ -18,7 +18,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
-import { selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectRoleSlug, selectCompanyId, selectOrgId } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import toast from 'react-hot-toast'
 import Box from '@mui/material/Box'
@@ -57,33 +57,107 @@ const WIZARD_STEPS = [
 
 // ─── LOB Manager ──────────────────────────────────────────────────────────────
 
-const LOBManager = () => {
-  const [lobs, setLobs]   = useState(['Technology', 'Products', 'Operations'])
-  const [input, setInput] = useState('')
-  const add = () => {
-    const v = input.trim()
-    if (!v || lobs.includes(v)) { toast.error(v ? 'LOB already exists' : 'Enter a name'); return }
-    setLobs(p => [...p, v]); setInput(''); toast.success('LOB added')
+const LOBManager = ({ companyId }) => {
+  const [lobs, setLobs]     = useState([])
+  const [input, setInput]   = useState('')
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // Fetch LOBs on mount
+  useEffect(() => {
+    if (!companyId) return
+    const fetchLobs = async () => {
+      setLoading(true)
+      try {
+        const res = await axiosRequest.get('/api/v1/lobs', { params: { company_id: companyId } })
+        const data = res?.data || res?.lobs || res || []
+        setLobs(Array.isArray(data) ? data : data.lobs || [])
+      } catch (err) {
+        console.error('Failed to fetch LOBs:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchLobs()
+  }, [companyId])
+
+  const addLob = async () => {
+    const name = input.trim()
+    if (!name) { toast.error('Enter a LOB name'); return }
+    if (lobs.some(l => l.name.toLowerCase() === name.toLowerCase())) { toast.error('LOB already exists'); return }
+    
+    setSaving(true)
+    try {
+      const res = await axiosRequest.post('/api/v1/lobs', { 
+        name, 
+        company_id: companyId,
+        code: name.substring(0, 3).toUpperCase(),
+        status: 'Active'
+      })
+      const newLob = res?.data || res
+      setLobs(p => [...p, newLob])
+      setInput('')
+      toast.success('LOB created successfully')
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to create LOB')
+    } finally {
+      setSaving(false)
+    }
   }
+
+  const deleteLob = async (lobId, lobName) => {
+    try {
+      await axiosRequest.delete(`/api/v1/lobs/${lobId}`)
+      setLobs(p => p.filter(l => l._id !== lobId))
+      toast.success(`${lobName} removed`)
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to delete LOB')
+    }
+  }
+
   return (
     <Stack spacing={3}>
       <Alert severity='info' icon={<Icon icon='tabler:info-circle' />}>
         These names become the dropdown options when creating a Business Unit. Free text is not allowed.
       </Alert>
-      <Stack direction='row' flexWrap='wrap' gap={1}>
-        {lobs.map(lob => (
-          <Chip key={lob} label={lob} color='primary' variant='outlined' size='small'
-            onDelete={() => { setLobs(p => p.filter(l => l !== lob)); toast.success(`${lob} removed`) }}
-            sx={{ fontWeight: 600 }} />
-        ))}
-      </Stack>
-      <Stack direction='row' spacing={2}>
-        <CustomTextField size='small' placeholder='+ Add new LOB name…' value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
-          sx={{ flex: 1 }} />
-        <Button variant='contained' size='small' onClick={add}>Add</Button>
-      </Stack>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+          <CircularProgress size={24} />
+        </Box>
+      ) : (
+        <>
+          <Stack direction='row' flexWrap='wrap' gap={1}>
+            {lobs.length === 0 ? (
+              <Typography variant='body2' color='text.secondary'>No LOBs created yet. Add your first one below.</Typography>
+            ) : (
+              lobs.map(lob => (
+                <Chip 
+                  key={lob._id} 
+                  label={lob.name} 
+                  color='primary' 
+                  variant='outlined' 
+                  size='small'
+                  onDelete={() => deleteLob(lob._id, lob.name)}
+                  sx={{ fontWeight: 600 }} 
+                />
+              ))
+            )}
+          </Stack>
+          <Stack direction='row' spacing={2}>
+            <CustomTextField 
+              size='small' 
+              placeholder='+ Add new LOB name…' 
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addLob() } }}
+              sx={{ flex: 1 }} 
+            />
+            <Button variant='contained' size='small' onClick={addLob} disabled={saving || !input.trim()}>
+              {saving ? <CircularProgress size={16} /> : 'Add'}
+            </Button>
+          </Stack>
+        </>
+      )}
     </Stack>
   )
 }
@@ -142,6 +216,8 @@ const StepCard = ({ title, sub, required, onSave, saving, children }) => (
 
 const SystemConfigPage = () => {
   const roleSlug = useSelector(selectRoleSlug)
+  const userCompanyId = useSelector(selectCompanyId)      // Get company_id from user data
+  const userOrgId = useSelector(selectOrgId)
   const isUnitLevel    = roleSlug === 'unit_admin' || roleSlug === 'hr_manager'
   const isCompanyLevel = !isUnitLevel
 
@@ -166,32 +242,57 @@ const SystemConfigPage = () => {
   useEffect(() => {
     const boot = async () => {
       try {
-        if (isCompanyLevel) {
-          const compRes   = await axiosRequest.get('/api/v1/companies').catch(() => null)
-          const companies = Array.isArray(compRes?.data) ? compRes.data : compRes?.data?.companies || []
-          const company   = companies[0] || null
+        // For company-level users, use company_id from user data directly
+        if (isCompanyLevel && userCompanyId) {
+          setCompanyId(userCompanyId)
+          // Fetch company details by ID
+          const compRes = await axiosRequest.get(`/api/v1/companies/${userCompanyId}`).catch(() => null)
+          const company = compRes?.data || null  // AxiosInterceptor returns response.data, so compRes = { success, data }
           if (company) {
-            setCompanyId(company._id)
-            setProfile(p => ({ ...p, legalName: company.company_name || '', brandName: company.brand_name || '', cin: company.cin || '', tan: company.tan || '', gst: company.gst || '', pf: company.pf_registration || company.epfo || '', esic: company.esic_registration || company.esic || '', ptState: company.pt_state || 'Karnataka', industry: company.industry || 'Information Technology', regAddress: company.registered_address?.street ? `${company.registered_address.street}, ${company.registered_address.city}` : '' }))
+            // Build registered address string
+            const regAddr = company.registered_address
+              ? [company.registered_address.street, company.registered_address.city, company.registered_address.state, company.registered_address.pincode].filter(Boolean).join(', ')
+              : ''
+            // Build correspondence address string
+            const corrAddr = company.correspondence_address
+              ? [company.correspondence_address.street, company.correspondence_address.city, company.correspondence_address.state, company.correspondence_address.pincode].filter(Boolean).join(', ')
+              : ''
+            setProfile(p => ({ 
+              ...p, 
+              legalName: company.company_name || '', 
+              brandName: company.brand_name || '', 
+              cin: company.cin || '', 
+              tan: company.tan || '', 
+              gst: company.gst || '', 
+              pf: company.pf_registration || company.epfo || '', 
+              esic: company.esic_registration || company.esic || '', 
+              ptState: company.pt_state || 'Karnataka', 
+              industry: company.industry || 'Information Technology', 
+              regAddress: regAddr, 
+              corrAddress: corrAddr 
+            }))
           }
         }
         const cfgRes = await axiosRequest.get('/api/v1/company-config/config').catch(() => null)
-        const cfg    = cfgRes?.data || {}
+        const cfg    = cfgRes?.data || cfgRes || {}  // AxiosInterceptor returns response.data
+        // Auto-fill Essentials (Step 1) from config if pan exists
         if (cfg.pan) {
           // Convert backend codes to display format
-          const currencyDisplay = cfg.currency ? CURRENCIES.find(c => c.startsWith(cfg.currency)) || cfg.currency : p.timezone
-          const timezoneDisplay = cfg.timezone ? TIMEZONES.find(t => t.startsWith(cfg.timezone)) || cfg.timezone : p.timezone
-          setEss(p => ({ ...p, pan: cfg.pan || '', timezone: timezoneDisplay, currency: currencyDisplay, fiscalYear: String(cfg.fiscalYearStart || p.fiscalYear) }))
-          setCompleted(p => ({ ...p, 0: true }))
+          const currencyDisplay = cfg.currency ? CURRENCIES.find(c => c.startsWith(cfg.currency)) || `INR — Indian Rupee (₹)` : `INR — Indian Rupee (₹)`
+          const timezoneDisplay = cfg.timezone ? TIMEZONES.find(t => t.startsWith(cfg.timezone)) || 'Asia/Kolkata (IST +5:30)' : 'Asia/Kolkata (IST +5:30)'
+          setEss(p => ({ ...p, pan: cfg.pan || '', timezone: timezoneDisplay, currency: currencyDisplay, fiscalYear: String(cfg.fiscalYearStart || '4') }))
+          setCompleted(p => ({ ...p, 0: true }))  // Mark Step 1 as complete
         }
+        // Auto-fill Working Days/Prefs (Step 6) from config
         const ww = Array.isArray(cfg.workWeek) ? cfg.workWeek : []
         setPrefs(p => ({ ...p, workingHours: String(cfg.standardHoursPerDay ?? p.workingHours), regularisationWindow: String(cfg.regularisationWindowDays ?? p.regularisationWindow), defaultShift: cfg.defaultFallbackShift || p.defaultShift, workingDays: ww.length > 0 ? { MON: ww.includes('MON'), TUE: ww.includes('TUE'), WED: ww.includes('WED'), THU: ww.includes('THU'), FRI: ww.includes('FRI'), SAT: ww.includes('SAT'), SUN: ww.includes('SUN') } : p.workingDays }))
+        // Auto-fill SMTP settings (Step 5) if exists
         if (isCompanyLevel && cfg.smtp) setSmtp(p => ({ ...p, fromName: cfg.smtp.from || '', fromEmail: cfg.smtp.user || '', host: cfg.smtp.host || '', port: String(cfg.smtp.port || 587), username: cfg.smtp.user || '', mapsKey: cfg.googleMapsApiKey || '' }))
       } catch (_) {}
       finally { setInitLoading(false) }
     }
     boot()
-  }, [isCompanyLevel])
+  }, [isCompanyLevel, userCompanyId])
 
   const saveEssentials = async () => {
     if (!ess.pan) { toast.error('PAN is required'); return }
@@ -437,13 +538,13 @@ const SystemConfigPage = () => {
             <strong>Required before creating Business Units.</strong> Without LOB names defined here, the LOB dropdown on the BU creation form will be empty.
           </Alert>
           <StepCard title='Step 3 — Lines of Business' sub='LOB names populate the dropdown when creating Business Units'>
-            <LOBManager />
+            <LOBManager companyId={companyId} />
           </StepCard>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
             <Button variant='outlined' startIcon={<Icon icon='tabler:arrow-left' />} onClick={() => setActiveStep(1)}>Back</Button>
             <Stack direction='row' spacing={2}>
               <Button variant='outlined' color='secondary' onClick={() => { toast('Skipped — add LOBs before creating BUs'); setActiveStep(3) }}>Skip for now</Button>
-              <Button variant='contained' endIcon={<Icon icon='tabler:arrow-right' />} onClick={() => { setCompleted(p => ({ ...p, 2: true })); toast.success('LOBs saved'); setActiveStep(3) }}>Save &amp; Next</Button>
+              <Button variant='contained' endIcon={<Icon icon='tabler:arrow-right' />} onClick={() => { setCompleted(p => ({ ...p, 2: true })); setActiveStep(3) }}>Next</Button>
             </Stack>
           </Box>
         </Box>

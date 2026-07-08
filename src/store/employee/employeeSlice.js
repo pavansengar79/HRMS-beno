@@ -18,11 +18,18 @@ import toast from 'react-hot-toast'
 //       res.pagination → pagination info
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Accept scope: { companyId, unitId, departmentId } for org_admin/company_admin navigation
 export const fetchAllEmployees = createAsyncThunk(
   'employee/fetchAll',
-  async (_, { rejectWithValue }) => {
+  async ({ companyId, unitId, departmentId, limit = 100 } = {}, { rejectWithValue }) => {
     try {
-      const res = await axiosRequest.get('/api/v1/employees?limit=100')
+      const params = new URLSearchParams()
+      params.append('limit', limit)
+      if (companyId) params.append('companyId', companyId)
+      if (unitId) params.append('unitId', unitId)
+      if (departmentId) params.append('departmentId', departmentId)
+      
+      const res = await axiosRequest.get(`/api/v1/employees?${params.toString()}`)
 
       // res.data is the employees array
       return {
@@ -91,6 +98,38 @@ export const deleteEmployee = createAsyncThunk(
       return rejectWithValue(res?.message || 'Failed to delete employee')
     } catch (err) {
       return rejectWithValue(typeof err === 'string' ? err : 'Failed to delete employee')
+    }
+  }
+)
+
+export const activateEmployeeLogin = createAsyncThunk(
+  'employee/activateLogin',
+  async ({ id, roleId }, { rejectWithValue }) => {
+    try {
+      const res = await axiosRequest.post(`/api/v1/employees/${id}/activate-login`, { roleId })
+      if (res?.success) {
+        toast.success('Employee login activated successfully')
+        return res.data
+      }
+      return rejectWithValue(res?.message || 'Failed to activate login')
+    } catch (err) {
+      return rejectWithValue(typeof err === 'string' ? err : 'Failed to activate login')
+    }
+  }
+)
+
+export const updateEmployeeStatus = createAsyncThunk(
+  'employee/updateStatus',
+  async ({ id, status }, { rejectWithValue }) => {
+    try {
+      const res = await axiosRequest.patch(`/api/v1/employees/${id}/status`, { status })
+      if (res?.success) {
+        toast.success('Employee status updated')
+        return res.data
+      }
+      return rejectWithValue(res?.message || 'Failed to update status')
+    } catch (err) {
+      return rejectWithValue(typeof err === 'string' ? err : 'Failed to update status')
     }
   }
 )

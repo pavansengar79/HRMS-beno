@@ -4,13 +4,17 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ─── Async Thunks ─────────────────────────────────────────────────────────────
 
-// Requests
+// Requests - Accept scope params for org_admin/company_admin navigation
 export const fetchMyLeaves = createAsyncThunk(
   'leaves/fetchMyLeaves',
-  async ({ page = 1, limit = 10 } = {}, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10, companyId, unitId } = {}, { rejectWithValue }) => {
     try {
-      const res = await axiosRequest.get(`/api/v1/leave?page=${page}&limit=${limit}`)
-      // Interceptor returns body directly: { success, message, data: { page, limit, total, data: [] } }
+      const params = new URLSearchParams()
+      params.append('page', page)
+      params.append('limit', limit)
+      if (companyId) params.append('companyId', companyId)
+      if (unitId) params.append('unitId', unitId)
+      const res = await axiosRequest.get(`/api/v1/leave?${params.toString()}`)
       return res
     } catch (err) {
       return rejectWithValue(err?.response?.data?.message || 'Failed to fetch leaves')
@@ -32,9 +36,16 @@ export const fetchLeaveById = createAsyncThunk(
 
 export const fetchAllLeaves = createAsyncThunk(
   'leaves/fetchAllLeaves',
-  async ({ page = 1, limit = 10, status = '' } = {}, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10, status = '', companyId, unitId } = {}, { rejectWithValue }) => {
     try {
-      const query = `/api/v1/leave?page=${page}&limit=${limit}${status ? `&status=${status}` : ''}`
+      const params = new URLSearchParams()
+      params.append('page', page)
+      params.append('limit', limit)
+      if (status) params.append('status', status)
+      if (companyId) params.append('companyId', companyId)
+      if (unitId) params.append('unitId', unitId)
+      
+      const query = `/api/v1/leave?${params.toString()}`
       console.log('[fetchAllLeaves] URL:', query)
       const res = await axiosRequest.get(query)
       console.log('[fetchAllLeaves] raw res:', res)
@@ -54,6 +65,22 @@ export const applyLeave = createAsyncThunk(
       return res.data ?? res
     } catch (err) {
       return rejectWithValue(err?.response?.data?.message || 'Failed to apply leave')
+    }
+  }
+)
+
+// Pending Approvals - for L1/L2 approvers
+export const fetchPendingApprovals = createAsyncThunk(
+  'leaves/fetchPendingApprovals',
+  async (_, { rejectWithValue }) => {
+    try {
+      console.log('[fetchPendingApprovals] Calling API...')
+      const res = await axiosRequest.get('/api/v1/leave/pending')
+      console.log('[fetchPendingApprovals] Response:', res)
+      return res
+    } catch (err) {
+      console.error('[fetchPendingApprovals] Error:', err?.response?.data || err)
+      return rejectWithValue(err?.response?.data?.message || 'Failed to fetch pending approvals')
     }
   }
 )
@@ -191,6 +218,11 @@ const leaveSlice = createSlice({
     allLeavesTotal: 0,
     allLeavesLoading: false,
 
+    // pending approvals (L1/L2 view)
+    pendingApprovalsRows: [],
+    pendingApprovalsLoading: false,
+    pendingApprovalsError: null,
+
     // leave detail
     leaveDetail: null,
     leaveDetailLoading: false,
@@ -302,7 +334,7 @@ const leaveSlice = createSlice({
           // recalculate summary
           const totals = state.balances.reduce(
             (acc, b) => ({
-              totalAllocated: acc.totalAllocated + (b.totalAllocated || 0),
+              totalAllocated: acc.totalAllocated + (b.allocated ?? b.totalAllocated ?? 0),
               totalUsed:      acc.totalUsed      + (b.used           || 0),
               totalRemaining: acc.totalRemaining + (b.remaining      || 0),
               totalPending:   acc.totalPending   + (b.pending        || 0),
@@ -340,6 +372,23 @@ const leaveSlice = createSlice({
       })
       .addCase(fetchAllLeaves.rejected,  (state, { payload }) => { state.allLeavesLoading = false; state.allLeavesRows = [] })
 
+    // ── Pending Approvals (L1/L2) ────────────
+    builder
+      .addCase(fetchPendingApprovals.pending,   state => { state.pendingApprovalsLoading = true;  state.pendingApprovalsError = null })
+      .addCase(fetchPendingApprovals.fulfilled, (state, { payload }) => {
+        state.pendingApprovalsLoading = false
+        // API returns: { success, message, data: { requests: [], pagination: {} } }
+        const pd = payload?.data
+        if (pd && Array.isArray(pd.requests)) {
+          state.pendingApprovalsRows = pd.requests
+        } else if (Array.isArray(pd)) {
+          state.pendingApprovalsRows = pd
+        } else {
+          state.pendingApprovalsRows = []
+        }
+      })
+      .addCase(fetchPendingApprovals.rejected,  (state, { payload }) => { state.pendingApprovalsLoading = false; state.pendingApprovalsError = payload; state.pendingApprovalsRows = [] })
+
     // ── Leave Detail ──────────────────────────
     builder
       .addCase(fetchLeaveById.pending,   state => { state.leaveDetailLoading = true; state.leaveDetail = null })
@@ -359,6 +408,10 @@ const leaveSlice = createSlice({
         if (updated?._id) {
           state.leavesRows    = state.leavesRows.map(l    => l._id === updated._id ? updated : l)
           state.allLeavesRows = state.allLeavesRows.map(l => l._id === updated._id ? updated : l)
+          // Remove from pending approvals if status changed
+          if (updated.status !== 'PENDING') {
+            state.pendingApprovalsRows = state.pendingApprovalsRows.filter(l => l._id !== updated._id)
+          }
           if (state.leaveDetail?._id === updated._id) state.leaveDetail = updated
         }
       })

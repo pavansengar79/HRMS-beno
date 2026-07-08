@@ -1,4 +1,4 @@
-// src/views/leavemanagement/TabLeaveApproval.jsx
+// src/views/leavemanagement/leaveApproval.js
 import { useEffect, useState, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 
@@ -14,11 +14,18 @@ import Chip from '@mui/material/Chip'
 import Tooltip from '@mui/material/Tooltip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
+import Button from '@mui/material/Button'
+import TextField from '@mui/material/TextField'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import Snackbar from '@mui/material/Snackbar'
 import { DataGrid } from '@mui/x-data-grid'
 
 import Icon from 'src/@core/components/icon'
 
-import { fetchAllLeaves, fetchLeaveById } from 'src/store/leaves/leaveSlice'
+import { fetchPendingApprovals, fetchLeaveById, updateLeaveStatus } from 'src/store/leaves/leaveSlice'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -161,22 +168,53 @@ const LeaveDetailDrawer = ({ open, onClose, leaveId }) => {
 
 const TabLeaveApproval = () => {
   const dispatch = useDispatch()
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
 
   // Detail drawer state
   const [detailOpen,    setDetailOpen]    = useState(false)
   const [detailLeaveId, setDetailLeaveId] = useState(null)
 
-  const { allLeavesRows: rows, allLeavesTotal: total, allLeavesLoading: loading } =
+  // Action dialog state
+  const [actionDialogOpen, setActionDialogOpen] = useState(false)
+  const [actionLeaveId,    setActionLeaveId]    = useState(null)
+  const [actionType,       setActionType]        = useState('') // 'approve' or 'reject'
+  const [remarks,          setRemarks]           = useState('')
+  const [snackbar,         setSnackbar]          = useState({ open: false, message: '', severity: 'success' })
+
+  const { pendingApprovalsRows: rows, pendingApprovalsLoading: loading, pendingApprovalsError: error, actionLoading } =
     useSelector(state => state.leaves)
 
-  const loadLeaves = useCallback(() => {
-    dispatch(fetchAllLeaves({ page: paginationModel.page + 1, limit: paginationModel.pageSize }))
-  }, [dispatch, paginationModel])
+  useEffect(() => {
+    console.log('[TabLeaveApproval] Dispatching fetchPendingApprovals')
+    dispatch(fetchPendingApprovals())
+  }, [dispatch])
 
-  useEffect(() => { loadLeaves() }, [loadLeaves])
+  // Debug output
+  useEffect(() => {
+    console.log('[TabLeaveApproval] State:', { rows, loading, error, rowCount: rows?.length })
+  }, [rows, loading, error])
 
   const openDetail = (id) => { setDetailLeaveId(id); setDetailOpen(true) }
+
+  const handleAction = (id, type) => {
+    setActionLeaveId(id)
+    setActionType(type)
+    setRemarks('')
+    setActionDialogOpen(true)
+  }
+
+  const submitAction = async () => {
+    if (!actionLeaveId || !actionType) return
+
+    try {
+      const status = actionType === 'approve' ? 'APPROVED' : 'REJECTED'
+      await dispatch(updateLeaveStatus({ id: actionLeaveId, status, remarks })).unwrap()
+      setSnackbar({ open: true, message: `Leave request ${actionType}d successfully`, severity: 'success' })
+      setActionDialogOpen(false)
+      dispatch(fetchPendingApprovals()) // Refresh list
+    } catch (err) {
+      setSnackbar({ open: true, message: err || 'Failed to update status', severity: 'error' })
+    }
+  }
 
   const columns = [
     {
@@ -222,18 +260,33 @@ const TabLeaveApproval = () => {
       renderCell: ({ row }) => <Chip label={`${row.totalDays}d`} size='small' variant='tonal' color='primary' />
     },
     {
-      field: 'status', headerName: 'Status', flex: 1,
-      renderCell: ({ row }) => <LeaveStatusChip status={row.status?.toLowerCase()} />
+      field: 'l1Status', headerName: 'L1 Status', width: 110,
+      renderCell: ({ row }) => <LeaveStatusChip status={row.l1Status?.toLowerCase()} />
     },
     {
-      // View detail only — no approve/reject
-      field: 'actions', headerName: 'Actions', width: 80, sortable: false,
+      field: 'l2Status', headerName: 'L2 Status', width: 110,
+      renderCell: ({ row }) => <LeaveStatusChip status={row.l2Status?.toLowerCase()} />
+    },
+    {
+      field: 'actions', headerName: 'Actions', width: 200, sortable: false,
       renderCell: ({ row }) => (
-        <Tooltip title='View Detail'>
-          <IconButton size='small' onClick={() => openDetail(row._id)}>
-            <Icon icon='tabler:eye' fontSize='1.1rem' />
-          </IconButton>
-        </Tooltip>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title='View Detail'>
+            <IconButton size='small' onClick={() => openDetail(row._id)}>
+              <Icon icon='tabler:eye' fontSize='1.1rem' />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title='Approve'>
+            <IconButton size='small' color='success' onClick={() => handleAction(row._id, 'approve')}>
+              <Icon icon='tabler:check' fontSize='1.1rem' />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title='Reject'>
+            <IconButton size='small' color='error' onClick={() => handleAction(row._id, 'reject')}>
+              <Icon icon='tabler:x' fontSize='1.1rem' />
+            </IconButton>
+          </Tooltip>
+        </Box>
       )
     },
   ]
@@ -241,21 +294,36 @@ const TabLeaveApproval = () => {
   return (
     <>
       <Card>
-        <CardHeader title='Leave Approval History' />
+        <CardHeader 
+          title='Pending Leave Approvals' 
+          subheader='Leave requests awaiting your approval'
+        />
         <CardContent>
-          <DataGrid
-            autoHeight
-            rows={rows || []}
-            columns={columns}
-            getRowId={row => row._id}
-            loading={loading}
-            rowCount={total}
-            paginationMode='server'
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            pageSizeOptions={[10, 25, 50]}
-            disableRowSelectionOnClick
-          />
+          {error && (
+            <Alert severity='error' sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress /></Box>
+          ) : rows && rows.length > 0 ? (
+            <DataGrid
+              autoHeight
+              rows={rows}
+              columns={columns}
+              getRowId={row => row._id}
+              paginationModel={{ page: 0, pageSize: 10 }}
+              pageSizeOptions={[10, 25, 50]}
+              disableRowSelectionOnClick
+            />
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 10 }}>
+              <Icon icon='tabler:inbox' fontSize='3rem' color='text.disabled' />
+              <Typography variant='body1' color='text.secondary' sx={{ mt: 2 }}>
+                No pending approvals
+              </Typography>
+            </Box>
+          )}
         </CardContent>
       </Card>
 
@@ -264,6 +332,49 @@ const TabLeaveApproval = () => {
         onClose={() => setDetailOpen(false)}
         leaveId={detailLeaveId}
       />
+
+      {/* Action Dialog */}
+      <Dialog open={actionDialogOpen} onClose={() => setActionDialogOpen(false)} maxWidth='sm' fullWidth>
+        <DialogTitle>
+          {actionType === 'approve' ? 'Approve Leave Request' : 'Reject Leave Request'}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin='dense'
+            label='Remarks (Optional)'
+            fullWidth
+            multiline
+            rows={3}
+            value={remarks}
+            onChange={e => setRemarks(e.target.value)}
+            placeholder='Add any comments or reasoning...'
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setActionDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={submitAction} 
+            variant='contained' 
+            color={actionType === 'approve' ? 'success' : 'error'}
+            disabled={actionLoading}
+          >
+            {actionLoading ? <CircularProgress size={20} /> : actionType === 'approve' ? 'Approve' : 'Reject'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
   )
 }

@@ -1,8 +1,16 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 const BASE = '/api/v1/lobs'
-export const fetchLOBs = createAsyncThunk('lob/fetchAll', async (_, { rejectWithValue }) => {
-  try { const res = await axiosRequest.get(BASE); return res.lobs || res.data || [] }
+
+// Accept companyId param - org_admin/company_admin can view specific company's LOBs
+export const fetchLOBs = createAsyncThunk('lob/fetchAll', async (companyId, { rejectWithValue }) => {
+  try {
+    const params = new URLSearchParams()
+    if (companyId) params.append('companyId', companyId)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    const res = await axiosRequest.get(`${BASE}${query}`)
+    return res.lobs || res.data || []
+  }
   catch (e) { return rejectWithValue(typeof e === 'string' ? e : e?.message || 'Failed') }
 })
 export const createLOB = createAsyncThunk('lob/create', async (p, { rejectWithValue }) => {

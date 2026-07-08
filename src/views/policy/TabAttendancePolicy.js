@@ -39,6 +39,8 @@ import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
+import Autocomplete from '@mui/material/Autocomplete'
+import TextField from '@mui/material/TextField'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
@@ -74,8 +76,11 @@ const STATUS_CONFIG = {
 
 const defaultValues = {
   name: '',
+  description: '',
+  status: 'draft',
   applicableFor: {
     departments: [],
+    designations: [],
     roles: [],
     locations: [],
     employmentTypes: []
@@ -104,8 +109,11 @@ const defaultValues = {
   overtime: {
     enabled: false,
     compensationType: 'comp_off',
-    minimumMinutes: 60
-  }
+    minimumMinutes: 60,
+    rateMultiplier: 1.5,
+    maxHoursPerDay: 4
+  },
+  shiftSwapApprovalType: 'EMPLOYEE_THEN_MANAGER'
 }
 
 // ─── Confirm Dialog ───────────────────────────────────────────────────────────
@@ -147,11 +155,52 @@ const StatusChip = ({ status }) => {
 // Handles departments (ObjectId array), roles (string array),
 // locations (string array), employmentTypes (enum array)
 
+// ─── Hook to fetch dropdown options ───────────────────────────────────────────
+const useApplicabilityOptions = () => {
+  const [departments, setDepartments] = useState([])
+  const [designations, setDesignations] = useState([])
+  const [roles, setRoles] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        setLoading(true)
+        const [deptRes, desigRes, roleRes] = await Promise.all([
+          axiosRequest.get('/api/v1/departments'),
+          axiosRequest.get('/api/v1/designations'),
+          axiosRequest.get('/api/v1/roles')
+        ])
+        setDepartments(deptRes?.data || [])
+        setDesignations(desigRes?.data || [])
+        setRoles(roleRes?.data || [])
+      } catch (err) {
+        console.error('Failed to load applicability options:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchOptions()
+  }, [])
+
+  return { departments, designations, roles, loading }
+}
+
 const ApplicabilitySection = ({ control, watch }) => {
-  // roles and locations are free-text multi-entry (comma-separated → array on submit)
-  // For a real app, hook these to actual department/role search APIs
-  const [roleInput, setRoleInput] = useState('')
+  const { departments, designations, roles, loading } = useApplicabilityOptions()
   const [locationInput, setLocationInput] = useState('')
+
+  // Helper to convert role slug to object for Autocomplete (backend stores roles as strings)
+  const getRoleObject = (slugOrObj) => {
+    if (typeof slugOrObj === 'object' && slugOrObj !== null) return slugOrObj
+    return roles.find(r => r?.slug === slugOrObj || r?._id === slugOrObj) || { slug: slugOrObj, name: slugOrObj }
+  }
+
+  // Helper to get designation object if stored as ID string
+  const getDesignationObject = (idOrObj) => {
+    if (typeof idOrObj === 'object' && idOrObj !== null) return idOrObj
+    return designations.find(d => d?._id === idOrObj || d?.id === idOrObj) || { _id: idOrObj, name: idOrObj }
+  }
 
   return (
     <Box>
@@ -163,7 +212,6 @@ const ApplicabilitySection = ({ control, watch }) => {
       </Typography>
 
       <Grid container spacing={4}>
-
         {/* Employment Types */}
         <Grid item xs={12}>
           <Typography variant='body2' fontWeight={500} sx={{ mb: 1.5 }}>Employment Types</Typography>
@@ -188,51 +236,118 @@ const ApplicabilitySection = ({ control, watch }) => {
           />
         </Grid>
 
-        {/* Roles — free-text tags */}
+        {/* Departments — Autocomplete multi-select */}
+        <Grid item xs={12} sm={6}>
+          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Departments</Typography>
+          <Controller name='applicableFor.departments' control={control}
+            render={({ field }) => (
+              <Autocomplete
+                multiple
+                size='small'
+                loading={loading}
+                options={departments}
+                getOptionLabel={option => option.name || ''}
+                isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
+                value={field.value || []}
+                onChange={(_, newValue) => field.onChange(newValue)}
+                renderInput={params => (
+                  <TextField {...params} placeholder='Select departments' />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option._id || option.id}
+                      label={option.name}
+                      size='small'
+                      variant='tonal'
+                      color='primary'
+                    />
+                  ))
+                }
+              />
+            )}
+          />
+          <Typography variant='caption' color='text.secondary'>Target specific departments</Typography>
+        </Grid>
+
+        {/* Designations — Autocomplete multi-select */}
+        <Grid item xs={12} sm={6}>
+          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Designations</Typography>
+          <Controller name='applicableFor.designations' control={control}
+            render={({ field }) => (
+              <Autocomplete
+                multiple
+                size='small'
+                loading={loading}
+                options={designations}
+                getOptionLabel={option => option?.name || (typeof option === 'string' ? option : '') || ''}
+                isOptionEqualToValue={(option, value) => {
+                  const optionId = option?._id || option?.id || option
+                  const valueId = value?._id || value?.id || value
+                  return optionId === valueId
+                }}
+                value={field.value || []}
+                onChange={(_, newValue) => field.onChange(newValue)}
+                renderInput={params => (
+                  <TextField {...params} placeholder='Select designations' />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option?._id || option?.id || option || index}
+                      label={option?.name || (typeof option === 'string' ? option : 'Unknown')}
+                      size='small'
+                      variant='tonal'
+                      color='warning'
+                    />
+                  ))
+                }
+              />
+            )}
+          />
+          <Typography variant='caption' color='text.secondary'>Target specific job titles</Typography>
+        </Grid>
+
+        {/* Roles — Autocomplete multi-select */}
         <Grid item xs={12} sm={6}>
           <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Roles</Typography>
           <Controller name='applicableFor.roles' control={control}
             render={({ field }) => (
-              <Box>
-                <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-                  {(field.value || []).map((r, i) => (
-                    <Chip key={i} label={r} size='small' variant='tonal' color='secondary'
-                      onDelete={() => field.onChange(field.value.filter((_, idx) => idx !== i))}
+              <Autocomplete
+                multiple
+                size='small'
+                loading={loading}
+                options={roles}
+                getOptionLabel={option => option?.name || option?.slug || (typeof option === 'string' ? option : '') || ''}
+                isOptionEqualToValue={(option, value) => {
+                  // Handle both object and string values for roles
+                  const optionSlug = option?.slug || option?._id || option
+                  const valueSlug = value?.slug || value?._id || value
+                  return optionSlug === valueSlug
+                }}
+                value={field.value || []}
+                onChange={(_, newValue) => field.onChange(newValue)}
+                renderInput={params => (
+                  <TextField {...params} placeholder='Select roles' />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option?._id || option?.id || option?.slug || option || index}
+                      label={option?.name || option?.slug || (typeof option === 'string' ? option : 'Unknown')}
+                      size='small'
+                      variant='tonal'
+                      color='secondary'
                     />
-                  ))}
-                </Box>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <CustomTextField
-                    size='small' fullWidth placeholder='e.g. hr_manager'
-                    value={roleInput}
-                    onChange={e => setRoleInput(e.target.value)}
-                    onKeyDown={e => {
-                      if ((e.key === 'Enter' || e.key === ',') && roleInput.trim()) {
-                        e.preventDefault()
-                        const val = roleInput.trim().replace(/,$/, '')
-                        if (val && !(field.value || []).includes(val)) {
-                          field.onChange([...(field.value || []), val])
-                        }
-                        setRoleInput('')
-                      }
-                    }}
-                  />
-                  <Button size='small' variant='tonal'
-                    onClick={() => {
-                      const val = roleInput.trim()
-                      if (val && !(field.value || []).includes(val)) {
-                        field.onChange([...(field.value || []), val])
-                      }
-                      setRoleInput('')
-                    }}
-                  >
-                    Add
-                  </Button>
-                </Box>
-                <Typography variant='caption' color='text.secondary'>Press Enter or comma to add</Typography>
-              </Box>
+                  ))
+                }
+              />
             )}
           />
+          <Typography variant='caption' color='text.secondary'>Target specific roles</Typography>
         </Grid>
 
         {/* Locations — free-text tags */}
@@ -294,6 +409,21 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
   const [saving, setSaving] = useState(false)
   const isEdit = Boolean(editData?._id)
 
+  // Get options for helper functions
+  const { designations: allDesignations, roles: allRoles } = useApplicabilityOptions()
+
+  // Helper to convert role slug to object for Autocomplete (backend stores roles as strings)
+  const getRoleObject = (slugOrObj) => {
+    if (typeof slugOrObj === 'object' && slugOrObj !== null) return slugOrObj
+    return allRoles.find(r => r?.slug === slugOrObj || r?._id === slugOrObj) || { slug: slugOrObj, name: slugOrObj }
+  }
+
+  // Helper to get designation object if stored as ID string
+  const getDesignationObject = (idOrObj) => {
+    if (typeof idOrObj === 'object' && idOrObj !== null) return idOrObj
+    return allDesignations.find(d => d?._id === idOrObj || d?.id === idOrObj) || { _id: idOrObj, name: idOrObj }
+  }
+
   const { control, handleSubmit, reset, watch, formState: { errors } } = useForm({ defaultValues })
 
   const lateMarkEnabled = watch('lateMark.enabled')
@@ -306,9 +436,12 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
         // Map real API response shape into form
         reset({
           name: editData.name || '',
+          description: editData.description || '',
+          status: editData.status || 'draft',
           applicableFor: {
             departments: editData.applicableFor?.departments || [],
-            roles: editData.applicableFor?.roles || [],
+            designations: (editData.applicableFor?.designations || []).map(d => getDesignationObject(d)),
+            roles: (editData.applicableFor?.roles || []).map(r => getRoleObject(r)),
             locations: editData.applicableFor?.locations || [],
             employmentTypes: editData.applicableFor?.employmentTypes || []
           },
@@ -339,8 +472,11 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
           overtime: {
             enabled: editData.overtime?.enabled ?? false,
             compensationType: editData.overtime?.compensationType || 'comp_off',
-            minimumMinutes: editData.overtime?.minimumMinutes ?? 60
-          }
+            minimumMinutes: editData.overtime?.minimumMinutes ?? 60,
+            rateMultiplier: editData.overtime?.rateMultiplier ?? 1.5,
+            maxHoursPerDay: editData.overtime?.maxHoursPerDay ?? 4
+          },
+          shiftSwapApprovalType: editData.shiftSwapApprovalType || 'EMPLOYEE_THEN_MANAGER'
         })
       } else {
         reset(defaultValues)
@@ -382,7 +518,23 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
         overtime: {
           enabled: data.overtime.enabled,
           compensationType: data.overtime.compensationType,
-          minimumMinutes: Number(data.overtime.minimumMinutes)
+          minimumMinutes: Number(data.overtime.minimumMinutes),
+          rateMultiplier: Number(data.overtime.rateMultiplier) || 1.5,
+          maxHoursPerDay: Number(data.overtime.maxHoursPerDay) || 4
+        },
+        shiftSwapApprovalType: data.shiftSwapApprovalType || 'EMPLOYEE_THEN_MANAGER',
+        description: data.description || '',
+        status: data.status || 'draft'
+      }
+
+      // Extract IDs from selected objects for departments, designations, roles
+      if (payload.applicableFor) {
+        payload.applicableFor = {
+          departments: (data.applicableFor.departments || []).map(d => d._id || d.id || d),
+          designations: (data.applicableFor.designations || []).map(d => d._id || d.id || d),
+          roles: (data.applicableFor.roles || []).map(r => r._id || r.id || r.slug || r),
+          locations: data.applicableFor.locations || [],
+          employmentTypes: data.applicableFor.employmentTypes || []
         }
       }
 
@@ -431,12 +583,34 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             Policy Details
           </Typography>
           <Grid container spacing={4}>
-            <Grid item xs={12} sm={8}>
+            <Grid item xs={12} sm={6}>
               <Controller name='name' control={control} rules={{ required: 'Policy name is required' }}
                 render={({ field }) => (
                   <CustomTextField
                     {...field} fullWidth label='Policy Name *'
                     error={!!errors.name} helperText={errors.name?.message}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Controller name='status' control={control}
+                render={({ field }) => (
+                  <CustomTextField {...field} select fullWidth label='Status'>
+                    <MenuItem value='draft'>Draft</MenuItem>
+                    <MenuItem value='active'>Active</MenuItem>
+                    <MenuItem value='inactive'>Inactive</MenuItem>
+                    <MenuItem value='archived'>Archived</MenuItem>
+                  </CustomTextField>
+                )}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Controller name='description' control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field} fullWidth multiline rows={2} label='Description'
+                    placeholder='Brief description of the attendance policy'
                   />
                 )}
               />
@@ -714,7 +888,6 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                     <CustomTextField {...field} select fullWidth label='Compensation Type'>
                       <MenuItem value='comp_off'>Comp Off</MenuItem>
                       <MenuItem value='salary'>Salary</MenuItem>
-                      <MenuItem value='none'>None</MenuItem>
                     </CustomTextField>
                   )}
                 />
@@ -729,11 +902,63 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                   )}
                 />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <Controller name='overtime.rateMultiplier' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Rate Multiplier'
+                      helperText='e.g. 1.5 = 1.5x hourly rate (for salary)'
+                      inputProps={{ min: 1, step: 0.1 }}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Controller name='overtime.maxHoursPerDay' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='number' label='Max OT Hours/Day'
+                      helperText='Maximum overtime hours allowed per day'
+                      inputProps={{ min: 0 }}
+                    />
+                  )}
+                />
+              </Grid>
             </Grid>
           )}
           {!overtimeEnabled && (
             <Alert severity='info' sx={{ mt: 1 }}>Overtime tracking is disabled for this policy.</Alert>
           )}
+        </Box>
+
+        {/* Shift Swap Approval Type - NEW FIELD */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
+            Shift Swap Approval Flow
+          </Typography>
+          <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
+            Configure how shift swap requests are approved
+          </Typography>
+          <Controller name='shiftSwapApprovalType' control={control}
+            render={({ field }) => (
+              <CustomTextField {...field} select fullWidth label='Approval Type'>
+                <MenuItem value='EMPLOYEE_THEN_MANAGER'>
+                  <Box>
+                    <Typography fontWeight={500}>Employee → Manager</Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      Requested employee accepts first, then manager approves
+                    </Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value='MANAGER_ONLY'>
+                  <Box>
+                    <Typography fontWeight={500}>Manager Only</Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      Manager directly approves (skips employee acceptance)
+                    </Typography>
+                  </Box>
+                </MenuItem>
+              </CustomTextField>
+            )}
+          />
         </Box>
 
         {/* Footer */}
@@ -859,6 +1084,30 @@ const TabAttendancePolicy = () => {
   const canActivate = roleSlug === 'unit_admin'
   const [policies, setPolicies] = useState([])
   const [loading, setLoading] = useState(true)
+  
+  // Fetch applicability options for lookup
+  const { departments: allDepartments, designations: allDesignations, roles: allRoles } = useApplicabilityOptions()
+  
+  // Helper to get department name from ID
+  const getDepartmentName = (idOrObj) => {
+    if (typeof idOrObj === 'object' && idOrObj !== null) return idOrObj.name
+    const dept = allDepartments.find(d => d._id === idOrObj || d.id === idOrObj)
+    return dept?.name || idOrObj
+  }
+  
+  // Helper to get designation name from ID
+  const getDesignationName = (idOrObj) => {
+    if (typeof idOrObj === 'object' && idOrObj !== null) return idOrObj.name
+    const desig = allDesignations.find(d => d._id === idOrObj || d.id === idOrObj)
+    return desig?.name || idOrObj
+  }
+  
+  // Helper to get role name from ID or slug
+  const getRoleName = (idOrSlugOrObj) => {
+    if (typeof idOrSlugOrObj === 'object' && idOrSlugOrObj !== null) return idOrSlugOrObj.name || idOrSlugOrObj.slug
+    const role = allRoles.find(r => r._id === idOrSlugOrObj || r.id === idOrSlugOrObj || r.slug === idOrSlugOrObj)
+    return role?.name || role?.slug || idOrSlugOrObj
+  }
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editData, setEditData] = useState(null)
   const [actionLoading, setActionLoading] = useState(null)
@@ -1109,7 +1358,7 @@ const TabAttendancePolicy = () => {
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
                         {policy.applicableFor?.roles?.length > 0
                           ? policy.applicableFor.roles.map(r => (
-                            <Chip key={r} label={r} size='small' variant='tonal' color='secondary'
+                            <Chip key={r} label={getRoleName(r)} size='small' variant='tonal' color='secondary'
                               icon={<Icon icon='tabler:user-check' fontSize='0.75rem' />}
                             />
                           ))
@@ -1120,6 +1369,13 @@ const TabAttendancePolicy = () => {
                             label={`${policy.applicableFor.departments.length} dept${policy.applicableFor.departments.length > 1 ? 's' : ''}`}
                             size='small' variant='tonal' color='secondary'
                             icon={<Icon icon='tabler:building' fontSize='0.75rem' />}
+                          />
+                        )}
+                        {policy.applicableFor?.designations?.length > 0 && (
+                          <Chip
+                            label={`${policy.applicableFor.designations.length} designation${policy.applicableFor.designations.length > 1 ? 's' : ''}`}
+                            size='small' variant='tonal' color='warning'
+                            icon={<Icon icon='tabler:briefcase' fontSize='0.75rem' />}
                           />
                         )}
                         {policy.applicableFor?.locations?.length > 0 && (
@@ -1137,6 +1393,7 @@ const TabAttendancePolicy = () => {
                         }
                         {!policy.applicableFor?.roles?.length &&
                           !policy.applicableFor?.departments?.length &&
+                          !policy.applicableFor?.designations?.length &&
                           !policy.applicableFor?.locations?.length &&
                           !policy.applicableFor?.employmentTypes?.length && (
                             <Chip label='Catch-all (all employees)' size='small' variant='tonal' color='default' />

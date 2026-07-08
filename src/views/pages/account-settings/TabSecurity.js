@@ -1,4 +1,5 @@
 // ** MUI Imports
+import { useEffect, useState } from 'react'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
@@ -11,6 +12,9 @@ import Typography from '@mui/material/Typography'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
 import TableContainer from '@mui/material/TableContainer'
+import Button from '@mui/material/Button'
+import LinearProgress from '@mui/material/LinearProgress'
+import Chip from '@mui/material/Chip'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
@@ -22,6 +26,10 @@ import CustomChip from 'src/@core/components/mui/chip'
 import CreateApiKey from 'src/views/pages/account-settings/security/CreateApiKey'
 import ChangePasswordCard from 'src/views/pages/account-settings/security/ChangePasswordCard'
 import TwoFactorAuthentication from 'src/views/pages/account-settings/security/TwoFactorAuthentication'
+
+// ** API
+import axiosRequest from 'src/utils/AxiosInterceptor'
+import toast from 'react-hot-toast'
 
 const apiKeyList = [
   {
@@ -114,6 +122,53 @@ const recentDeviceData = [
 ]
 
 const TabSecurity = () => {
+  const [sessions, setSessions] = useState([])
+  const [sessionsLoading, setSessionsLoading] = useState(false)
+
+  // ── Fetch active sessions ─────────────────────────────────────────────────────
+  useEffect(() => {
+    fetchActiveSessions()
+  }, [])
+
+  const fetchActiveSessions = async () => {
+    setSessionsLoading(true)
+    try {
+      const response = await axiosRequest.get('/api/v1/auth/sessions')
+      setSessions(response?.data?.sessions || [])
+    } catch (err) {
+      console.error('Failed to fetch sessions:', err)
+      // Don't show error toast - feature might not be implemented yet
+    } finally {
+      setSessionsLoading(false)
+    }
+  }
+
+  const handleRevokeSession = async (sessionId) => {
+    try {
+      await axiosRequest.delete(`/api/v1/auth/sessions/${sessionId}`)
+      toast.success('Session revoked successfully')
+      fetchActiveSessions() // Refresh list
+    } catch (err) {
+      console.error('Failed to revoke session:', err)
+      toast.error(err?.message || 'Failed to revoke session')
+    }
+  }
+
+  const formatLastActive = (dateString) => {
+    if (!dateString) return 'Unknown'
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now - date
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 60) return `${diffMins} minutes ago`
+    if (diffHours < 24) return `${diffHours} hours ago`
+    if (diffDays < 7) return `${diffDays} days ago`
+    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
   return (
     <Grid container spacing={6}>
       <Grid item xs={12}>
@@ -122,9 +177,104 @@ const TabSecurity = () => {
       <Grid item xs={12}>
         <TwoFactorAuthentication />
       </Grid>
+
+      {/* ── Active Sessions ─────────────────────────────────────────────────────── */}
       <Grid item xs={12}>
-        <CreateApiKey />
+        <Card>
+          <CardHeader 
+            title='Active Sessions' 
+            action={
+              <Button 
+                size='small' 
+                variant='outlined'
+                startIcon={<Icon icon='mdi:refresh' />}
+                onClick={fetchActiveSessions}
+              >
+                Refresh
+              </Button>
+            }
+          />
+          <CardContent>
+            <Typography sx={{ mb: 4, color: 'text.secondary' }}>
+              These are the devices where you're currently logged in. Revoke any session that you don't recognize.
+            </Typography>
+
+            {sessionsLoading ? (
+              <LinearProgress />
+            ) : sessions.length === 0 ? (
+              <Typography variant='body2' color='text.secondary' align='center' sx={{ py: 4 }}>
+                No active sessions found
+              </Typography>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>Device</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Browser</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>IP Address</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Location</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Last Active</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {sessions.map((session, idx) => (
+                      <TableRow key={session._id || idx} hover>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Icon icon={session.device?.type === 'mobile' ? 'mdi:cellphone' : 'mdi:laptop'} fontSize={20} />
+                            <Typography variant='body2'>{session.device?.name || session.userAgent || 'Unknown Device'}</Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant='body2'>{session.browser?.name || 'Unknown'}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant='body2'>{session.ipAddress || 'Unknown'}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant='body2'>{session.location || 'Unknown'}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant='body2'>{formatLastActive(session.lastActive)}</Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={session.current ? 'Current' : 'Active'}
+                            size='small'
+                            color={session.current ? 'primary' : 'success'}
+                            variant='outlined'
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {!session.current && (
+                            <Button
+                              size='small'
+                              color='error'
+                              variant='text'
+                              startIcon={<Icon icon='mdi:logout' />}
+                              onClick={() => handleRevokeSession(session._id)}
+                            >
+                              Revoke
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </CardContent>
+        </Card>
       </Grid>
+
+      {/* API Key List - kept for reference but hidden */}
+      {/* <Grid item xs={12}>
+        <CreateApiKey />
+      </Grid> */}
 
       {/* API Key List & Access Card*/}
       {/* <Grid item xs={12}>

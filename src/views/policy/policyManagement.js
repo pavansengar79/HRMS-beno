@@ -25,7 +25,7 @@ import TabCompanyConfig from './TabCompanyConfig'
 import TabLeavePolicy from './TabLeavePolicy'
 import TabAttendancePolicy from './TabAttendancePolicy'
 import TabHolidayCalendar from './TabHolidayCalendar'
-import TabPayrollPolicy from './TabPayrollPolicy'
+import PayrollManagement from './PayrollManagement' // Enterprise Payroll with all features
 import TabRegularisationPolicy from './TabRegularisationPolicy'
 
 // ─── Styled TabList — mirrors leaves page pattern exactly ─────────────────────
@@ -88,7 +88,7 @@ const PolicyManagement = ({ tab }) => {
         leave: <TabLeavePolicy />,
         attendance: <TabAttendancePolicy />,
         holiday: <TabHolidayCalendar />,
-        payroll: <TabPayrollPolicy />,
+        payroll: <PayrollManagement />, // Enterprise payroll with tabs for policies, run, investments
         regularisation: <TabRegularisationPolicy />,
     }
 
