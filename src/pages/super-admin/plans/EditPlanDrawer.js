@@ -1,22 +1,25 @@
 // src/pages/super-admin/plans/EditPlanDrawer.js
 // PUT /api/v1/plans/:id
-import { useEffect } from 'react'
+// Complete edit form matching backend schema exactly
+import { useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
 
 import Drawer from '@mui/material/Drawer'
 import Button from '@mui/material/Button'
 import MenuItem from '@mui/material/MenuItem'
-import { styled } from '@mui/material/styles'
-import IconButton from '@mui/material/IconButton'
-import Typography from '@mui/material/Typography'
-import Box from '@mui/material/Box'
-import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
 import Checkbox from '@mui/material/Checkbox'
-import FormControlLabel from '@mui/material/FormControlLabel'
 import Alert from '@mui/material/Alert'
+import Chip from '@mui/material/Chip'
+import FormControlLabel from '@mui/material/FormControlLabel'
 import Divider from '@mui/material/Divider'
+import Switch from '@mui/material/Switch'
+import CircularProgress from '@mui/material/CircularProgress'
+import IconButton from '@mui/material/IconButton'
+import { alpha, styled } from '@mui/material/styles'
 
 import CustomTextField from 'src/@core/components/mui/text-field'
 import Icon from 'src/@core/components/icon'
@@ -29,25 +32,71 @@ const Header = styled(Box)(({ theme }) => ({
   justifyContent: 'space-between',
 }))
 
+
 const AVAILABLE_FEATURES = [
-  { key: 'employee', label: 'Employee Management' },
-  { key: 'attendance', label: 'Attendance Tracking' },
-  { key: 'leave', label: 'Leave Management' },
-  { key: 'payroll', label: 'Payroll Processing' },
-  { key: 'shift', label: 'Shift Management' },
-  { key: 'roster', label: 'Roster Scheduling' },
-  { key: 'delegation', label: 'Delegation' },
-  { key: 'holiday', label: 'Holiday Calendar' },
-  { key: 'regularisation', label: 'Regularisation' },
-  { key: 'recruitment', label: 'Recruitment' },
-  { key: 'performance', label: 'Performance Review' },
-  { key: 'training', label: 'Training' }
+  { key: 'shift_roster', label: 'Shift Roster', category: 'Shift & Roster' },
+  { key: 'bulk_import_export', label: 'Bulk Import/Export', category: 'Operations' },
+  { key: 'leave_encashment', label: 'Leave Encashment', category: 'Leave' },
+  { key: 'sandwich_rule', label: 'Sandwich Rule', category: 'Leave' },
+  { key: 'leave_liability_report', label: 'Leave Liability Report', category: 'Reports' },
+  { key: 'custom_roles', label: 'Custom Roles', category: 'Access Control' },
+  { key: 'horizontal_delegation', label: 'Horizontal Delegation', category: 'Delegation' },
+  { key: 'delegation_approval_flow', label: 'Delegation Approval Flow', category: 'Delegation' },
+  { key: 'payslip_pdf_download', label: 'Payslip PDF Download', category: 'Payroll' },
+  { key: 'saml_sso', label: 'SAML SSO', category: 'Security' },
+  { key: 'ip_allowlisting', label: 'IP Allowlisting', category: 'Security' },
+  { key: 'session_activity_log', label: 'Session Activity Log', category: 'Security' },
+  { key: 'biometric_integration', label: 'Biometric Integration', category: 'Integrations' },
+  { key: 'bu_site_structure', label: 'BU Site Structure', category: 'Organization' },
+  { key: 'bu_independent_payroll', label: 'BU Independent Payroll', category: 'Organization' },
+  { key: 'advanced_reports', label: 'Advanced Reports', category: 'Reports' },
+  { key: 'feature_gate_matrix', label: 'Feature Gate Matrix', category: 'Admin' }
 ]
 
 export default function EditPlanDrawer({ open, toggle, plan, onSuccess }) {
   const { control, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm()
 
   const selectedFeatures = watch('features', [])
+  const selectedModules = watch('modules', [])
+  
+  // Debug log
+  useEffect(() => {
+    if (open && plan) {
+      console.log('EditPlanDrawer - plan modules:', plan.modules)
+      console.log('EditPlanDrawer - selected modules:', selectedModules)
+    }
+  }, [open, plan, selectedModules])
+
+  const handleModuleToggle = (moduleId) => {
+    const currentModules = selectedModules || []
+    if (currentModules.includes(moduleId)) {
+      setValue('modules', currentModules.filter(id => id !== moduleId))
+    } else {
+      setValue('modules', [...currentModules, moduleId])
+    }
+  }
+
+  // Initialize form when plan data is loaded
+  useEffect(() => {
+    if (plan && open) {
+      const moduleIds = plan.modules?.map(m => m._id || m) || []
+      console.log('EditPlanDrawer - Initializing with modules:', moduleIds)
+      
+      reset({
+        name: plan.name || '',
+        package_type: plan.package_type || 'professionals',
+        structure_level: plan.structure_level || 'unit',
+        price_monthly: plan.price_monthly || '',
+        price_annual: plan.price_annual || '',
+        seat_limit: plan.seat_limit || '',
+        features: plan.features || [],
+        modules: moduleIds,
+        status: plan.status || 'Draft',
+        is_custom: plan.is_custom || false,
+        is_public: plan.is_public !== false
+      })
+    }
+  }, [plan, open, reset])
 
   const handleFeatureToggle = (featureKey) => {
     const currentFeatures = selectedFeatures || []
@@ -58,35 +107,26 @@ export default function EditPlanDrawer({ open, toggle, plan, onSuccess }) {
     }
   }
 
-  useEffect(() => {
-    if (plan && open) {
-      reset({
-        name: plan.name || '',
-        description: plan.description || '',
-        features: plan.features || [],
-        seatLimit: plan.seatLimit || 10,
-        price: plan.price || 0,
-        billingCycle: plan.billingCycle || 'monthly',
-        trialDays: plan.trialDays || 14,
-        status: plan.status || 'draft',
-        changeNote: ''
-      })
-    }
-  }, [plan, open, reset])
-
   const onSubmit = async (data) => {
     if (!plan?._id) return
 
     try {
       const payload = {
-        ...data,
-        features: data.features,
-        price: Number(data.price),
-        seatLimit: Number(data.seatLimit),
-        trialDays: Number(data.trialDays)
+        name: data.name,
+        package_type: data.package_type,
+        structure_level: data.structure_level,
+        price_monthly: data.price_monthly ? Number(data.price_monthly) : null,
+        price_annual: data.price_annual ? Number(data.price_annual) : null,
+        seat_limit: data.seat_limit ? Number(data.seat_limit) : null,
+        modules: data.modules || [],
+        features: data.features || [],
+        status: data.status,
+        is_custom: data.is_custom || false,
+        is_public: data.is_public !== false
       }
+      
       await axiosRequest.put(`/api/v1/plans/${plan._id}`, payload)
-      toast.success('Plan updated successfully!')
+      toast.success('Plan updated successfully! Module changes will cascade to all subscribed organisations.')
       reset()
       toggle()
       if (onSuccess) onSuccess()
@@ -109,7 +149,7 @@ export default function EditPlanDrawer({ open, toggle, plan, onSuccess }) {
       variant='temporary'
       onClose={handleClose}
       ModalProps={{ keepMounted: true }}
-      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 520 } } }}
+      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 600 } } }}
     >
       <Header>
         <Box>
@@ -121,138 +161,221 @@ export default function EditPlanDrawer({ open, toggle, plan, onSuccess }) {
         </IconButton>
       </Header>
 
-      <Box sx={{ p: 6 }}>
+      <Box sx={{ p: 6, pt: 0 }}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             <Alert severity='warning' sx={{ fontSize: 12 }}>
-              Modifying features will sync to all subscribed organisations. Remove features cautiously.
+              Changes will sync to all subscribed organisations immediately. Feature removals will deactivate OrgModule records.
             </Alert>
 
-            <Controller name='name' control={control}
-              rules={{ required: 'Plan name is required' }}
-              render={({ field }) => (
-                <CustomTextField
-                  {...field}
-                  fullWidth
-                  label='Plan Name *'
-                  error={!!errors.name}
-                  helperText={errors.name?.message}
-                />
-              )} />
-
-            <Controller name='description' control={control}
-              render={({ field }) => (
-                <CustomTextField
-                  {...field}
-                  fullWidth
-                  multiline
-                  rows={3}
-                  label='Description'
-                />
-              )} />
-
+            {/* Basic Information */}
             <Box>
-              <Typography variant='subtitle2' sx={{ mb: 2, fontWeight: 600 }}>Features Included</Typography>
-              <Grid container spacing={2}>
-                {AVAILABLE_FEATURES.map(feature => (
-                  <Grid item xs={6} key={feature.key}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={selectedFeatures?.includes(feature.key) || false}
-                          onChange={() => handleFeatureToggle(feature.key)}
-                          size='small'
-                        />
-                      }
-                      label={<Typography variant='body2'>{feature.label}</Typography>}
-                    />
-                  </Grid>
-                ))}
+              <Typography variant='subtitle2' sx={{ mb: 3, fontWeight: 700, textTransform: 'uppercase', fontSize: 11, color: 'text.secondary' }}>
+                Basic Information
+              </Typography>
+              
+              <Grid container spacing={4}>
+                <Grid item xs={12}>
+                  <Controller name='name' control={control}
+                    rules={{ required: 'Plan name is required' }}
+                    render={({ field }) => (
+                      <CustomTextField
+                        {...field}
+                        fullWidth
+                        label='Plan Name *'
+                        error={!!errors.name}
+                        helperText={errors.name?.message}
+                      />
+                    )} />
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Controller name='package_type' control={control}
+                    render={({ field }) => (
+                      <CustomTextField {...field} fullWidth select label='Package Type'>
+                        <MenuItem value='professionals'>Professionals</MenuItem>
+                        <MenuItem value='teams'>Teams</MenuItem>
+                        <MenuItem value='enterprise'>Enterprise</MenuItem>
+                      </CustomTextField>
+                    )} />
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Controller name='structure_level' control={control}
+                    render={({ field }) => (
+                      <CustomTextField {...field} fullWidth select label='Structure Level'>
+                        <MenuItem value='unit'>Unit Level</MenuItem>
+                        <MenuItem value='company'>Company Level</MenuItem>
+                        <MenuItem value='enterprise'>Enterprise Level</MenuItem>
+                      </CustomTextField>
+                    )} />
+                </Grid>
+
+                <Grid item xs={6}>
+                  <FormControlLabel
+                    control={<Controller name='is_custom' control={control} render={({ field }) => <Switch {...field} checked={field.value} />} />}
+                    label={<Typography variant='body2'>Custom Plan</Typography>}
+                  />
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Controller name='is_public' control={control}
+                    render={({ field }) => (
+                      <FormControlLabel
+                        control={<Switch {...field} checked={field.value !== false} />}
+                        label={<Typography variant='body2'>Public Plan</Typography>}
+                      />
+                    )} />
+                </Grid>
               </Grid>
             </Box>
 
-            <Grid container spacing={4}>
-              <Grid item xs={6}>
-                <Controller name='seatLimit' control={control}
-                  rules={{ required: 'Seat limit required', min: { value: 1, message: 'Minimum 1 seat' } }}
-                  render={({ field }) => (
-                    <CustomTextField
-                      {...field}
-                      fullWidth
-                      type='number'
-                      label='Seat Limit *'
-                      error={!!errors.seatLimit}
-                      helperText={errors.seatLimit?.message}
-                    />
-                  )} />
-              </Grid>
-              <Grid item xs={6}>
-                <Controller name='price' control={control}
-                  rules={{ min: { value: 0, message: 'Price cannot be negative' } }}
-                  render={({ field }) => (
-                    <CustomTextField
-                      {...field}
-                      fullWidth
-                      type='number'
-                      label='Price (₹/month)'
-                      error={!!errors.price}
-                      helperText={errors.price?.message}
-                    />
-                  )} />
-              </Grid>
-            </Grid>
+            <Divider />
 
-            <Grid container spacing={4}>
-              <Grid item xs={6}>
-                <Controller name='billingCycle' control={control}
-                  render={({ field }) => (
-                    <CustomTextField {...field} fullWidth select label='Billing Cycle'>
-                      <MenuItem value='monthly'>Monthly</MenuItem>
-                      <MenuItem value='quarterly'>Quarterly</MenuItem>
-                      <MenuItem value='yearly'>Yearly</MenuItem>
-                    </CustomTextField>
-                  )} />
-              </Grid>
-              <Grid item xs={6}>
-                <Controller name='trialDays' control={control}
-                  rules={{ min: { value: 0, message: 'Cannot be negative' } }}
-                  render={({ field }) => (
-                    <CustomTextField
-                      {...field}
-                      fullWidth
-                      type='number'
-                      label='Trial Days'
-                      error={!!errors.trialDays}
-                      helperText={errors.trialDays?.message}
-                    />
-                  )} />
-              </Grid>
-            </Grid>
+            {/* Pricing */}
+            <Box>
+              <Typography variant='subtitle2' sx={{ mb: 3, fontWeight: 700, textTransform: 'uppercase', fontSize: 11, color: 'text.secondary' }}>
+                Pricing & Limits
+              </Typography>
+              
+              <Grid container spacing={4}>
+                <Grid item xs={6}>
+                  <Controller name='price_monthly' control={control}
+                    render={({ field }) => (
+                      <CustomTextField
+                        {...field}
+                        fullWidth
+                        type='number'
+                        label='Monthly Price (₹)'
+                        helperText='Leave empty for custom pricing'
+                      />
+                    )} />
+                </Grid>
 
-            <Controller name='status' control={control}
-              render={({ field }) => (
-                <CustomTextField {...field} fullWidth select label='Status'>
-                  <MenuItem value='draft'>Draft</MenuItem>
-                  <MenuItem value='active'>Active</MenuItem>
-                  <MenuItem value='inactive'>Inactive</MenuItem>
-                </CustomTextField>
-              )} />
+                <Grid item xs={6}>
+                  <Controller name='price_annual' control={control}
+                    render={({ field }) => (
+                      <CustomTextField
+                        {...field}
+                        fullWidth
+                        type='number'
+                        label='Annual Price (₹)'
+                        helperText='Usually 20% discount from monthly'
+                      />
+                    )} />
+                </Grid>
 
-            <Controller name='changeNote' control={control}
-              render={({ field }) => (
-                <CustomTextField
-                  {...field}
-                  fullWidth
-                  multiline
-                  rows={2}
-                  label='Change Note (optional)'
-                  placeholder='Reason for modification...'
-                />
-              )} />
+                <Grid item xs={6}>
+                  <Controller name='seat_limit' control={control}
+                    render={({ field }) => (
+                      <CustomTextField
+                        {...field}
+                        fullWidth
+                        type='number'
+                        label='Seat Limit'
+                        helperText='Leave empty for unlimited'
+                      />
+                    )} />
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Controller name='status' control={control}
+                    render={({ field }) => (
+                      <CustomTextField {...field} fullWidth select label='Status'>
+                        <MenuItem value='Draft'>Draft</MenuItem>
+                        <MenuItem value='Active'>Active</MenuItem>
+                        <MenuItem value='Deprecated'>Deprecated</MenuItem>
+                      </CustomTextField>
+                    )} />
+                </Grid>
+              </Grid>
+            </Box>
 
             <Divider />
 
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
+            {/* Modules (Editable) */}
+            <Box>
+              <Typography variant='subtitle2' sx={{ mb: 2, fontWeight: 700, textTransform: 'uppercase', fontSize: 11, color: 'text.secondary' }}>
+                Modules ({selectedModules?.length || 0} selected)
+              </Typography>
+              
+              <Alert severity='warning' sx={{ mb: 2, fontSize: 11 }}>
+                ⚠️ WARNING: Removing modules will disable them for ALL organisations subscribed to this plan. Users will immediately lose access to functionality.
+              </Alert>
+              
+              {loadingModules ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                  <CircularProgress size={32} />
+                </Box>
+              ) : (
+                <Grid container spacing={2}>
+                  {availableModules.map((module) => {
+                    const isSelected = selectedModules?.includes(module._id)
+                    return (
+                      <Grid item xs={12} sm={6} key={module._id}>
+                        <Box
+                          onClick={() => handleModuleToggle(module._id)}
+                          sx={{
+                            p: 2,
+                            border: '2px solid',
+                            borderColor: isSelected ? 'primary.main' : 'divider',
+                            borderRadius: 2,
+                            cursor: 'pointer',
+                            bgcolor: isSelected ? alpha('#6366f1', 0.05) : 'background.paper',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              borderColor: 'primary.main',
+                              bgcolor: alpha('#6366f1', 0.08)
+                            }
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Checkbox
+                              checked={isSelected || false}
+                              size='small'
+                              sx={{ p: 0 }}
+                            />
+                            <Typography variant='body2' sx={{ fontWeight: 600 }}>
+                              {module.name}
+                            </Typography>
+                          </Box>
+                          <Typography variant='caption' color='text.secondary' sx={{ ml: 4 }}>
+                            {module.description}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    )
+                  })}
+                </Grid>
+              )}
+            </Box>
+
+            <Divider />
+
+            {/* Features */}
+            <Box>
+              <Typography variant='subtitle2' sx={{ mb: 2, fontWeight: 700, textTransform: 'uppercase', fontSize: 11, color: 'text.secondary' }}>
+                Feature Gates ({selectedFeatures?.length || 0} selected)
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {AVAILABLE_FEATURES.map((feature) => {
+                  const isSelected = selectedFeatures?.includes(feature.key)
+                  return (
+                    <Chip
+                      key={feature.key}
+                      label={feature.label}
+                      onClick={() => handleFeatureToggle(feature.key)}
+                      color={isSelected ? 'primary' : 'default'}
+                      variant={isSelected ? 'filled' : 'outlined'}
+                      sx={{ cursor: 'pointer', fontSize: 11 }}
+                    />
+                  )
+                })}
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 4 }}>
               <Button variant='outlined' onClick={handleClose} disabled={isSubmitting}>
                 Cancel
               </Button>

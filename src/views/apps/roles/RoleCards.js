@@ -55,7 +55,7 @@ import { selectUser, selectRole, selectRoleSlug } from 'src/store/auth/authSlice
 //
 // Rules:
 //   org_admin      → can see permissions whose scope includes "org"
-//   tenent_admin   → can see permissions whose scope includes "company"
+//   company_admin   → can see permissions whose scope includes "company"
 //   (anything else) → unit-level: can see permissions whose scope includes "unit"
 //
 // A permission is visible if its scope array contains the user's resolved scope.
@@ -63,7 +63,6 @@ import { selectUser, selectRole, selectRoleSlug } from 'src/store/auth/authSlice
 const ROLE_SLUG_TO_SCOPE = {
 org_admin: 'org',
 company_admin: 'company',
-tenant_admin: 'company',
 unit_admin: 'unit'
 }
 

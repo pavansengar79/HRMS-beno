@@ -122,9 +122,9 @@ const AdminUserList = () => {
   const permissions = useSelector(selectPermissions)
   const userRole    = useSelector(selectRoleSlug) ?? ''
 
-  const canCreate = ROLES_THAT_CAN_MANAGE.includes(userRole)
-  const canEdit   = canCreate
-  const canDelete = canCreate
+  const canCreate = permissions.includes('admin_user.create') || ROLES_THAT_CAN_MANAGE.includes(userRole)
+  const canEdit   = permissions.includes('admin_user.update') || ROLES_THAT_CAN_MANAGE.includes(userRole)
+  const canDelete = permissions.includes('admin_user.delete') || ROLES_THAT_CAN_MANAGE.includes(userRole)
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const [search,          setSearch]          = useState('')

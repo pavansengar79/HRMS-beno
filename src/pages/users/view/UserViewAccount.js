@@ -520,7 +520,7 @@ const UserViewAccount = ({ employee: initialEmployee, isPermitted }) => {
   const roleSlug = useSelector(selectRoleSlug)
 
   const canEdit = isPermitted
-  const isTenantAdmin = roleSlug === 'tenent_admin'
+  const isTenantAdmin = roleSlug === 'company_admin'
 
   // ── Local employee state — each section updates this after save ────────────
   const [employee, setEmployee] = useState(initialEmployee)
@@ -551,7 +551,7 @@ const UserViewAccount = ({ employee: initialEmployee, isPermitted }) => {
         <DocumentsSection employee={employee} canEdit={canEdit} />
       </Grid>
 
-      {/* ── Career Progression — TENANT_ADMIN only ───────────────── */}
+      {/* ── Career Progression — COMPANY_ADMIN only ───────────────── */}
       {isTenantAdmin && (
         <Grid item xs={12}>
           <UserProgressionTimeline userId={employee._id || employee.userId} />

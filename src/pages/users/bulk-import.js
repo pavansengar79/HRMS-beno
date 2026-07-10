@@ -128,7 +128,7 @@ const EmployeeImport = () => {
   const dispatch = useDispatch()
 
   // ── Role + unit scoping ──────────────────────────────────────────────────────
-  // roleSlug: 'unit_admin' | 'hr_manager' | 'tenent_admin' | 'org_admin' | 'super_admin' ...
+  // roleSlug: 'unit_admin' | 'hr_manager' | 'company_admin' | 'org_admin' | 'super_admin' ...
   const roleSlug = useSelector(selectRoleSlug)
 
   // useUnitContext resolves unitId automatically for unit_admin/hr_manager from

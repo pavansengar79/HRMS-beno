@@ -14,6 +14,7 @@ import Icon from 'src/@core/components/icon'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchAllCompanies, deleteCompany, selectAllCompanies, selectCompanyLoading } from 'src/store/company/companySlice'
 import { clearHierarchySelection } from 'src/store/hierarchy/hierarchySlice'
+import { selectPermissions } from 'src/store/auth/authSlice'
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
@@ -24,7 +25,7 @@ import toast from 'react-hot-toast'
 
 const statusColorMap = { Active: 'success', Inactive: 'secondary', ACTIVE: 'success', INACTIVE: 'secondary' }
 
-const RowOptions = ({ id, companyName, onAssignResponsible }) => {
+const RowOptions = ({ id, companyName, onAssignResponsible, canDelete }) => {
   const dispatch = useDispatch()
   const [anchorEl, setAnchorEl] = useState(null)
   const handleDelete = async () => {
@@ -44,9 +45,11 @@ const RowOptions = ({ id, companyName, onAssignResponsible }) => {
         <MenuItem onClick={() => { onAssignResponsible(id, companyName); setAnchorEl(null) }} sx={{ '& svg': { mr: 2 } }}>
           <Icon icon='tabler:user-plus' fontSize={20} />Assign Responsible
         </MenuItem>
-        <MenuItem onClick={handleDelete} sx={{ '& svg': { mr: 2 } }}>
-          <Icon icon='tabler:trash' fontSize={20} />Delete
-        </MenuItem>
+        {canDelete && (
+          <MenuItem onClick={handleDelete} sx={{ '& svg': { mr: 2 } }}>
+            <Icon icon='tabler:trash' fontSize={20} />Delete
+          </MenuItem>
+        )}
       </Menu>
     </>
   )
@@ -61,6 +64,10 @@ const Company = () => {
   const dispatch  = useDispatch()
   const companies = useSelector(selectAllCompanies)
   const loading   = useSelector(selectCompanyLoading)
+  const permissions = useSelector(selectPermissions) || []
+  
+  const canCreate = permissions.includes('company.create')
+  const canDelete = permissions.includes('company.delete')
 
   const onAssignResponsible = (companyId, companyName) => {
     setSelectedCompany({ id: companyId, name: companyName })
@@ -125,7 +132,7 @@ const Company = () => {
         {row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
       </Typography> },
     { flex: 0.08, minWidth: 80, sortable: false, field: 'actions', headerName: 'Actions', renderCell: ({ row }) => (
-      <RowOptions id={row._id} companyName={row.company_name} onAssignResponsible={onAssignResponsible} />
+      <RowOptions id={row._id} companyName={row.company_name} onAssignResponsible={onAssignResponsible} canDelete={canDelete} />
     ) }
   ]
 
@@ -149,7 +156,9 @@ const Company = () => {
             <CustomTextField value={search} placeholder='Search company...' sx={{ minWidth: 200 }}
               onChange={e => setSearch(e.target.value)}
               InputProps={{ startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} /> }} />
-            <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={() => setAddOpen(true)}>Add Company</Button>
+            {canCreate && (
+              <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={() => setAddOpen(true)}>Add Company</Button>
+            )}
           </Box>
           <Divider sx={{ m: '0 !important' }} />
           <DataGrid autoHeight rowHeight={62} loading={loading} rows={filteredRows} columns={columns}

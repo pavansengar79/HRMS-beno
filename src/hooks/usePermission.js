@@ -12,7 +12,7 @@
 //  hasModule('payroll')                            → true if any payroll perm exists
 //  moduleActions('department')                     → ["create","read","update","delete"]
 //  isRole('Tenant Admin')                          → true / false
-//  isRoleSlug('tenant_admin')                      → true / false
+//  isRoleSlug('company_admin')                      → true / false
 //
 // ─────────────────────────────────────────────────────────────────────────
 

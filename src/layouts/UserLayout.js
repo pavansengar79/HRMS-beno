@@ -37,7 +37,7 @@ const UserLayout = ({ children, contentHeightFixed }) => {
       verticalLayoutProps={{
         navMenu: {
           // VerticalNavItems() → reads Redux → returns filtered nav array
-          // tenant_admin sees all items
+          // company_admin sees all items
           // hr_manager sees only items whose module is in their permissions
           // employee sees only dashboard + attendance + leaves + holidays
           navItems: VerticalNavItems()

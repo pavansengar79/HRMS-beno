@@ -26,14 +26,14 @@ import { selectUser, selectRole, selectRoleSlug } from 'src/store/auth/authSlice
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Role label helper
-//   tenant_admin → "ADMIN"
+//   company_admin → "ADMIN"
 //   super_admin  → "SUPER ADMIN"
 //   hr_manager   → "HR MANAGER"
 //   (any slug)   → slug uppercased, underscores → spaces
 // ─────────────────────────────────────────────────────────────────────────────
 const getRoleLabel = (roleSlug, roleName) => {
   if (!roleSlug && !roleName) return ''
-  if (roleSlug === 'tenant_admin') return 'ADMIN'
+  if (roleSlug === 'company_admin') return 'ADMIN'
   if (roleSlug === 'super_admin')  return 'SUPER ADMIN'
   // Fall back to slug → uppercase, or role name
   return roleSlug
@@ -73,7 +73,7 @@ const UserDropdown = props => {
   // ── Read from Redux ────────────────────────────────────────────────────────
   // selectUser  → { id, firstName, email, ... }   (role is stripped out — stored separately)
   // selectRole     → "Tenant Admin"
-  // selectRoleSlug → "tenant_admin"
+  // selectRoleSlug → "company_admin"
   const user     = useSelector(selectUser)
   const role     = useSelector(selectRole)
   const roleSlug = useSelector(selectRoleSlug)
@@ -169,7 +169,7 @@ const UserDropdown = props => {
                 {displayName}
               </Typography>
 
-              {/* Role label — tenant_admin → ADMIN, others → slug uppercased */}
+              {/* Role label — company_admin → ADMIN, others → slug uppercased */}
               <Typography
                 variant='body2'
                 sx={{ color: 'text.disabled', fontSize: '0.7rem', letterSpacing: '0.05em' }}

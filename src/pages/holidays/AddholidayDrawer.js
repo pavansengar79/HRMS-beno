@@ -100,7 +100,7 @@ const AddHolidaySidebar = ({
   drawerWidth = 420,
   open,
   onClose,
-  canEdit,          // true only for tenant_admin
+  canEdit,          // true only for company_admin
   selectedHoliday,  // null → add mode | object → view/delete mode
   clearSelectedHoliday,
 }) => {

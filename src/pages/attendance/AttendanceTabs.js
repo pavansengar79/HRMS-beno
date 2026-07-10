@@ -52,8 +52,8 @@ const AttendanceTabs = ({ activeTab, children }) => {
   const router = useRouter()
   const roleSlug = useSelector(selectRoleSlug)
 
-  // Show team tab for manager, hr_manager, tenant_admin, unit_admin
-  const canViewTeam = ['manager', 'hr_manager', 'tenant_admin', 'unit_admin'].includes(roleSlug)
+  // Show team tab for manager, hr_manager, company_admin, unit_admin
+  const canViewTeam = ['manager', 'hr_manager', 'company_admin', 'unit_admin'].includes(roleSlug)
 
   const handleChange = (_, value) => {
     const target = TAB_ROUTES[value]

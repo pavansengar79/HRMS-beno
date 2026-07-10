@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Team Attendance Page — Manager/HR view of team attendance
 // ─────────────────────────────────────────────────────────────────────────────
-// Access: manager, hr_manager, tenant_admin
+// Access: manager, hr_manager, company_admin
 // Endpoints:
 //   Manager:     GET /api/v1/attendance/team?month=YYYY-MM
 //   HR Manager:  GET /api/v1/attendance?month=YYYY-MM
@@ -74,7 +74,7 @@ const STATUS_LABEL = {
 }
 
 const ROLES = {
-  TENANT_ADMIN: 'tenant_admin',
+  COMPANY_ADMIN: 'company_admin',
   HR_MANAGER:   'hr_manager',
   MANAGER:      'manager',
   UNIT_ADMIN:   'unit_admin'
@@ -243,8 +243,8 @@ export default function TeamAttendance() {
   const router = useRouter()
 
   // Role-based access
-  const allowedRoles = [ROLES.MANAGER, ROLES.HR_MANAGER, ROLES.TENANT_ADMIN, ROLES.UNIT_ADMIN]
-  const isHR = roleSlug === ROLES.HR_MANAGER || roleSlug === ROLES.TENANT_ADMIN || roleSlug === ROLES.UNIT_ADMIN
+  const allowedRoles = [ROLES.MANAGER, ROLES.HR_MANAGER, ROLES.COMPANY_ADMIN, ROLES.UNIT_ADMIN]
+  const isHR = roleSlug === ROLES.HR_MANAGER || roleSlug === ROLES.COMPANY_ADMIN || roleSlug === ROLES.UNIT_ADMIN
 
   // State
   const [filterMonth, setFilterMonth] = useState(() => {

@@ -46,10 +46,10 @@ import UnitContextBanner from 'src/@core/components/CustomComponents/UnitContext
 
 // ─── Permission helper ────────────────────────────────────────────────────────
 /**
- * Only tenant_admin can create / delete holidays.
+ * Only company_admin can create / delete holidays.
  * All other roles (including HR) are view-only.
  */
-const canEditHolidays = roleSlug => roleSlug === 'tenant_admin'
+const canEditHolidays = roleSlug => roleSlug === 'company_admin'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const AppHolidayCalendar = () => {
@@ -69,7 +69,7 @@ const AppHolidayCalendar = () => {
   const leftSidebarWidth = 280
   const addSidebarWidth  = 420
 
-  // Only tenant_admin can add / delete
+  // Only company_admin can add / delete
   const hasEditPermission = canEditHolidays(roleSlug)
 
   // ── GET /holidays?year=YYYY ────────────────────────────────────────────────
@@ -286,7 +286,7 @@ useEffect(() => {
           )}
         </Box>
 
-        {/* Right: Add button (tenant_admin only) */}
+        {/* Right: Add button (company_admin only) */}
         {hasEditPermission ? (
           <Button
             variant='contained'

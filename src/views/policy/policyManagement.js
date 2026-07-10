@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react'
 // ** Next Import
 import { useRouter } from 'next/router'
 
+// ** Redux
+import { useSelector } from 'react-redux'
+import { selectPermissions } from 'src/store/auth/authSlice'
+
 // ** MUI Imports
 import Tab from '@mui/material/Tab'
 import Box from '@mui/material/Box'
@@ -53,15 +57,15 @@ const TabList = styled(MuiTabList)(({ theme }) => ({
     }
 }))
 
-// ─── Tab config ───────────────────────────────────────────────────────────────
+// ─── Tab config with permission requirements ─────────────────────────────────
 
 const TABS = [
-    { value: 'company', label: 'Company Config', icon: 'tabler:building' },
-    { value: 'leave', label: 'Leave Policy', icon: 'tabler:calendar-off' },
-    { value: 'attendance', label: 'Attendance', icon: 'tabler:clock' },
-    { value: 'holiday', label: 'Holiday Calendar', icon: 'tabler:calendar-event' },
-    { value: 'payroll', label: 'Payroll', icon: 'tabler:cash' },
-    { value: 'regularisation', label: 'Regularisation', icon: 'tabler:refresh' },
+    { value: 'company', label: 'Company Config', icon: 'tabler:building', permission: 'attendancePolicy.read' },
+    { value: 'leave', label: 'Leave Policy', icon: 'tabler:calendar-off', permission: 'leavePolicy.read' },
+    { value: 'attendance', label: 'Attendance', icon: 'tabler:clock', permission: 'attendancePolicy.read' },
+    { value: 'holiday', label: 'Holiday Calendar', icon: 'tabler:calendar-event', permission: 'holiday.read' },
+    { value: 'payroll', label: 'Payroll', icon: 'tabler:cash', permission: 'payrollPolicy.read' },
+    { value: 'regularisation', label: 'Regularisation', icon: 'tabler:refresh', permission: 'attendancePolicy.read' }, // HR only
 ]
 
 // ─── PolicyManagement ─────────────────────────────────────────────────────────
@@ -72,14 +76,37 @@ const PolicyManagement = ({ tab }) => {
 
     const router = useRouter()
     const hideText = useMediaQuery(theme => theme.breakpoints.down('md'))
+    const permissions = useSelector(selectPermissions)
+
+    // Filter tabs based on permissions
+    const visibleTabs = TABS.filter(t => permissions.includes(t.permission))
 
     useEffect(() => {
         if (tab && tab !== activeTab) setActiveTab(tab)
-    }, [tab])
+        // If current tab is not visible, redirect to first visible tab
+        if (visibleTabs.length > 0 && !visibleTabs.find(t => t.value === tab)) {
+            router.replace(`/policy/${visibleTabs[0].value}`)
+        }
+    }, [tab, visibleTabs])
 
     const handleChange = (event, value) => {
         setIsLoading(true)
         router.push(`/policy/${value}`).then(() => setIsLoading(false))
+    }
+
+    // If no tabs visible, show access denied
+    if (visibleTabs.length === 0) {
+        return (
+            <Grid container spacing={6}>
+                <Grid item xs={12}>
+                    <Box sx={{ mt: 6, display: 'flex', alignItems: 'center', flexDirection: 'column' }}>
+                        <Icon icon='tabler:lock' fontSize='4rem' />
+                        <Typography sx={{ mt: 2 }} variant='h6'>Access Denied</Typography>
+                        <Typography color='text.secondary'>You don't have permission to view policy settings</Typography>
+                    </Box>
+                </Grid>
+            </Grid>
+        )
     }
 
     // Each tab is self-contained — owns its own fetch, form, and save
@@ -104,7 +131,7 @@ const PolicyManagement = ({ tab }) => {
                                 onChange={handleChange}
                                 aria-label='policy management tabs'
                             >
-                                {TABS.map(t => (
+                                {visibleTabs.map(t => (
                                     <Tab
                                         key={t.value}
                                         value={t.value}

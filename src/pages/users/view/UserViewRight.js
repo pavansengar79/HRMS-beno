@@ -64,7 +64,7 @@ const UserViewRight = ({ tab, employee ,isPermitted}) => {
   const router = useRouter()
 
 
-    const roleSlug    = useSelector(selectRoleSlug)   // e.g. "TENANT_ADMIN"
+    const roleSlug    = useSelector(selectRoleSlug)   // e.g. "COMPANY_ADMIN"
 
 
   const handleChange = (_, value) => {
@@ -109,7 +109,7 @@ const UserViewRight = ({ tab, employee ,isPermitted}) => {
         ) : (
           <>
             <TabPanel sx={{ p: 0 }} value='account'>
-              {roleSlug ==="tenent_admin"  ? 
+              {roleSlug ==="company_admin" ?
                <UserProgressionTimeline userId={employee.userId} /> 
                : 
                <UserViewAccount employee={employee} isPermitted={isPermitted} />}

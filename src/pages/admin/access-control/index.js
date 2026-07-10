@@ -4,8 +4,9 @@
 // Wired to: GET/POST/PUT/DELETE /roles, GET /roles/assignable-permissions, PUT /roles/:id/modules
 
 import { useState, useEffect, useCallback } from 'react'
+import React from 'react'
 import { useSelector } from 'react-redux'
-import { selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectRoleSlug, selectPermissions, selectLevel } from 'src/store/auth/authSlice'
 import { selectSelectedCompanyId, selectSelectedUnitId } from 'src/store/hierarchy/hierarchySlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
@@ -34,6 +35,7 @@ import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import MenuItem from '@mui/material/MenuItem'
 import TextField from '@mui/material/TextField'
+import InputAdornment from '@mui/material/InputAdornment'
 import Tooltip from '@mui/material/Tooltip'
 import Alert from '@mui/material/Alert'
 import Stack from '@mui/material/Stack'
@@ -42,12 +44,17 @@ import Icon from 'src/@core/components/icon'
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import CircularProgress from '@mui/material/CircularProgress'
-// import FormControlLabel from '@mui/material/FormControlLabel'
 import toast from 'react-hot-toast'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ALL_MODULES = ['hrms', 'crm', 'sales', 'bd', 'admin', 'organisation']
+
+// Permission constants
+const CAN_VIEW_ACCESS_CONTROL = ['role.read']
+const CAN_CREATE_ROLE = 'role.create'
+const CAN_UPDATE_ROLE = 'role.update'
+const CAN_DELETE_ROLE = 'role.delete'
 
 const MODULE_LABELS = {
   hrms: 'HRMS', crm: 'CRM', sales: 'Sales', bd: 'BD',
@@ -67,6 +74,18 @@ const PRIV_CATEGORY_COLOR = {
 const userClassColor = cls => ({
   Administrative: 'info', Privilege: 'warning', 'General User': 'secondary', General: 'secondary',
 }[cls] || 'secondary')
+
+// Backend permission objects look like:
+//   { _id, name: "department.create", module: "department", scope: [...], slug: "department.create" }
+// There is NO separate `action` field — the action is the part after the
+// last "." in name/slug. Deriving it here instead of trusting a p.action
+// field (which never exists) is what makes the Create/Edit Role table
+// actually populate instead of everything silently collapsing into "read".
+const getAction = p => {
+  const raw = p?.name || p?.slug || ''
+  const parts = raw.split('.')
+  return (parts.length > 1 ? parts[parts.length - 1] : 'read').toLowerCase()
+}
 
 // ─── Role Detail Modal ─────────────────────────────────────────────────────────
 
@@ -112,44 +131,335 @@ const RoleDetailModal = ({ open, role, onClose, onEdit }) => {
   )
 }
 
-// ─── Module Matrix Modal ───────────────────────────────────────────────────────
+// ─── Constants for Permission Matrix ───────────────────────────────────────
 
-const ModuleMatrixModal = ({ open, role, onClose, onSaved }) => {
-  const [selected, setSelected] = useState([])
-  const [saving, setSaving]     = useState(false)
-  useEffect(() => { if (role) setSelected(role.modules || []) }, [role])
-  if (!role) return null
-  const toggle = m => setSelected(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
+const PERMISSION_DEPENDENCIES = {
+  'payroll.run': ['attendance.read', 'leave.read', 'payrollPolicy.read'],
+  'payroll.create': ['attendance.read', 'payrollPolicy.read'],
+  'leave.approve': ['attendance.read', 'leave.read'],
+  'attendance.approve': ['attendance.read'],
+  'payrollPolicy.update': ['payrollPolicy.read', 'attendancePolicy.read'],
+  'attendancePolicy.update': ['attendancePolicy.read', 'attendance.read'],
+  'leavePolicy.update': ['leavePolicy.read', 'leave.read'],
+}
+
+const ACTION_ORDER = ['create', 'read', 'update', 'delete', 'approve', 'run']
+
+const ACTION_COLORS = {
+  create: 'success',
+  read: 'info',
+  update: 'warning',
+  delete: 'error',
+  approve: 'primary',
+  run: 'secondary'
+}
+
+const ACTION_LABELS = {
+  create: 'Add',
+  read: 'View',
+  update: 'Edit',
+  delete: 'Delete',
+  approve: 'Approve',
+  run: 'Execute'
+}
+
+const MODULE_ICONS = {
+  employee: 'tabler:users',
+  payroll: 'tabler:credit-card',
+  attendance: 'tabler:calendar-check',
+  leave: 'tabler:calendar-off',
+  shift: 'tabler:clock',
+  roster: 'tabler:list-check',
+  holiday: 'tabler:calendar-event',
+  designation: 'tabler:badge',
+  department: 'tabler:building',
+  company: 'tabler:building-skyscraper',
+  organisation: 'tabler:building-skyscraper',
+  unit: 'tabler:building-community',
+  user: 'tabler:user-cog',
+  role: 'tabler:shield',
+  permission: 'tabler:key',
+  settings: 'tabler:settings',
+  dashboard: 'tabler:dashboard',
+  report: 'tabler:chart-bar',
+  leavePolicy: 'tabler:calendar-off',
+  attendancePolicy: 'tabler:calendar-check',
+  payrollPolicy: 'tabler:credit-card',
+  subscription: 'tabler:crown',
+  plan: 'tabler:layout-grid',
+  delegation: 'tabler:user-share',
+  notification: 'tabler:bell',
+  auditLog: 'tabler:history',
+}
+
+// ─── Module Matrix Modal ───────────────────────────────────────────────────────
+// This modal now uses the EXACT same UI as the Create Role modal
+// with auto-prefilled permissions based on the role's current state
+
+const ModuleMatrixModal = ({ open, role, onClose, onSaved, allPermissions }) => {
+  const [form, setForm] = useState({
+    name: '',
+    level: 'unit',
+    description: '',
+    selectedPermissions: []
+  })
+  const [saving, setSaving] = useState(false)
+  const [permSearch, setPermSearch] = useState('')
+
+  // Initialize form with role data when modal opens
+  useEffect(() => {
+    if (role && open) {
+      const permIds = (role.permissions || []).map(p => p._id || p)
+      setForm({
+        name: role.name || '',
+        level: role.level || 'unit',
+        description: role.description || '',
+        selectedPermissions: permIds
+      })
+    }
+  }, [role, open])
+
+  // Find permission by slug or _id
+  const findPermBySlug = slug =>
+    allPermissions.find(p => p.slug === slug || p._id === slug || p.name === slug)
+
+  // Get all dependencies recursively
+  const getAllDependencies = permSlug => {
+    const deps = PERMISSION_DEPENDENCIES[permSlug] || []
+    const allDeps = [...deps]
+    deps.forEach(d => {
+      const childDeps = getAllDependencies(d)
+      childDeps.forEach(cd => {
+        if (!allDeps.includes(cd)) allDeps.push(cd)
+      })
+    })
+    return allDeps
+  }
+
+  // Toggle parent → auto-select children with dependency tracking
+  const togglePerm = id => {
+    const perm = allPermissions.find(p => p._id === id || p.slug === id)
+    if (!perm) return
+
+    const permSlug = perm.slug || perm.name
+    const isSelected = form.selectedPermissions.includes(id)
+
+    if (isSelected) {
+      setForm(prev => ({
+        ...prev,
+        selectedPermissions: prev.selectedPermissions.filter(x => x !== id)
+      }))
+    } else {
+      const deps = getAllDependencies(permSlug)
+      const depIds = deps.map(d => {
+        const depPerm = findPermBySlug(d)
+        return depPerm?._id
+      }).filter(Boolean)
+
+      setForm(prev => {
+        const newSelected = [...new Set([...prev.selectedPermissions, id, ...depIds])]
+        return { ...prev, selectedPermissions: newSelected }
+      })
+    }
+  }
+
   const handleSave = async () => {
+    if (!role) return
     setSaving(true)
     try {
-      await axiosRequest.put(`/api/v1/roles/${role._id}/modules`, { modules: selected })
-      toast.success('Module access updated')
+      await axiosRequest.put(`/api/v1/roles/${role._id}`, {
+        permissions: form.selectedPermissions
+      })
+      toast.success('Role permissions updated')
       onSaved(); onClose()
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to update modules')
+      toast.error(err?.response?.data?.message || 'Failed to update role')
     } finally { setSaving(false) }
   }
+
+  // Early return AFTER all hooks
+  if (!role) return null
+
+  // Filter permissions based on role's level
+  const LEVEL_HIERARCHY = {
+    org: ['org', 'company', 'unit'],
+    company: ['company', 'unit'],
+    unit: ['unit']
+  }
+
+  const filteredPermissions = (allPermissions || []).filter(p => {
+    if (!p.scope || p.scope.length === 0) return true
+    const allowedScopes = LEVEL_HIERARCHY[form.level] || [form.level]
+    return p.scope.some(s => allowedScopes.includes(s))
+  })
+
+  // Group permissions by MODULE — one row per module
+  const permGroups = {}
+  const searchTerm = permSearch.toLowerCase()
+
+  ;(filteredPermissions || []).forEach(p => {
+    const permModule = p.module || 'general'
+    if (!permGroups[permModule]) {
+      permGroups[permModule] = []
+    }
+    if (!searchTerm ||
+        permModule.toLowerCase().includes(searchTerm) ||
+        (p.label || '').toLowerCase().includes(searchTerm) ||
+        (p.name || '').toLowerCase().includes(searchTerm) ||
+        (p.slug || '').toLowerCase().includes(searchTerm)) {
+      permGroups[permModule].push(p)
+    }
+  })
+
+  // Sort modules alphabetically
+  const sortedModules = Object.keys(permGroups).sort()
+
+  // Columns are derived from actual data
+  const usedActions = ACTION_ORDER.filter(action =>
+    sortedModules.some(moduleName => permGroups[moduleName].some(p => getAction(p) === action))
+  )
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth='xs' fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth='lg' fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant='h6'>Edit Modules — {role.name}</Typography>
+        <Typography variant='h6'>Edit Permissions — {role.name}</Typography>
         <IconButton size='small' onClick={onClose}><Icon icon='tabler:x' /></IconButton>
       </DialogTitle>
       <DialogContent dividers>
-        <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 2 }}>Select which modules this role can access</Typography>
-        <Stack spacing={1}>
-          {ALL_MODULES.map(m => (
-            <FormControlLabel key={m}
-              control={<Checkbox checked={selected.includes(m)} onChange={() => toggle(m)} size='small' />}
-              label={<Typography variant='body2'>{MODULE_LABELS[m]}</Typography>} />
-          ))}
-        </Stack>
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid item xs={4}>
+            <CustomTextField
+              size='small'
+              fullWidth
+              label='Role Name'
+              value={form.name}
+              disabled
+            />
+          </Grid>
+          <Grid item xs={4}>
+            <CustomTextField
+              size='small'
+              fullWidth
+              label='Level'
+              value={form.level}
+              disabled
+            />
+          </Grid>
+          <Grid item xs={4}>
+            <CustomTextField
+              size='small'
+              fullWidth
+              label='Description'
+              value={form.description}
+              disabled
+            />
+          </Grid>
+        </Grid>
+
+        <Typography variant='overline' color='text.secondary' display='block' mb={1}>
+          Module Permissions
+        </Typography>
+
+        <TextField
+          size="small"
+          placeholder="Search permissions..."
+          value={permSearch}
+          onChange={(e) => setPermSearch(e.target.value)}
+          sx={{ mb: 2, width: '300px' }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Icon icon='tabler:search' fontSize={18} />
+              </InputAdornment>
+            )
+          }}
+        />
+
+        {sortedModules.length === 0 ? (
+          <Typography variant='caption' color='text.disabled'>No assignable permissions for this level</Typography>
+        ) : (
+          <Box sx={{ maxHeight: 500, overflowY: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+            <TableContainer>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600, width: 200 }}>Module</TableCell>
+                    {usedActions.map(action => (
+                      <TableCell key={action} align="center" sx={{ fontWeight: 600, width: 70 }}>
+                        {ACTION_LABELS[action] || action}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sortedModules.map(moduleName => {
+                    const perms = permGroups[moduleName]
+
+                    const actionMap = {}
+                    perms.forEach(p => {
+                      actionMap[getAction(p)] = p
+                    })
+
+                    return (
+                      <TableRow key={moduleName} hover sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Icon icon={MODULE_ICONS[moduleName] || MODULE_ICONS[moduleName.toLowerCase()] || 'tabler:folder'} fontSize={16} />
+                            <Typography variant="body2" fontWeight={600}>
+                              {moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+
+                        {usedActions.map(action => {
+                          const perm = actionMap[action]
+
+                          if (!perm) {
+                            return (
+                              <TableCell key={action} align="center">
+                                <Typography variant="caption" color="text.disabled">—</Typography>
+                              </TableCell>
+                            )
+                          }
+
+                          const permId = perm._id || perm.id
+                          const isSelected = form.selectedPermissions.includes(permId)
+
+                          return (
+                            <TableCell key={action} align="center" sx={{ py: 0.5 }}>
+                              <Tooltip
+                                title={
+                                  <Box>
+                                    <Typography variant="caption" fontWeight={600}>{perm.label || perm.name || perm.slug}</Typography>
+                                    <br />
+                                    <Typography variant="caption" color="text.secondary">{perm.slug}</Typography>
+                                  </Box>
+                                }
+                                arrow
+                              >
+                                <Checkbox
+                                  size="small"
+                                  checked={isSelected}
+                                  onChange={() => togglePerm(permId)}
+                                  color={ACTION_COLORS[action] || 'primary'}
+                                />
+                              </Tooltip>
+                            </TableCell>
+                          )
+                        })}
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button variant='outlined' onClick={onClose} disabled={saving}>Cancel</Button>
         <Button variant='contained' onClick={handleSave} disabled={saving}>
-          {saving ? <CircularProgress size={16} /> : 'Save'}
+          {saving ? <CircularProgress size={16} /> : 'Save Changes'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -162,42 +472,76 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
   const isEdit = Boolean(editRole)
   const [form, setForm] = useState({ name: '', level: defaultLevel || 'unit', description: '', selectedPermissions: [] })
   const [saving, setSaving] = useState(false)
-  // When defaultLevel is locked from context, the dropdown is hidden
+  const [permSearch, setPermSearch] = useState('')
   const levelLocked = Boolean(defaultLevel)
-  
+
   useEffect(() => {
     if (editRole) {
+      const permIds = (editRole.permissions || []).map(p => p._id || p)
       setForm({ name: editRole.name || '', level: editRole.level || defaultLevel || 'unit', description: editRole.description || '',
-                selectedPermissions: (editRole.permissions || []).map(p => p._id || p) })
+                selectedPermissions: permIds })
     } else {
       setForm({ name: '', level: defaultLevel || 'unit', description: '', selectedPermissions: [] })
     }
   }, [editRole, open, defaultLevel])
-  
-  // Filter permissions based on selected level
-  // Level hierarchy: org can see org/company/unit, company can see company/unit, unit can see unit
+
   const LEVEL_HIERARCHY = {
     org: ['org', 'company', 'unit'],
     company: ['company', 'unit'],
     unit: ['unit']
   }
-  
+
   const filteredPermissions = (permissions || []).filter(p => {
     if (!p.scope || p.scope.length === 0) return true
     const allowedScopes = LEVEL_HIERARCHY[form.level] || [form.level]
     return p.scope.some(s => allowedScopes.includes(s))
   })
-  
-  const togglePerm = id => setForm(prev => ({
-    ...prev,
-    selectedPermissions: prev.selectedPermissions.includes(id)
-      ? prev.selectedPermissions.filter(x => x !== id) : [...prev.selectedPermissions, id],
-  }))
-  
-  // Clear selected permissions when level changes (only for new roles)
+
+  const findPermBySlug = slug =>
+    permissions.find(p => p.slug === slug || p._id === slug || p.name === slug)
+
+  const getAllDependencies = permSlug => {
+    const deps = PERMISSION_DEPENDENCIES[permSlug] || []
+    const allDeps = [...deps]
+    deps.forEach(d => {
+      const childDeps = getAllDependencies(d)
+      childDeps.forEach(cd => {
+        if (!allDeps.includes(cd)) allDeps.push(cd)
+      })
+    })
+    return allDeps
+  }
+
+  const togglePerm = id => {
+    const perm = permissions.find(p => p._id === id || p.slug === id)
+    if (!perm) return
+
+    const permSlug = perm.slug || perm.name
+    const isSelected = form.selectedPermissions.includes(id)
+
+    if (isSelected) {
+      setForm(prev => ({
+        ...prev,
+        selectedPermissions: prev.selectedPermissions.filter(x => x !== id)
+      }))
+    } else {
+      const deps = getAllDependencies(permSlug)
+      const depIds = deps.map(d => {
+        const depPerm = findPermBySlug(d)
+        return depPerm?._id
+      }).filter(Boolean)
+
+      setForm(prev => {
+        const newSelected = [...new Set([...prev.selectedPermissions, id, ...depIds])]
+        return { ...prev, selectedPermissions: newSelected }
+      })
+    }
+  }
+
   const handleLevelChange = newLevel => {
     setForm(prev => ({ ...prev, level: newLevel, selectedPermissions: [] }))
   }
+
   const handleSubmit = async e => {
     e.preventDefault()
     if (!form.name.trim()) { toast.error('Role name is required'); return }
@@ -222,70 +566,182 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
       toast.error(err?.response?.data?.message || (isEdit ? 'Update failed' : 'Create failed'))
     } finally { setSaving(false) }
   }
-  // Group permissions by category
-  const grouped = {}
-  ;(filteredPermissions || []).forEach(p => { const c = p.category || 'General'; if (!grouped[c]) grouped[c] = []; grouped[c].push(p) })
+
+  const permGroups = {}
+  const searchTerm = permSearch.toLowerCase()
+
+  ;(filteredPermissions || []).forEach(p => {
+    const permModule = p.module || 'general'
+    if (!permGroups[permModule]) {
+      permGroups[permModule] = []
+    }
+    if (!searchTerm ||
+        permModule.toLowerCase().includes(searchTerm) ||
+        (p.label || '').toLowerCase().includes(searchTerm) ||
+        (p.name || '').toLowerCase().includes(searchTerm) ||
+        (p.slug || '').toLowerCase().includes(searchTerm)) {
+      permGroups[permModule].push(p)
+    }
+  })
+
+  const sortedModules = Object.keys(permGroups).sort()
+
+  const usedActions = ACTION_ORDER.filter(action =>
+    sortedModules.some(moduleName => permGroups[moduleName].some(p => getAction(p) === action))
+  )
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth component='form' onSubmit={handleSubmit}>
+    <Dialog open={open} onClose={onClose} maxWidth='lg' fullWidth component='form' onSubmit={handleSubmit}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant='h6'>{isEdit ? 'Edit Role' : 'Create Custom Role'}</Typography>
         <IconButton size='small' onClick={onClose} type='button'><Icon icon='tabler:x' /></IconButton>
       </DialogTitle>
       <DialogContent dividers>
-        <Grid container spacing={4} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6}>
-            <CustomTextField fullWidth label='Role Name' placeholder='e.g. Finance Manager'
-              value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid item xs={4}>
+            <CustomTextField
+              size='small'
+              fullWidth
+              label='Role Name'
+              placeholder='e.g. Finance Manager'
+              value={form.name}
+              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+            />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={4}>
             {levelLocked ? (
-              <CustomTextField fullWidth label='Level' value={form.level} disabled
-                helperText='Auto-set from your current context' />
+              <CustomTextField
+                size='small'
+                fullWidth
+                label='Level'
+                value={form.level}
+                disabled
+              />
             ) : (
-              <CustomTextField fullWidth select label='Level' value={form.level} onChange={e => handleLevelChange(e.target.value)}>
+              <CustomTextField
+                size='small'
+                fullWidth
+                select
+                label='Level'
+                value={form.level}
+                onChange={e => handleLevelChange(e.target.value)}
+              >
                 <MenuItem value='unit'>Unit</MenuItem>
                 <MenuItem value='company'>Company</MenuItem>
                 <MenuItem value='org'>Organisation</MenuItem>
               </CustomTextField>
             )}
           </Grid>
-          <Grid item xs={12}>
-            <CustomTextField fullWidth label='Description' placeholder='Brief description of this role'
-              value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+          <Grid item xs={4}>
+            <CustomTextField
+              size='small'
+              fullWidth
+              label='Description'
+              placeholder='Brief description'
+              value={form.description}
+              onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            />
           </Grid>
         </Grid>
-        <Typography variant='overline' color='text.secondary' display='block' mb={1}>Assign Permissions</Typography>
-        {!levelLocked && (
-          <Alert severity='info' sx={{ mb: 2 }}>
-            Showing permissions available at <strong>{form.level}</strong> level
-          </Alert>
+        <Typography variant='overline' color='text.secondary' display='block' mb={1}>
+          Assign Permissions
+        </Typography>
+
+        <TextField
+          size="small"
+          placeholder="Search permissions..."
+          value={permSearch}
+          onChange={(e) => setPermSearch(e.target.value)}
+          sx={{ mb: 2, width: '300px' }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Icon icon='tabler:search' fontSize={18} />
+              </InputAdornment>
+            )
+          }}
+        />
+
+        {sortedModules.length === 0 ? (
+          <Typography variant='caption' color='text.disabled'>No assignable permissions for this level</Typography>
+        ) : (
+          <Box sx={{ maxHeight: 500, overflowY: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+            <TableContainer>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600, width: 200 }}>Module</TableCell>
+                    {usedActions.map(action => (
+                      <TableCell key={action} align="center" sx={{ fontWeight: 600, width: 70 }}>
+                        {ACTION_LABELS[action] || action}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sortedModules.map(moduleName => {
+                    const perms = permGroups[moduleName]
+
+                    const actionMap = {}
+                    perms.forEach(p => {
+                      actionMap[getAction(p)] = p
+                    })
+
+                    return (
+                      <TableRow key={moduleName} hover sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Icon icon={MODULE_ICONS[moduleName] || MODULE_ICONS[moduleName.toLowerCase()] || 'tabler:folder'} fontSize={16} />
+                            <Typography variant="body2" fontWeight={600}>
+                              {moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+
+                        {usedActions.map(action => {
+                          const perm = actionMap[action]
+
+                          if (!perm) {
+                            return (
+                              <TableCell key={action} align="center">
+                                <Typography variant="caption" color="text.disabled">—</Typography>
+                              </TableCell>
+                            )
+                          }
+
+                          const permId = perm._id || perm.id
+                          const isSelected = form.selectedPermissions.includes(permId)
+
+                          return (
+                            <TableCell key={action} align="center" sx={{ py: 0.5 }}>
+                              <Tooltip
+                                title={
+                                  <Box>
+                                    <Typography variant="caption" fontWeight={600}>{perm.label || perm.name || perm.slug}</Typography>
+                                    <br />
+                                    <Typography variant="caption" color="text.secondary">{perm.slug}</Typography>
+                                  </Box>
+                                }
+                                arrow
+                              >
+                                <Checkbox
+                                  size="small"
+                                  checked={isSelected}
+                                  onChange={() => togglePerm(permId)}
+                                  color={ACTION_COLORS[action] || 'primary'}
+                                />
+                              </Tooltip>
+                            </TableCell>
+                          )
+                        })}
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
         )}
-        {filteredPermissions.length === 0
-          ? <Typography variant='caption' color='text.disabled'>No assignable permissions for this level</Typography>
-          : Object.entries(grouped).map(([cat, perms]) => (
-              <Box key={cat} sx={{ mb: 2 }}>
-                <Typography variant='caption' color='text.secondary' sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px', display: 'block', mb: 1 }}>{cat}</Typography>
-                <Stack spacing={0.5}>
-                  {perms.filter(p => filteredPermissions.some(fp => fp._id === p._id)).map(p => (
-                    <Box key={p._id} sx={{ px: 2, py: 0.5, bgcolor: 'action.hover', borderRadius: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Checkbox size='small' checked={form.selectedPermissions.includes(p._id)} onChange={() => togglePerm(p._id)} />
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant='body2' sx={{ fontFamily: 'monospace', fontWeight: 600, lineHeight: 1.3 }}>{p.label || p.name}</Typography>
-                        {p.frRef && <Typography variant='caption' color='text.disabled'>{p.frRef}</Typography>}
-                      </Box>
-                      {p.scope && p.scope.length > 0 && (
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          {p.scope.map(s => (
-                            <Chip key={s} label={s} size='small' variant='outlined' color='primary' sx={{ fontSize: '0.65rem', height: 20 }} />
-                          ))}
-                        </Box>
-                      )}
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
-            ))
-        }
       </DialogContent>
       <DialogActions>
         <Button variant='outlined' onClick={onClose} type='button' disabled={saving}>Cancel</Button>
@@ -306,12 +762,18 @@ const AccessControlPage = () => {
   const [search,      setSearch]      = useState('')
   const [activeTab,   setActiveTab]   = useState(null)
 
-  // Determine level context from Redux so Create Role auto-selects the right level
   const roleSlug         = useSelector(selectRoleSlug)
+  const userPermissions  = useSelector(selectPermissions)
+  const userLevel        = useSelector(selectLevel)
   const selectedCompanyId = useSelector(selectSelectedCompanyId)
   const selectedUnitId    = useSelector(selectSelectedUnitId)
 
-  // Derive which level is active: unit > company > org
+  // Permission checks
+  const canView = CAN_VIEW_ACCESS_CONTROL.some(p => userPermissions.includes(p))
+  const canCreate = userPermissions.includes(CAN_CREATE_ROLE)
+  const canUpdate = userPermissions.includes(CAN_UPDATE_ROLE)
+  const canDelete = userPermissions.includes(CAN_DELETE_ROLE)
+
   const contextLevel = selectedUnitId
     ? 'unit'
     : selectedCompanyId
@@ -320,9 +782,8 @@ const AccessControlPage = () => {
         ? 'unit'
         : (roleSlug === 'company_admin' || roleSlug === 'company_hr_manager')
           ? 'company'
-          : null // org_admin / super_admin — let user choose
+          : null
 
-  // modal states
   const [detailOpen,   setDetailOpen]   = useState(false)
   const [formOpen,     setFormOpen]     = useState(false)
   const [matrixOpen,   setMatrixOpen]   = useState(false)
@@ -342,7 +803,7 @@ const AccessControlPage = () => {
       setRoles(rolesData)
       setPermissions(permsData)
       if (permsData.length > 0) {
-        const cats = [...new Set(permsData.map(p => p.category).filter(Boolean))]
+        const cats = [...new Set(permsData.map(p => p.category || (p.module ? p.module.charAt(0).toUpperCase() + p.module.slice(1) : null)).filter(Boolean))]
         setActiveTab(t => t || cats[0] || 'General')
       }
     } catch (err) {
@@ -370,8 +831,28 @@ const AccessControlPage = () => {
   const totalHolders = roles.reduce((s, r) => s + (r.holderCount || 0), 0)
 
   const permsByCategory = {}
-  permissions.forEach(p => { const c = p.category || 'General'; if (!permsByCategory[c]) permsByCategory[c] = []; permsByCategory[c].push(p) })
-  const privCategories = Object.keys(permsByCategory)
+  permissions.forEach(p => {
+    const c = p.category || (p.module ? p.module.charAt(0).toUpperCase() + p.module.slice(1) : 'General')
+    if (!permsByCategory[c]) permsByCategory[c] = []
+    permsByCategory[c].push(p)
+  })
+  const privCategories = Object.keys(permsByCategory).sort()
+
+  // Access denied if user doesn't have role.read permission
+  if (!canView) {
+    return (
+      <Grid container spacing={6}>
+        <Grid item xs={12}>
+          <Card sx={{ p: 8, textAlign: 'center' }}>
+            <Icon icon='tabler:lock' fontSize={64} color='error' />
+            <Typography variant='h5' sx={{ mt: 4 }}>Access Denied</Typography>
+            <Typography color='text.secondary' sx={{ mt: 2 }}>You don't have permission to view Access Control</Typography>
+            <Typography variant='caption' color='text.disabled' sx={{ mt: 1, display: 'block' }}>Required: role.read permission</Typography>
+          </Card>
+        </Grid>
+      </Grid>
+    )
+  }
 
   return (
     <Grid container spacing={6}>
@@ -409,7 +890,7 @@ const AccessControlPage = () => {
             <Stack direction='row' spacing={2}>
               <CustomTextField size='small' placeholder='Search roles…' value={search} onChange={e => setSearch(e.target.value)}
                 InputProps={{ startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} /> }} />
-              <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={() => { setEditRole(null); setFormOpen(true) }}>Create Role</Button>
+              {canCreate && <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={() => { setEditRole(null); setFormOpen(true) }}>Create Role</Button>}
             </Stack>
           </Box>
           <Alert severity='info' sx={{ mx: 5, mb: 3 }}>
@@ -457,26 +938,26 @@ const AccessControlPage = () => {
                                 <Icon icon='tabler:eye' fontSize={16} />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title='Edit Module Access'>
+                            {canUpdate && <Tooltip title='Edit Permissions'>
                               <IconButton size='small' onClick={() => { setMatrixRole(role); setMatrixOpen(true) }}>
                                 <Icon icon='tabler:layout-grid' fontSize={16} />
                               </IconButton>
-                            </Tooltip>
-                            {!isSystem && (
-                              <>
-                                <Tooltip title='Edit Role'>
-                                  <IconButton size='small' onClick={() => { setEditRole(role); setFormOpen(true) }}>
-                                    <Icon icon='tabler:pencil' fontSize={16} />
+                            </Tooltip>}
+                            {!isSystem && canUpdate && (
+                              <Tooltip title='Edit Role'>
+                                <IconButton size='small' onClick={() => { setEditRole(role); setFormOpen(true) }}>
+                                  <Icon icon='tabler:pencil' fontSize={16} />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            {!isSystem && canDelete && (
+                              <Tooltip title={holders > 0 ? `Cannot delete — ${holders} users` : 'Delete Role'}>
+                                <span>
+                                  <IconButton size='small' color='error' disabled={holders > 0} onClick={() => handleDelete(role)}>
+                                    <Icon icon='tabler:trash' fontSize={16} />
                                   </IconButton>
-                                </Tooltip>
-                                <Tooltip title={holders > 0 ? `Cannot delete — ${holders} users` : 'Delete Role'}>
-                                  <span>
-                                    <IconButton size='small' color='error' disabled={holders > 0} onClick={() => handleDelete(role)}>
-                                      <Icon icon='tabler:trash' fontSize={16} />
-                                    </IconButton>
-                                  </span>
-                                </Tooltip>
-                              </>
+                                </span>
+                              </Tooltip>
                             )}
                           </Stack>
                         </TableCell>
@@ -534,7 +1015,7 @@ const AccessControlPage = () => {
       {/* ── Privilege Master List ── */}
       <Grid item xs={12}>
         <Typography variant='h6' sx={{ fontWeight: 700, mb: 1 }}>Privilege Master List</Typography>
-        <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>All available system permissions from the API, grouped by category</Typography>
+        <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>All available system permissions from the API, grouped by module</Typography>
         {privCategories.length > 0 && (
           <>
             <Stack direction='row' spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
@@ -575,7 +1056,7 @@ const AccessControlPage = () => {
       <RoleFormModal open={formOpen} editRole={editRole} permissions={permissions}
         onClose={() => setFormOpen(false)} onSaved={loadData} defaultLevel={contextLevel} />
       <ModuleMatrixModal open={matrixOpen} role={matrixRole}
-        onClose={() => setMatrixOpen(false)} onSaved={loadData} />
+        onClose={() => setMatrixOpen(false)} onSaved={loadData} allPermissions={permissions} />
     </Grid>
   )
 }

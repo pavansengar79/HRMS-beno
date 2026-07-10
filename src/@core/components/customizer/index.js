@@ -28,7 +28,7 @@ import { useSettings } from 'src/@core/hooks/useSettings'
 
 // ✅ Role → themeColor mapping (only existing palette colors used)
 const ROLE_COLOR_MAP = {
-  tenant_admin: '#FF9F43',   // 🟠 orange
+  company_admin: '#FF9F43',   // 🟠 orange
   employee:     'success.main',   // 🔵 blue
   hr:           'success',   // 🟢 green
   super_admin:      'error',     // 🔴 red

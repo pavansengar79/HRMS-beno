@@ -1,14 +1,16 @@
 // src/pages/admin/system-config/index.js
 //
-// System Configuration
+// System Configuration - COMPANY ADMIN ONLY
 //
-// Company Admin view — Wizard with 6 steps:
-//   Step 1 (REQUIRED): Essentials — PAN, timezone, currency
-//   Step 2 (optional): Company Details — CIN/TAN/GST/PF/ESIC/address
-//   Step 3 (optional): Lines of Business — LOB names for BU creation
-//   Step 4 (optional): Security — MFA, session, OAuth
-//   Step 5 (optional): Mail & Integrations — SMTP, Maps
-//   Step 6 (optional): Module Flags + Operational Defaults
+// This page is visible ONLY to company_admin role and contains:
+//   Step 1: Company Details — CIN/TAN/GST/PF/ESIC/address
+//   Step 2: Lines of Business — LOB names for BU creation
+//   Step 3: Security — MFA, session, OAuth
+//   Step 4: Mail & Integrations — SMTP, Maps
+//   Step 5: Module Flags + Operational Defaults
+//
+// Essentials (PAN, timezone, currency, fiscal year) are configured by Org Admin
+// on a separate page: /admin/system-config/essentials
 //
 // Unit Admin view — Tier 2 overrides only:
 //   Working Days, Standard Hours, Regularisation Window, Default Shift
@@ -18,7 +20,8 @@
 
 import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
-import { selectRoleSlug, selectCompanyId, selectOrgId } from 'src/store/auth/authSlice'
+import { useRouter } from 'next/router'
+import { selectRoleSlug, selectCompanyId, selectOrgId, selectPermissions } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import toast from 'react-hot-toast'
 import Box from '@mui/material/Box'
@@ -46,8 +49,14 @@ const CURRENCIES = ['INR — Indian Rupee (₹)', 'USD — US Dollar ($)', 'GBP 
 const PT_STATES  = ['Karnataka', 'Maharashtra', 'Delhi', 'Haryana', 'Telangana', 'Tamil Nadu', 'Andhra Pradesh']
 const INDUSTRIES = ['Information Technology', 'Manufacturing', 'Financial Services', 'Healthcare', 'E-Commerce', 'Education']
 const SHIFTS     = ['General (09:00–18:00)', 'Day Shift (07:00–15:00)', 'Night Shift (21:00–06:00)']
+
+// Company Admin roles that can access this page
+const COMPANY_ADMIN_ROLES = ['company_admin', 'SUPER_ADMIN', 'product_admin']
+
+// Unit Admin roles that can access overrides
+const UNIT_ADMIN_ROLES = ['unit_admin', 'hr_manager']
+
 const WIZARD_STEPS = [
-  { label: 'Essentials',          required: true  },
   { label: 'Company Details',     required: false },
   { label: 'Lines of Business',   required: false },
   { label: 'Security',            required: false },
@@ -215,11 +224,20 @@ const StepCard = ({ title, sub, required, onSave, saving, children }) => (
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 const SystemConfigPage = () => {
+  const router = useRouter()
   const roleSlug = useSelector(selectRoleSlug)
   const userCompanyId = useSelector(selectCompanyId)      // Get company_id from user data
   const userOrgId = useSelector(selectOrgId)
-  const isUnitLevel    = roleSlug === 'unit_admin' || roleSlug === 'hr_manager'
-  const isCompanyLevel = !isUnitLevel
+  const userPermissions = useSelector(selectPermissions)
+  
+  // Role checks
+  const isCompanyAdmin = COMPANY_ADMIN_ROLES.includes(roleSlug)
+  const isUnitLevel = UNIT_ADMIN_ROLES.includes(roleSlug)
+  const isOrgAdmin = roleSlug === 'org_admin'
+
+  // Permission checks - require company.read and company.update
+  const canView = userPermissions.includes('company.read')
+  const canUpdate = userPermissions.includes('company.update')
 
   const [activeStep, setActiveStep] = useState(0)
   const [completed,  setCompleted]  = useState({})
@@ -227,15 +245,13 @@ const SystemConfigPage = () => {
   const [saving, setSaving] = useState(false)
   const [companyId, setCompanyId] = useState(null)
 
-  // Step 1: Essentials
-  const [ess, setEss] = useState({ pan: '', timezone: 'Asia/Kolkata (IST +5:30)', currency: 'INR — Indian Rupee (₹)', fiscalYear: '4' })
-  // Step 2: Company Details
+  // Step 1: Company Details (Essentials handled on separate page by Org Admin)
   const [profile, setProfile] = useState({ legalName: '', brandName: '', cin: '', tan: '', gst: '', pf: '', esic: '', ptState: 'Karnataka', industry: 'Information Technology', regAddress: '', corrAddress: '' })
-  // Step 4: Security
+  // Step 3: Security
   const [security, setSecurity] = useState({ mfa: 'ADMINS', maxAttempts: '5', sessionTimeout: '60 mins', googleOAuth: true, msOAuth: true })
-  // Step 5: SMTP / Maps
+  // Step 4: SMTP / Maps
   const [smtp, setSmtp] = useState({ fromName: '', fromEmail: '', host: '', port: '587', smtpSecurity: 'TLS', username: '', apiKey: '', mapsKey: '' })
-  // Operational defaults (unit overrides + step 6)
+  // Operational defaults (unit overrides + step 5)
   const [prefs, setPrefs] = useState({ workingHours: '8', regularisationWindow: '30', defaultShift: 'General (09:00–18:00)', workingDays: { MON: true, TUE: true, WED: true, THU: true, FRI: true, SAT: false, SUN: false } })
 
   // Boot
@@ -243,7 +259,7 @@ const SystemConfigPage = () => {
     const boot = async () => {
       try {
         // For company-level users, use company_id from user data directly
-        if (isCompanyLevel && userCompanyId) {
+        if (isCompanyAdmin && userCompanyId) {
           setCompanyId(userCompanyId)
           // Fetch company details by ID
           const compRes = await axiosRequest.get(`/api/v1/companies/${userCompanyId}`).catch(() => null)
@@ -275,37 +291,17 @@ const SystemConfigPage = () => {
         }
         const cfgRes = await axiosRequest.get('/api/v1/company-config/config').catch(() => null)
         const cfg    = cfgRes?.data || cfgRes || {}  // AxiosInterceptor returns response.data
-        // Auto-fill Essentials (Step 1) from config if pan exists
-        if (cfg.pan) {
-          // Convert backend codes to display format
-          const currencyDisplay = cfg.currency ? CURRENCIES.find(c => c.startsWith(cfg.currency)) || `INR — Indian Rupee (₹)` : `INR — Indian Rupee (₹)`
-          const timezoneDisplay = cfg.timezone ? TIMEZONES.find(t => t.startsWith(cfg.timezone)) || 'Asia/Kolkata (IST +5:30)' : 'Asia/Kolkata (IST +5:30)'
-          setEss(p => ({ ...p, pan: cfg.pan || '', timezone: timezoneDisplay, currency: currencyDisplay, fiscalYear: String(cfg.fiscalYearStart || '4') }))
-          setCompleted(p => ({ ...p, 0: true }))  // Mark Step 1 as complete
-        }
-        // Auto-fill Working Days/Prefs (Step 6) from config
+        // Essentials are now handled by Org Admin on separate page
+        // Auto-fill Working Days/Prefs (Step 5) from config
         const ww = Array.isArray(cfg.workWeek) ? cfg.workWeek : []
         setPrefs(p => ({ ...p, workingHours: String(cfg.standardHoursPerDay ?? p.workingHours), regularisationWindow: String(cfg.regularisationWindowDays ?? p.regularisationWindow), defaultShift: cfg.defaultFallbackShift || p.defaultShift, workingDays: ww.length > 0 ? { MON: ww.includes('MON'), TUE: ww.includes('TUE'), WED: ww.includes('WED'), THU: ww.includes('THU'), FRI: ww.includes('FRI'), SAT: ww.includes('SAT'), SUN: ww.includes('SUN') } : p.workingDays }))
-        // Auto-fill SMTP settings (Step 5) if exists
-        if (isCompanyLevel && cfg.smtp) setSmtp(p => ({ ...p, fromName: cfg.smtp.from || '', fromEmail: cfg.smtp.user || '', host: cfg.smtp.host || '', port: String(cfg.smtp.port || 587), username: cfg.smtp.user || '', mapsKey: cfg.googleMapsApiKey || '' }))
+        // Auto-fill SMTP settings (Step 4) if exists
+        if (isCompanyAdmin && cfg.smtp) setSmtp(p => ({ ...p, fromName: cfg.smtp.from || '', fromEmail: cfg.smtp.user || '', host: cfg.smtp.host || '', port: String(cfg.smtp.port || 587), username: cfg.smtp.user || '', mapsKey: cfg.googleMapsApiKey || '' }))
       } catch (_) {}
       finally { setInitLoading(false) }
     }
     boot()
-  }, [isCompanyLevel, userCompanyId])
-
-  const saveEssentials = async () => {
-    if (!ess.pan) { toast.error('PAN is required'); return }
-    setSaving(true)
-    try {
-      // Extract currency code (first 3 characters) and timezone code
-      const currencyCode = ess.currency.substring(0, 3)
-      const timezoneCode = ess.timezone.split(' ')[0].replace('(', '')
-      await axiosRequest.put('/api/v1/company-config/config', { pan: ess.pan, timezone: timezoneCode, currency: currencyCode, fiscalYearStart: Number(ess.fiscalYear) })
-      setCompleted(p => ({ ...p, 0: true })); toast.success('Essentials saved'); setActiveStep(1)
-    } catch (err) { toast.error(err?.response?.data?.message || 'Save failed') }
-    finally { setSaving(false) }
-  }
+  }, [isCompanyAdmin, userCompanyId])
 
   const saveProfile = async () => {
     if (!companyId) { toast.error('No company loaded'); return }
@@ -323,7 +319,7 @@ const SystemConfigPage = () => {
         industry: profile.industry,
         registered_address: { street: profile.regAddress, city: '', state: profile.ptState, pincode: '', country: 'India' } 
       })
-      setCompleted(p => ({ ...p, 1: true })); toast.success('Company details saved'); setActiveStep(2)
+      setCompleted(p => ({ ...p, 0: true })); toast.success('Company details saved'); setActiveStep(1)
     } catch (err) { toast.error(err?.response?.data?.message || 'Save failed') }
     finally { setSaving(false) }
   }
@@ -342,7 +338,7 @@ const SystemConfigPage = () => {
     setSaving(true)
     try {
       await axiosRequest.put('/api/v1/company-config/config', { mfaEnforcementLevel: security.mfa, loginMaxAttempts: Number(security.maxAttempts), sessionTimeoutMinutes: Number(security.sessionTimeout), googleOAuthEnabled: security.googleOAuth, microsoftOAuthEnabled: security.msOAuth })
-      setCompleted(p => ({ ...p, 3: true })); toast.success('Security settings saved'); setActiveStep(4)
+      setCompleted(p => ({ ...p, 2: true })); toast.success('Security settings saved'); setActiveStep(3)
     } catch (err) { toast.error(err?.response?.data?.message || 'Save failed') }
     finally { setSaving(false) }
   }
@@ -353,7 +349,7 @@ const SystemConfigPage = () => {
       const payload = { smtp: { host: smtp.host, port: Number(smtp.port), user: smtp.username || smtp.fromEmail, from: smtp.fromName, secure: smtp.smtpSecurity === 'SSL' }, googleMapsApiKey: smtp.mapsKey }
       if (smtp.apiKey) payload.smtp.pass = smtp.apiKey
       await axiosRequest.put('/api/v1/company-config/config', payload)
-      setCompleted(p => ({ ...p, 4: true })); toast.success('Mail config saved'); setActiveStep(5)
+      setCompleted(p => ({ ...p, 3: true })); toast.success('Mail config saved'); setActiveStep(4)
     } catch (err) { toast.error(err?.response?.data?.message || 'Save failed') }
     finally { setSaving(false) }
   }
@@ -362,6 +358,48 @@ const SystemConfigPage = () => {
   const sf = key => ({ value: smtp[key]    || '', onChange: e => setSmtp(p => ({ ...p, [key]: e.target.value })) })
 
   if (initLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}><CircularProgress /></Box>
+
+  // Org Admin should not access this page - redirect to essentials
+  if (isOrgAdmin && !isCompanyAdmin) {
+    return (
+      <Box sx={{ p: 8, textAlign: 'center' }}>
+        <Icon icon='tabler:info-circle' fontSize={64} color='info' />
+        <Typography variant='h5' sx={{ mt: 4 }}>Company Configuration</Typography>
+        <Typography color='text.secondary' sx={{ mt: 2 }}>As Org Admin, you configure organization-wide essentials only.</Typography>
+        <Typography variant='caption' color='text.disabled' sx={{ mt: 1, display: 'block' }}>Company-specific settings are managed by Company Admins</Typography>
+        <Button variant='contained' sx={{ mt: 4 }} onClick={() => router.push('/admin/system-config/essentials')}>
+          Go to Essentials Configuration
+        </Button>
+      </Box>
+    )
+  }
+
+  // Access denied if user is neither company admin nor unit admin
+  if (!isCompanyAdmin && !isUnitLevel) {
+    return (
+      <Box sx={{ p: 8, textAlign: 'center' }}>
+        <Icon icon='tabler:lock' fontSize={64} color='error' />
+        <Typography variant='h5' sx={{ mt: 4 }}>Access Denied</Typography>
+        <Typography color='text.secondary' sx={{ mt: 2 }}>This page is only accessible to Company Admins</Typography>
+        <Typography variant='caption' color='text.disabled' sx={{ mt: 1, display: 'block' }}>Required role: company_admin</Typography>
+        <Button variant='contained' sx={{ mt: 4 }} onClick={() => router.push('/dashboards/analytics')}>
+          Go to Dashboard
+        </Button>
+      </Box>
+    )
+  }
+
+  // Permission check for company-level view
+  if (isCompanyAdmin && !canView) {
+    return (
+      <Box sx={{ p: 8, textAlign: 'center' }}>
+        <Icon icon='tabler:lock' fontSize={64} color='error' />
+        <Typography variant='h5' sx={{ mt: 4 }}>Access Denied</Typography>
+        <Typography color='text.secondary' sx={{ mt: 2 }}>You don't have permission to view System Configuration</Typography>
+        <Typography variant='caption' color='text.disabled' sx={{ mt: 1, display: 'block' }}>Required: company.read permission</Typography>
+      </Box>
+    )
+  }
 
   // ── Unit Admin View ───────────────────────────────────────────────────────
 
@@ -424,7 +462,6 @@ const SystemConfigPage = () => {
             Step-by-step setup · <strong>Step 1 is required</strong> before running payroll · all others are optional
           </Typography>
         </Box>
-        {completed[0] && <CustomChip rounded skin='light' size='small' color='success' label='Essentials complete' />}
       </Box>
 
       <Card sx={{ mb: 4 }}>
@@ -445,58 +482,13 @@ const SystemConfigPage = () => {
         </Box>
       </Card>
 
-      {/* Step 1: Essentials */}
+      {/* Step 1: Company Details */}
       {activeStep === 0 && (
-        <Box>
-          <Alert severity={completed[0] ? 'success' : 'warning'} sx={{ mb: 4 }} icon={<Icon icon={completed[0] ? 'tabler:check' : 'tabler:alert-triangle'} />}>
-            {completed[0] ? 'Essentials saved — you can now run payroll.' : <><strong>Required before payroll can run.</strong> PAN is used for TDS calculations. Timezone and currency affect all date and amount display.</>}
-          </Alert>
-          <StepCard title='Step 1 — Essentials' required sub='These fields are the minimum needed to get started'>
-            <Grid container spacing={4}>
-              <Grid item xs={12}>
-                <CustomTextField fullWidth label='PAN (Permanent Account Number) *'
-                  value={ess.pan} onChange={e => setEss(p => ({ ...p, pan: e.target.value }))}
-                  inputProps={{ style: { fontFamily: 'monospace', fontSize: 15 }, placeholder: 'e.g. AADCM4321B' }}
-                  helperText='Used for income tax identity and TDS deductions in payroll' />
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <CustomTextField fullWidth select label='Timezone *' value={ess.timezone} onChange={e => setEss(p => ({ ...p, timezone: e.target.value }))} helperText='All attendance and payroll dates use this timezone'>
-                  {TIMEZONES.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-                </CustomTextField>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <CustomTextField fullWidth select label='Currency *' value={ess.currency} onChange={e => setEss(p => ({ ...p, currency: e.target.value }))} helperText='All salary figures display in this currency'>
-                  {CURRENCIES.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-                </CustomTextField>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <CustomTextField fullWidth select label='Fiscal Year Start' value={ess.fiscalYear} onChange={e => setEss(p => ({ ...p, fiscalYear: e.target.value }))}>
-                  <MenuItem value='4'>April (Apr–Mar)</MenuItem>
-                  <MenuItem value='1'>January (Jan–Dec)</MenuItem>
-                </CustomTextField>
-              </Grid>
-              <Grid item xs={12}>
-                <Alert severity='info' icon={<Icon icon='tabler:info-circle' />}>
-                  <Typography variant='caption'><strong>PF &amp; ESIC registration numbers</strong> are required for accurate payroll deductions — add them in Step 2 (Company Details).</Typography>
-                </Alert>
-              </Grid>
-            </Grid>
-          </StepCard>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-            <Button variant='contained' endIcon={<Icon icon='tabler:arrow-right' />} onClick={saveEssentials} disabled={saving || !ess.pan}>
-              {saving ? <CircularProgress size={16} /> : 'Save & Next'}
-            </Button>
-          </Box>
-        </Box>
-      )}
-
-      {/* Step 2: Company Details */}
-      {activeStep === 1 && (
         <Box>
           <Alert severity='info' sx={{ mb: 4 }} icon={<Icon icon='tabler:info-circle' />}>
             <strong>Optional — but needed before payroll:</strong> PF registration, ESIC registration, and PT State are required for correct payroll deductions.
           </Alert>
-          <StepCard title='Step 2 — Company Details' sub='Legal registration, statutory numbers, addresses'>
+          <StepCard title='Step 1 — Company Details' sub='Legal registration, statutory numbers, addresses'>
             <Grid container spacing={4}>
               <Grid item xs={12} sm={6}><CustomTextField fullWidth label='Legal Company Name' {...pf('legalName')} /></Grid>
               <Grid item xs={12} sm={6}><CustomTextField fullWidth label='Display / Brand Name' {...pf('brandName')} /></Grid>
@@ -520,9 +512,9 @@ const SystemConfigPage = () => {
             </Grid>
           </StepCard>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-            <Button variant='outlined' startIcon={<Icon icon='tabler:arrow-left' />} onClick={() => setActiveStep(0)}>Back</Button>
+            <Button variant='outlined' startIcon={<Icon icon='tabler:arrow-left' />} onClick={() => setActiveStep(0)} disabled>Back</Button>
             <Stack direction='row' spacing={2}>
-              <Button variant='outlined' color='secondary' onClick={() => { toast('Skipped — you can return anytime'); setActiveStep(2) }}>Skip for now</Button>
+              <Button variant='outlined' color='secondary' onClick={() => { toast('Skipped — you can return anytime'); setActiveStep(1) }}>Skip for now</Button>
               <Button variant='contained' endIcon={<Icon icon='tabler:arrow-right' />} onClick={saveProfile} disabled={saving}>
                 {saving ? <CircularProgress size={16} /> : 'Save & Next'}
               </Button>
@@ -531,29 +523,29 @@ const SystemConfigPage = () => {
         </Box>
       )}
 
-      {/* Step 3: Lines of Business */}
-      {activeStep === 2 && (
+      {/* Step 2: Lines of Business */}
+      {activeStep === 1 && (
         <Box>
           <Alert severity='info' sx={{ mb: 4 }} icon={<Icon icon='tabler:info-circle' />}>
             <strong>Required before creating Business Units.</strong> Without LOB names defined here, the LOB dropdown on the BU creation form will be empty.
           </Alert>
-          <StepCard title='Step 3 — Lines of Business' sub='LOB names populate the dropdown when creating Business Units'>
+          <StepCard title='Step 2 — Lines of Business' sub='LOB names populate the dropdown when creating Business Units'>
             <LOBManager companyId={companyId} />
           </StepCard>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-            <Button variant='outlined' startIcon={<Icon icon='tabler:arrow-left' />} onClick={() => setActiveStep(1)}>Back</Button>
+            <Button variant='outlined' startIcon={<Icon icon='tabler:arrow-left' />} onClick={() => setActiveStep(0)}>Back</Button>
             <Stack direction='row' spacing={2}>
-              <Button variant='outlined' color='secondary' onClick={() => { toast('Skipped — add LOBs before creating BUs'); setActiveStep(3) }}>Skip for now</Button>
-              <Button variant='contained' endIcon={<Icon icon='tabler:arrow-right' />} onClick={() => { setCompleted(p => ({ ...p, 2: true })); setActiveStep(3) }}>Next</Button>
+              <Button variant='outlined' color='secondary' onClick={() => { toast('Skipped — add LOBs before creating BUs'); setActiveStep(2) }}>Skip for now</Button>
+              <Button variant='contained' endIcon={<Icon icon='tabler:arrow-right' />} onClick={() => { setCompleted(p => ({ ...p, 1: true })); setActiveStep(2) }}>Next</Button>
             </Stack>
           </Box>
         </Box>
       )}
 
-      {/* Step 4: Security */}
-      {activeStep === 3 && (
+      {/* Step 3: Security */}
+      {activeStep === 2 && (
         <Box>
-          <StepCard title='Step 4 — Security' sub='Authentication and access controls — company-wide, units cannot lower these'>
+          <StepCard title='Step 3 — Security' sub='Authentication and access controls — company-wide, units cannot lower these'>
             <SecurityRow label='Multi-Factor Authentication (MFA)' sub='TOTP via Google Authenticator or similar.'>
               <CustomTextField select size='small' value={security.mfa} onChange={e => setSecurity(p => ({ ...p, mfa: e.target.value }))} sx={{ minWidth: 200 }}>
                 <MenuItem value='OPTIONAL'>Optional for all</MenuItem>
@@ -586,9 +578,9 @@ const SystemConfigPage = () => {
             </SecurityRow>
           </StepCard>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-            <Button variant='outlined' startIcon={<Icon icon='tabler:arrow-left' />} onClick={() => setActiveStep(2)}>Back</Button>
+            <Button variant='outlined' startIcon={<Icon icon='tabler:arrow-left' />} onClick={() => setActiveStep(1)}>Back</Button>
             <Stack direction='row' spacing={2}>
-              <Button variant='outlined' color='secondary' onClick={() => { toast('Skipped'); setActiveStep(4) }}>Skip for now</Button>
+              <Button variant='outlined' color='secondary' onClick={() => { toast('Skipped'); setActiveStep(3) }}>Skip for now</Button>
               <Button variant='contained' endIcon={<Icon icon='tabler:arrow-right' />} onClick={saveSecurity} disabled={saving}>
                 {saving ? <CircularProgress size={16} /> : 'Save & Next'}
               </Button>
@@ -597,8 +589,8 @@ const SystemConfigPage = () => {
         </Box>
       )}
 
-      {/* Step 5: Mail & Integrations */}
-      {activeStep === 4 && (
+      {/* Step 4: SMTP */}
+      {activeStep === 3 && (
         <Box>
           <Alert severity='info' sx={{ mb: 4 }} icon={<Icon icon='tabler:info-circle' />}>
             Without mail config, payslip emails, leave approval notifications, and regularisation decisions won't be sent.
@@ -652,10 +644,10 @@ const SystemConfigPage = () => {
         </Box>
       )}
 
-      {/* Step 6: Module Flags + Operational Defaults */}
-      {activeStep === 5 && (
+      {/* Step 5: Preferences */}
+      {activeStep === 4 && (
         <Box>
-          <StepCard title='Step 6 — Module Configuration' sub='Feature flags and plan-gated modules'>
+          <StepCard title='Step 5 — Module Configuration' sub='Feature flags and plan-gated modules'>
             <FeatureRow label='HRMS Module' sub='Leave, Attendance, Payroll, Shifts, Regularisation — enabled for all units' status='enabled' />
             <FeatureRow label='CRM Module' sub='Customer relationship management — not yet available' status='soon' />
             <FeatureRow label='BU-Independent Payroll' sub='P-14 · Each BU runs payroll independently — Enterprise only' status='enterprise' />
@@ -705,7 +697,7 @@ const SystemConfigPage = () => {
           </Box>
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-            <Button variant='outlined' startIcon={<Icon icon='tabler:arrow-left' />} onClick={() => setActiveStep(4)}>Back</Button>
+            <Button variant='outlined' startIcon={<Icon icon='tabler:arrow-left' />} onClick={() => setActiveStep(3)}>Back</Button>
             <Button variant='contained' color='success' startIcon={<Icon icon='tabler:check' />}
               onClick={() => { setCompleted(p => ({ ...p, 5: true })); toast.success('Setup complete — company is ready') }}>
               Complete Setup

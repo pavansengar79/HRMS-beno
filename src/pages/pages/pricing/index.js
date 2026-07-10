@@ -78,7 +78,7 @@ const PLAN_IMAGE_MAP = {
 
 const ROLE_PLAN_ENDPOINT = {
   org_admin:    '/api/v1/dashboard/org',        // returns plan info in response
-  tenent_admin: '/api/v1/dashboard/company',
+  company_admin: '/api/v1/dashboard/company',
   unit_admin:   '/api/v1/dashboard/unit',
   hr_manager:   '/api/v1/dashboard/hr',
   employee:     '/api/v1/dashboard/employee',

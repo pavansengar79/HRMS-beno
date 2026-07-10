@@ -30,7 +30,7 @@ const buildPermissions = (rawPermissions = []) => {
 
 const initialState = {
   user: null, token: null,
-  role: null, roleSlug: null, roleId: null,
+  role: null, roleSlug: null, roleId: null, level: null,
   subscription: null,
   permissions: [], permissionsByModule: {},
   isAuthenticated: false, loading: false, error: null,
@@ -49,6 +49,7 @@ const authSlice = createSlice({
       state.role = role?.display_name || role?.name || null
       state.roleSlug = role?.slug || null
       state.roleId = role?.id || role?._id || null
+      state.level = role?.level || null
       const { flat, grouped } = buildPermissions(role?.permissions || [])
       state.permissions = flat; state.permissionsByModule = grouped
     },
@@ -61,6 +62,7 @@ const authSlice = createSlice({
       state.role = role?.display_name || role?.name || null
       state.roleSlug = role?.slug || null
       state.roleId = role?.id || role?._id || null
+      state.level = role?.level || null
       const { flat, grouped } = buildPermissions(role?.permissions || [])
       state.permissions = flat; state.permissionsByModule = grouped
     },
@@ -85,6 +87,7 @@ const authSlice = createSlice({
             state.role = role?.display_name || role?.name || null
             state.roleSlug = role?.slug || null
             state.roleId = role?.id || role?._id || null
+            state.level = role?.level || null
             const { flat, grouped } = buildPermissions(role?.permissions || [])
             state.permissions = flat
             state.permissionsByModule = grouped
@@ -109,9 +112,22 @@ export const selectAuthError       = s => s.auth.error
 export const selectRole            = s => s.auth.role
 export const selectRoleSlug        = s => s.auth.roleSlug
 export const selectRoleId          = s => s.auth.roleId
+export const selectLevel           = s => s.auth.level
 export const selectSubscription    = s => s.auth.subscription
 export const selectPermissions     = s => s.auth.permissions
 export const selectPermissionsByModule = s => s.auth.permissionsByModule
+
+// ─── Permission Check Helpers ───────────────────────────────────────────────
+export const hasPermission = (state, permissionName) => {
+  const permissions = selectPermissions(state)
+  return permissions.includes(permissionName)
+}
+
+export const hasPermissionAction = (state, module, action) => {
+  const permissions = selectPermissions(state)
+  const permissionName = `${module}.${action}`
+  return permissions.includes(permissionName)
+}
 
 // ─── Helper functions to get IDs from localStorage userData object ────
 const getStoredOrgId = () => {

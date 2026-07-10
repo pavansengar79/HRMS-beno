@@ -367,7 +367,7 @@ const ConfirmDeleteDialog = ({ open, employeeName, onConfirm, onCancel, deleting
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Row Actions Menu
-// Approve button: canApprove (tenant_admin + employee.update) + not already ACTIVE
+// Approve button: canApprove (company_admin + employee.update) + not already ACTIVE
 // ─────────────────────────────────────────────────────────────────────────────
 const RowOptions = ({ row, canEdit, canDelete, canApprove, onEdit, onDelete, onApprove }) => {
   const [anchorEl, setAnchorEl] = useState(null)
@@ -399,7 +399,7 @@ const RowOptions = ({ row, canEdit, canDelete, canApprove, onEdit, onDelete, onA
           </MenuItem>
         )}
 
-        {/* Approve: only for tenant_admin, only when not already ACTIVE */}
+        {/* Approve: only for company_admin, only when not already ACTIVE */}
         {canApprove && row?.status !== 'ACTIVE' && (
           <MenuItem onClick={() => { handleClose(); onApprove(row) }} sx={{ '& svg': { mr: 2 }, color: 'success.main' }}>
             <Icon icon='tabler:user-check' fontSize={20} />

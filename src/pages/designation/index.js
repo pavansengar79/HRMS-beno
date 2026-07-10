@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useSelector } from 'react-redux'
+import { selectPermissions } from 'src/store/auth/authSlice'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
@@ -25,6 +27,11 @@ const Header = styled(Box)(({ theme }) => ({ display: 'flex', alignItems: 'cente
 const schema = yup.object().shape({ name: yup.string().required('Designation name is required') })
 
 const DesignationPage = () => {
+  const permissions = useSelector(selectPermissions) || []
+  const canCreate = permissions.includes('designation.create')
+  const canEdit = permissions.includes('designation.update')
+  const canDelete = permissions.includes('designation.delete')
+  
   const [rows, setRows]             = useState([])
   const [loading, setLoading]       = useState(false)
   const [search, setSearch]         = useState('')
@@ -72,12 +79,16 @@ const DesignationPage = () => {
         <Menu keepMounted anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           PaperProps={{ style: { minWidth: '8rem' } }}>
-          <MenuItem onClick={() => { setValue('name', row.name); setEditItem(row); setDrawerOpen(true); setAnchorEl(null) }} sx={{ '& svg': { mr: 2 } }}>
-            <Icon icon='tabler:edit' fontSize={20} />Edit
-          </MenuItem>
-          <MenuItem onClick={() => { handleDelete(row._id); setAnchorEl(null) }} sx={{ '& svg': { mr: 2 } }}>
-            <Icon icon='tabler:trash' fontSize={20} />Delete
-          </MenuItem>
+          {canEdit && (
+            <MenuItem onClick={() => { setValue('name', row.name); setEditItem(row); setDrawerOpen(true); setAnchorEl(null) }} sx={{ '& svg': { mr: 2 } }}>
+              <Icon icon='tabler:edit' fontSize={20} />Edit
+            </MenuItem>
+          )}
+          {canDelete && (
+            <MenuItem onClick={() => { handleDelete(row._id); setAnchorEl(null) }} sx={{ '& svg': { mr: 2 } }}>
+              <Icon icon='tabler:trash' fontSize={20} />Delete
+            </MenuItem>
+          )}
         </Menu>
       </>
     )
@@ -102,7 +113,9 @@ const DesignationPage = () => {
           <Box sx={{ p: 5, display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'space-between' }}>
             <CustomTextField value={search} placeholder='Search designations...' sx={{ minWidth: 200 }} onChange={e => setSearch(e.target.value)}
               InputProps={{ startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} /> }} />
-            <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={() => setDrawerOpen(true)}>Add Designation</Button>
+            {canCreate && (
+              <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={() => setDrawerOpen(true)}>Add Designation</Button>
+            )}
           </Box>
           <Divider sx={{ m: '0 !important' }} />
           <DataGrid autoHeight rowHeight={62} loading={loading} rows={filteredRows} columns={columns}

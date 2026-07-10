@@ -28,7 +28,7 @@
 import { useSelector, useDispatch } from 'react-redux'
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { selectRoleSlug, selectUser, selectOrgId } from 'src/store/auth/authSlice'
+import { selectRoleSlug, selectUser, selectOrgId, selectPermissions, selectLevel } from 'src/store/auth/authSlice'
 import {
   selectAllHierarchyCompanies,
   selectAllHierarchyUnits,
@@ -36,8 +36,7 @@ import {
   selectSelectedUnitId,
   fetchHierarchy,
 } from 'src/store/hierarchy/hierarchySlice'
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import { getAccessiblePages, canAccessPage, getSidebarConfig } from 'src/config/permissionPageMap'
 
 /** Mark every item auth:false so Vuexy ACL gate doesn't block them */
 const stamp = items =>
@@ -55,27 +54,40 @@ const resolveCompanyId = u =>
 // LEVEL 1 — Org Admin Navigation
 // Company clicks → /dashboards/analytics/company/[id]  (path-based, not ?query)
 // ─────────────────────────────────────────────────────────────────────────────
-const buildOrgNav = companies => stamp([
-  { title: 'Dashboard',        icon: 'tabler:layout-dashboard',    path: '/dashboards/analytics' },
+// Admin roles that can access Access Control
+const ADMIN_ROLES = ['org_admin', 'company_admin', 'unit_admin', 'SUPER_ADMIN', 'product_admin']
+
+const buildOrgNav = (companies, permissions = [], roleSlug) => {
+  const has = slug => permissions.includes(slug)
+  const isAdmin = ADMIN_ROLES.includes(roleSlug)
+  
+  return stamp([
+    { title: 'Dashboard',        icon: 'tabler:layout-dashboard',    path: '/dashboards/analytics' },
     
-  { title: 'Companies', icon: 'tabler:building-skyscraper', path: '/company' },
- { sectionTitle: 'COMPANIES' },
-  ...(companies.length > 0
-    ? companies.map(c => ({
-        title: c.name || c.company_name || 'Company',
-        icon:  'tabler:building-skyscraper',
-        path:  `/dashboards/analytics/company/${c._id}`,
-      }))
-    : [])
-  ,
-  { sectionTitle: 'INSIGHTS' },
-  { title: 'Reports & Analytics', icon: 'tabler:chart-bar',        path: '/charts/recharts' },
-  { sectionTitle: 'ADMINISTRATION' },
-  { title: 'Admin Users',      icon: 'tabler:user-shield',         path: '/admin-users' },
-  { title: 'Roles & Permissions', icon: 'tabler:lock',             path: '/admin/access-control' },
-  { title: 'Access Control',   icon: 'tabler:lock',                path: '/admin/access-control' },
-  { title: 'General Features', icon: 'tabler:adjustments',         path: '/admin/general-features' },
-])
+    // Company page visible only if user has company.read permission
+    ...(has('company.read') ? [{ title: 'Companies', icon: 'tabler:building-skyscraper', path: '/company' }] : []),
+    
+    { sectionTitle: 'COMPANIES' },
+    ...(companies.length > 0
+      ? companies.map(c => ({
+          title: c.name || c.company_name || 'Company',
+          icon:  'tabler:building-skyscraper',
+          path:  `/dashboards/analytics/company/${c._id}`,
+        }))
+      : []
+    ),
+    { sectionTitle: 'INSIGHTS' },
+    { title: 'Reports & Analytics', icon: 'tabler:chart-bar',        path: '/charts/recharts' },
+    { sectionTitle: 'ADMINISTRATION' },
+    // Admin Users - visible if user has user.read permission (admin users management)
+    ...(has('user.read') ? [{ title: 'Admin Users', icon: 'tabler:user-shield', path: '/admin-users' }] : []),
+    // Access Control - ONLY for admins
+    ...(isAdmin ? [{ title: 'Access Control', icon: 'tabler:lock', path: '/admin/access-control' }] : []),
+    // Essentials - ONLY for org_admin (organization-wide PAN, timezone, currency)
+    ...(roleSlug === 'org_admin' ? [{ title: 'Essentials', icon: 'tabler:settings-2', path: '/admin/system-config/essentials' }] : []),
+    { title: 'General Features', icon: 'tabler:adjustments',         path: '/admin/general-features' },
+  ])
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LEVEL 2 — Company Navigation
@@ -84,9 +96,10 @@ const buildOrgNav = companies => stamp([
 //
 // Section labels: no ORGANISATION — uses STRUCTURE / HRMS / INSIGHTS / ADMINISTRATION
 // ─────────────────────────────────────────────────────────────────────────────
-const buildCompanyNav = (company, units, orgId, showBack = true) => {
+const buildCompanyNav = (company, units, orgId, showBack = true, roleSlug) => {
   const companyId   = company?._id
   const companyName = company?.name || company?.company_name || '…'
+  const isAdmin = ADMIN_ROLES.includes(roleSlug)
 
   const unitLinks = units.map(u => ({
     title:        u.name || u.unit_name || 'Unit',
@@ -134,8 +147,10 @@ const buildCompanyNav = (company, units, orgId, showBack = true) => {
     { sectionTitle: 'ADMINISTRATION' },
     { title: 'Admin Users',        icon: 'tabler:user-shield',
       path: `/admin-users?company=${companyId}` },
-    { title: 'Roles & Permissions', icon: 'tabler:lock',         path: '/admin/access-control' },
-    { title: 'System Config',      icon: 'tabler:settings',     path: '/admin/system-config' },
+    // Access Control - ONLY for admins
+    ...(isAdmin ? [{ title: 'Access Control', icon: 'tabler:lock', path: '/admin/access-control' }] : []),
+    // System Config - ONLY for company_admin (company-specific settings)
+    ...(roleSlug === 'company_admin' ? [{ title: 'System Config', icon: 'tabler:settings', path: '/admin/system-config' }] : []),
     { title: 'General Features',   icon: 'tabler:adjustments',  path: '/admin/general-features' },
   ])
 }
@@ -147,11 +162,15 @@ const buildCompanyNav = (company, units, orgId, showBack = true) => {
 //
 // NO Organisation section. Departments + Designations in WORKFORCE section.
 // ─────────────────────────────────────────────────────────────────────────────
-const buildUnitNav = (unit, company, orgId, showBack = true) => {
+const buildUnitNav = (unit, company, orgId, showBack = true, permissions = [], roleSlug) => {
   const unitId      = unit?._id
   const companyId   = company?._id
   const unitName    = unit?.name || unit?.unit_name || '…'
   const companyName = company?.name || company?.company_name || 'Company'
+  const isAdmin = ADMIN_ROLES.includes(roleSlug)
+
+  // Permission helper
+  const has = slug => permissions.includes(slug)
 
   // Module path builder — uses hierarchical /org/cid/unit/uid/mod when all IDs known
   const p = mod =>
@@ -184,18 +203,22 @@ const buildUnitNav = (unit, company, orgId, showBack = true) => {
 
     // ── HRMS ─────────────────────────────────────────────────────────────
     { sectionTitle: 'HRMS' },
-    { title: 'Employees',          icon: 'tabler:users',            path: p('users') },
-    { title: 'Departments',        icon: 'tabler:building',         path: p('department') },
-    { title: 'Designations',       icon: 'tabler:briefcase',        path: p('designation') },
-    { title: 'Attendance',         icon: 'tabler:clock-check',      path: p('attendance'),  badgeContent: 'Live', badgeColor: 'success' },
-    { title: 'Leaves',             icon: 'tabler:calendar-user',    path: p('leaves'),      badgeContent: 'New',  badgeColor: 'error'   },
-    { title: 'Payroll',            icon: 'tabler:cash',             path: p('payroll'),     badgeContent: 'Run',  badgeColor: 'warning' },
-    { title: 'Holidays',           icon: 'tabler:calendar-event',   path: p('holidays') },
-    { title: 'Shifts',             icon: 'tabler:clock',            path: p('shift') },
+    ...(has('employee.read') ? [{ title: 'Employees', icon: 'tabler:users', path: p('users') }] : []),
+    ...(has('department.read') ? [{ title: 'Departments', icon: 'tabler:building', path: p('department') }] : []),
+    ...(has('designation.read') ? [{ title: 'Designations', icon: 'tabler:briefcase', path: p('designation') }] : []),
+    ...(has('attendance.read') ? [{ title: 'Attendance', icon: 'tabler:clock-check', path: p('attendance'), badgeContent: 'Live', badgeColor: 'success' }] : []),
+    ...(has('leave.read') ? [{ title: 'Leaves', icon: 'tabler:calendar-user', path: p('leaves'), badgeContent: 'New', badgeColor: 'error' }] : []),
+    ...(has('payroll.read') ? [{ title: 'Payroll', icon: 'tabler:cash', path: p('payroll'), badgeContent: 'Run', badgeColor: 'warning' }] : []),
+    ...(has('holiday.read') ? [{ title: 'Holidays', icon: 'tabler:calendar-event', path: p('holidays') }] : []),
+    ...(has('shift.read') ? [{ title: 'Shifts', icon: 'tabler:clock', path: p('shift') }] : []),
 
     // ── COMPLIANCE ────────────────────────────────────────────────────────
-    { sectionTitle: 'COMPLIANCE' },
-    { title: 'Policies',           icon: 'tabler:shield-check',     path: p('policy') },
+    ...(has('leavePolicy.read') || has('attendancePolicy.read') || has('payrollPolicy.read') || has('holiday.read')
+      ? [
+          { sectionTitle: 'COMPLIANCE' },
+          { title: 'Policies', icon: 'tabler:shield-check', path: p('policy') }
+        ]
+      : []),
 
     // ── INSIGHTS ──────────────────────────────────────────────────────────
     { sectionTitle: 'INSIGHTS' },
@@ -203,42 +226,45 @@ const buildUnitNav = (unit, company, orgId, showBack = true) => {
 
     // ── ADMINISTRATION ────────────────────────────────────────────────────
     { sectionTitle: 'ADMINISTRATION' },
-    { title: 'Access Control',     icon: 'tabler:lock',             path: '/admin/access-control' },
+    // Access Control - ONLY for admins
+    ...(isAdmin ? [{ title: 'Access Control', icon: 'tabler:lock', path: '/admin/access-control' }] : []),
     { title: 'Admin Users',        icon: 'tabler:user-shield',      path: '/admin-users' },
   ])
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Unit Admin / HR Manager — flat JWT-scoped navigation
-// Dashboard is always /dashboards/analytics (backend scopes responses by JWT).
-// ─────────────────────────────────────────────────────────────────────────────
-const buildUnitAdminNav = (user, units) => {
+// ── Enterprise permission-based navigation builder ─────────────────────────
+const buildDynamicNav = (roleSlug, user, units, permissions = []) => {
   const unit     = user?.unit_id ? units.find(u => u._id === user.unit_id) : null
   const unitName = (unit?.name || unit?.unit_name || 'My Unit').toUpperCase()
-
+  const isAdmin = ADMIN_ROLES.includes(roleSlug)
+  
+  // Permission helper
+  const has = slug => permissions.includes(slug)
+  
+  // Get dynamic sidebar from permission map
+  const dynamicSidebar = getSidebarConfig(permissions)
+  
   return stamp([
     { title: 'Dashboard',          icon: 'tabler:layout-dashboard', path: '/dashboards/analytics' },
     { sectionTitle: unitName },
 
     { sectionTitle: 'HRMS' },
-    { title: 'Employees',          icon: 'tabler:users',            path: '/users' },
-    { title: 'Departments',        icon: 'tabler:building',         path: '/department' },
-    { title: 'Designations',       icon: 'tabler:briefcase',        path: '/designation' },
-    { title: 'Attendance',         icon: 'tabler:clock-check',      path: '/attendance/team',  badgeContent: 'Live', badgeColor: 'success' },
-    { title: 'Leaves',             icon: 'tabler:calendar-user',    path: '/leaves',      badgeContent: 'New',  badgeColor: 'error'   },
-    { title: 'Payroll',            icon: 'tabler:cash',             path: '/payroll',     badgeContent: 'Run',  badgeColor: 'warning' },
-    { title: 'Holidays',           icon: 'tabler:calendar-event',   path: '/holidays' },
-    { title: 'Shifts',             icon: 'tabler:clock',            path: '/shift' },
+    ...dynamicSidebar,
 
-    { sectionTitle: 'COMPLIANCE' },
-    { title: 'Policies',           icon: 'tabler:shield-check',     path: '/policy' },
+    // Policies - only show if user has any policy permission
+    ...(has('leavePolicy.read') || has('attendancePolicy.read') || has('payrollPolicy.read') || has('holiday.read')
+      ? [
+          { sectionTitle: 'COMPLIANCE' },
+          { title: 'Policies', icon: 'tabler:shield-check', path: '/policy' }
+        ]
+      : []),
 
     { sectionTitle: 'INSIGHTS' },
     { title: 'Reports & Analytics',icon: 'tabler:chart-bar',        path: '/charts/recharts' },
 
     { sectionTitle: 'ADMINISTRATION' },
-    { title: 'Access Control',     icon: 'tabler:lock',             path: '/admin/access-control' },
-    { title: 'System Config',      icon: 'tabler:settings',         path: '/admin/system-config' },
+    // Access Control - ONLY for admins
+    ...(isAdmin ? [{ title: 'Access Control', icon: 'tabler:lock', path: '/admin/access-control' }] : []),
     { title: 'Admin Users',        icon: 'tabler:user-shield',      path: '/admin-users' },
   ])
 }
@@ -290,12 +316,17 @@ const VerticalNavItems = () => {
   const router     = useRouter()
   const dispatch   = useDispatch()
   const roleSlug   = useSelector(selectRoleSlug)
+  const level      = useSelector(selectLevel)
   const user       = useSelector(selectUser)
   const orgId      = useSelector(selectOrgId)
+  const permissions = useSelector(selectPermissions) || []
   const companies  = useSelector(selectAllHierarchyCompanies)
   const units      = useSelector(selectAllHierarchyUnits)
   const reduxCompanyId = useSelector(selectSelectedCompanyId)
   const reduxUnitId    = useSelector(selectSelectedUnitId)
+
+  // Permission helper
+  const hasPermission = slug => permissions.includes(slug) || roleSlug === 'super_admin'
 
   // Fetch hierarchy data once per role
   useEffect(() => {
@@ -363,7 +394,7 @@ const VerticalNavItems = () => {
 
     case 'unit_admin':
     case 'hr_manager':
-      return buildUnitAdminNav(user, units)
+      return buildDynamicNav(roleSlug, user, units, permissions)
 
     // ── Org Admin — full 3-level drill-down ──────────────────────────────
     case 'org_admin':
@@ -379,6 +410,8 @@ const VerticalNavItems = () => {
           company || { _id: cId || '',    name: '…' },
           orgId,
           true,   // back → company dashboard
+          permissions,
+          roleSlug
         )
       }
       // Level 2: company selected
@@ -390,10 +423,11 @@ const VerticalNavItems = () => {
           companyUnits,
           orgId,
           true,   // back → /dashboards/analytics (org view)
+          roleSlug
         )
       }
       // Level 1: org overview
-      return buildOrgNav(companies)
+        return buildOrgNav(companies, permissions, roleSlug)
     }
 
     // ── Company Admin — starts at Level 2, can drill to Level 3 ─────────
@@ -409,6 +443,8 @@ const VerticalNavItems = () => {
           company || { _id: cId || '',    name: '…' },
           orgId,
           true,   // back → company dashboard
+          permissions,
+          roleSlug
         )
       }
       // Level 2: company overview (no back — company_admin owns one company)
@@ -420,11 +456,40 @@ const VerticalNavItems = () => {
         companyUnits,
         orgId,
         false,   // no "← All Companies" for company_admin
+        roleSlug
       )
     }
 
-    default:
-      return stamp([{ title: 'Dashboard', icon: 'tabler:layout-dashboard', path: '/dashboards/analytics' }])
+    default: {
+      // Dynamic level-based routing for custom roles
+      
+      // Check user permissions and build dynamic sidebar
+      if (permissions.length > 0) {
+        return buildDynamicNav(roleSlug, user, units, permissions)
+      }
+      
+      // Fallback based on level
+      switch (level) {
+        case 'org':
+          return buildOrgNav(companies, permissions, roleSlug)
+        case 'company': {
+          const cId = activeCompanyId || myCompanyId
+          const company = companies.find(c => c._id === cId)
+          const companyUnits = units.filter(u => resolveCompanyId(u) === cId)
+          return buildCompanyNav(
+            company || { _id: cId },
+            companyUnits,
+            orgId,
+            false,
+            roleSlug
+          )
+        }
+        case 'unit':
+          return buildDynamicNav(roleSlug, user, units, permissions)
+        default:
+          return stamp([{ title: 'Dashboard', icon: 'tabler:layout-dashboard', path: '/dashboards/analytics' }])
+      }
+    }
   }
 }
 
