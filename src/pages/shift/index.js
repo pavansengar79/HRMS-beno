@@ -68,6 +68,8 @@ const STATUS_CONFIG = {
   EXPIRED: { color: 'default', label: 'Expired' }
 }
 
+
+//roaster
 const ROSTER_STATUS_COLORS = {
   ACTIVE: 'success',
   ENDED: 'default',
