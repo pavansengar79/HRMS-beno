@@ -106,7 +106,7 @@ const RolesPermission = () => {
   })
   useEffect(() => {
     dispatch(fetchAdmin({ paginationModel, search: search }))
-  }, [paginationModel, search])
+  }, [dispatch, paginationModel, search])
 
   // useEffect(() => {
   //   if (data.shouldFetchData) {

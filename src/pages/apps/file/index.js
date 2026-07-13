@@ -87,13 +87,13 @@ const InvoiceList = () => {
 
   useEffect(() => {
     dispatch(fetchFileData({ paginationModel }))
-  }, [paginationModel])
+  }, [dispatch, paginationModel])
 
   useEffect(() => {
     if (data.shouldFetchData) {
       dispatch(fetchFileData({ paginationModel }))
     }
-  }, [data.shouldFetchData])
+  }, [dispatch, data.shouldFetchData, paginationModel])
 
   const handleClose = () => {
     setShow(false)

@@ -66,7 +66,7 @@ const AddModal = ({ setSwitchtab }) => {
   // ** Hooks
   useEffect(() => {
     dispatch(fetchCategory({ status: true }))
-  }, [])
+  }, [dispatch])
 
   const {
     control,

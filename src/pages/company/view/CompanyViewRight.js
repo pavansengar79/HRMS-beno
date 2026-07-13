@@ -268,11 +268,12 @@ const ModulesTab = ({ company }) => {
   const { modules, loading } = useSelector(s => s.company)
   const [localModules, setLocalModules] = useState([])
 
+  const companyId = company._id || company.id
   useEffect(() => {
-    if (company._id || company.id) {
-      dispatch(getCompanyModules(company._id || company.id))
+    if (companyId) {
+      dispatch(getCompanyModules(companyId))
     }
-  }, [company._id || company.id, dispatch])
+  }, [companyId, dispatch])
 
   useEffect(() => {
     if (modules && modules.length > 0) {

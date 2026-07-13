@@ -113,7 +113,7 @@ const DashboardAccess = () => {
     setPageCount(data?.totalPage)
     setCurrentPage(currentPage)
     setMessage('')
-  }, [message, currentPage, search])
+  }, [dispatch, data?.admin, data?.totalPage, message, currentPage, search])
 
   const handleSubmit = e => {
     e.preventDefault()
@@ -439,13 +439,13 @@ const DashboardAccess = () => {
   })
   useEffect(() => {
     dispatch(fetchAdmin({ paginationModel, search: search }))
-  }, [paginationModel, search])
+  }, [dispatch, paginationModel, search])
 
   useEffect(() => {
     if (data.shouldFetchData) {
       dispatch(fetchAdmin({ paginationModel, search: search }))
     }
-  }, [data.shouldFetchData])
+  }, [dispatch, data.shouldFetchData, paginationModel, search])
 
   return (
     <Card>

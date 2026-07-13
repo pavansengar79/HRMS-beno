@@ -87,7 +87,7 @@ const PolicyManagement = ({ tab }) => {
         if (visibleTabs.length > 0 && !visibleTabs.find(t => t.value === tab)) {
             router.replace(`/policy/${visibleTabs[0].value}`)
         }
-    }, [tab, visibleTabs])
+    }, [tab, visibleTabs, router, activeTab])
 
     const handleChange = (event, value) => {
         setIsLoading(true)

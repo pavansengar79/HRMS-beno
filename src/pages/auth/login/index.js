@@ -9,6 +9,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { useDispatch } from 'react-redux'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -32,6 +33,7 @@ import toast from 'react-hot-toast'
 
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import authConfig from 'src/configs/auth'
+import { rehydrateAuth } from 'src/store/auth/authSlice'
 
 // ── Styled ──────────────────────────────────────────────────────────────────
 const LoginIllustration = styled('img')(({ theme }) => ({
@@ -63,6 +65,7 @@ const schema = yup.object().shape({
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting]     = useState(false)
+  const dispatch = useDispatch()
 
   const theme  = useTheme()
   const router = useRouter()
@@ -89,7 +92,10 @@ const LoginPage = () => {
         const tokenKey = authConfig.storageTokenKeyName || 'accessToken'
         window.localStorage.setItem(tokenKey, token)
         window.localStorage.setItem('subscriptionData', JSON.stringify(subscription))
-          window.localStorage.setItem('userData', JSON.stringify(user))
+        window.localStorage.setItem('userData', JSON.stringify(user))
+        
+        // ✅ CRITICAL FIX: Update Redux state immediately
+        dispatch(rehydrateAuth({ user, token }))
 
         toast.success('Welcome back!')
 

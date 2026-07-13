@@ -8,7 +8,7 @@ const PoliciesIndex = () => {
 
     useEffect(() => {
         router.replace('/policy/company')
-    }, [])
+    }, [router])
 
     return null
 }

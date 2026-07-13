@@ -154,7 +154,7 @@ const RegularisationPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                 reset(defaultValues)
             }
         }
-    }, [open, editData])
+    }, [open, editData, reset])
 
     const onSubmit = async (data) => {
         setSaving(true)

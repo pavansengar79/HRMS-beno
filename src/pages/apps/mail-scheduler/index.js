@@ -61,13 +61,13 @@ const MailSchedular = () => {
 
   useEffect(() => {
     dispatch(fetchMailScheduler({ paginationModel, search: search }))
-  }, [paginationModel, search])
+  }, [dispatch, paginationModel, search])
 
   useEffect(() => {
     if (data.shouldFetchData) {
       dispatch(fetchMailScheduler({ paginationModel, search: search }))
     }
-  }, [data.shouldFetchData])
+  }, [dispatch, data.shouldFetchData, paginationModel, search])
 
   const files = data?.mailScheduler?.map((n, i) => {
     return {

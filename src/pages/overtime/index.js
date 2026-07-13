@@ -75,6 +75,7 @@ export default function OvertimeManagement() {
   useEffect(() => {
     fetchOvertimeRecords()
     fetchPolicy()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, page, limit])
 
   const fetchOvertimeRecords = async () => {

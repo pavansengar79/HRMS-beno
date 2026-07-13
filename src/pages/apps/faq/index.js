@@ -93,12 +93,12 @@ const FAQ = () => {
   })
   useEffect(() => {
     dispatch(fetchFaqData({ paginationModel }))
-  }, [paginationModel])
+  }, [dispatch, paginationModel])
   useEffect(() => {
     if (data.shouldFetchData) {
       dispatch(fetchFaqData({ paginationModel }))
     }
-  }, [data.shouldFetchData])
+  }, [dispatch, data.shouldFetchData, paginationModel])
 
   const showModal = () => {
     setShow(true)

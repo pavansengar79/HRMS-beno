@@ -88,6 +88,7 @@ const PayrollHistory = () => {
 
   useEffect(() => {
     fetchHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, page, pageSize])
 
   // ── Filter client-side (simple) ──────────────────────────────────────────────

@@ -64,7 +64,7 @@ const LeaveManagement = ({ tab }) => {
 
   useEffect(() => {
     if (tab && tab !== activeTab) setActiveTab(tab)
-  }, [tab])
+  }, [tab, activeTab])
 
   const handleChange = (event, value) => {
     setIsLoading(true)

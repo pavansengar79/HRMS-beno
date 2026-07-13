@@ -884,7 +884,7 @@ const ShiftRosterPage = () => {
       }
     }
 
-    init()
+    init() // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Empty deps - runs once on mount
 
   // Re-fetch when unit changes
@@ -895,7 +895,7 @@ const ShiftRosterPage = () => {
     dispatch(fetchRosters({ unitId }))
     dispatch(fetchShiftSwaps({ unitId }))
     dispatch(fetchAllEmployees({ unitId, limit: 500 }))
-  }, [dispatch, unitId])
+  }, [dispatch, unitId, units.length])
 
   const handleTabChange = (event, newValue) => setTabValue(newValue)
 

@@ -55,7 +55,7 @@ export const RegularizeDialog = ({ open, onClose, record, onSuccess }) => {
         remarks:  '',
       })
     }
-  }, [open, record])
+  }, [open, record, reset])
 
   const onSubmit = async (data) => {
     setSaving(true)

@@ -16,7 +16,7 @@ const LeaveTab = () => {
     } else {
       setActiveTab(tab)
     }
-  }, [tab])
+  }, [tab, router])
 
   if (!router.isReady) return null
 

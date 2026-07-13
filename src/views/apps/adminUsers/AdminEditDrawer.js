@@ -65,7 +65,7 @@ const AdminEditDrawer = ({ open, onClose, user, onSuccess }) => {
       } })
       .catch(() => setError('Failed to load roles.'))
       .finally(() => setDropLoading(false))
-  }, [open, user])
+  }, [open, user, userLevel])
 
   const handleClose = () => { if (!submitting) { setError(''); onClose() } }
 

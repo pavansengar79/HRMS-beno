@@ -21,7 +21,7 @@ const PolicyTab = () => {
         } else {
             setActiveTab(tab)
         }
-    }, [tab])
+    }, [tab, router])
 
     // Wait for router to be ready before rendering
     if (!router.isReady) return null

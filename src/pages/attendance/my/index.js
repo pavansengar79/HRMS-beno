@@ -266,11 +266,11 @@ export default function MyAttendance() {
   // Fetch on mount and when filters change
   useEffect(() => { 
     fetchAttendance()
-  }, [filterMonth, filterStatus])
+  }, [fetchAttendance])
   
   useEffect(() => { 
     fetchSummary()
-  }, [filterMonth])
+  }, [fetchSummary])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handlePunchSuccess = () => {

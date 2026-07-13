@@ -38,6 +38,7 @@ const AuthProvider = ({ children }) => {
     const onLogout = () => { dispatch(clearCredentials()); _clear(); router.push('/auth/login') }
     window.addEventListener('auth:logout', onLogout)
     return () => window.removeEventListener('auth:logout', onLogout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const _clear = () => {

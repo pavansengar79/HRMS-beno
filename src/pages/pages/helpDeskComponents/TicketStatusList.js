@@ -192,15 +192,15 @@ const Index = () => {
     if (queries.shouldFetchData) {
       dispatch(fetchQueryData({ paginationModel, search, status }))
     }
-  }, [queries.shouldFetchData])
+  }, [dispatch, queries.shouldFetchData, paginationModel, search, status])
 
   useEffect(() => {
     dispatch(fetchQueryData({ paginationModel, search, status, startDate, endDate, category }))
-  }, [paginationModel, dispatch, search, status, endDate, category])
+  }, [dispatch, paginationModel, search, status, startDate, endDate, category])
 
   useEffect(() => {
     dispatch(fetchQueryCategoryData())
-  }, [])
+  }, [dispatch])
 
   const handleDateChange = dates => {
     const [start, end] = dates

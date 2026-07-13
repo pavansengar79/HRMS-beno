@@ -147,7 +147,7 @@ const AcceptInviteV2 = () => {
       <RightWrapper>
         <Box sx={{ p: [6, 12], display: 'flex', justifyContent: 'center' }}>
           <Box sx={{ width: '100%', maxWidth: 400 }}>
-            <img src='/OneBLogo.svg' width={82} />
+            <img src='/OneBLogo.svg' width={82} alt='OneB Logo' />
 
             <Box sx={{ my: 6 }}>
               <Typography variant='h4'>Set Your Password 🔐</Typography>

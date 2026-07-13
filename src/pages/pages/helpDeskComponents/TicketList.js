@@ -95,7 +95,7 @@ const TicketSettingList = () => {
   }
   useEffect(() => {
     dispatch(getTicketCategories({ paginationModel, search }))
-  }, [dispatch, paginationModel, search])
+  }, [dispatch])
   useEffect(() => {
     if (data1.shouldFetchData) {
       dispatch(getTicketCategories({ paginationModel, search }))

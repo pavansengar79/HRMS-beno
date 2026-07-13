@@ -53,7 +53,7 @@ export default function AddCustomerDrawer({ open, toggle }) {
 
   useEffect(() => {
     if (open && plans.length === 0) dispatch(fetchPublicPlans())
-  }, [open])
+  }, [dispatch, open, plans.length])
 
   const onSubmit = async data => {
     try {

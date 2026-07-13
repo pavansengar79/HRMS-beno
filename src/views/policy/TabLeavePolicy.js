@@ -943,7 +943,7 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
         reset(defaultPolicyValues)
       }
     }
-  }, [open, editData])
+  }, [open, editData, reset])
 
   // ✅ Strip internal/meta fields before sending to backend
   const stripIds = (value) => {

@@ -98,7 +98,7 @@ const DeptDialog = ({ open, onClose, onConfirm, parentLabel, initial, loading })
       setDesc(initial?.description || '')
       setStatus(initial?.status || 'active')
     }
-  }, [open])
+  }, [open, initial?.label, initial?.name, initial?.description, initial?.status])
 
   const isEdit = Boolean(initial?.id)
   const canSubmit = name.trim().length > 0

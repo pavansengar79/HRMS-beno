@@ -193,7 +193,7 @@ const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
                 reset(defaultLeaveTypeValues)
             }
         }
-    }, [open, editData])
+    }, [open, editData, reset])
 
     const buildPayload = (data) => ({
         // Required

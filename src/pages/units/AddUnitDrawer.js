@@ -8,6 +8,8 @@ import Box from '@mui/material/Box'
 import MenuItem from '@mui/material/MenuItem'
 import CircularProgress from '@mui/material/CircularProgress'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Switch from '@mui/material/Switch'
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm, Controller } from 'react-hook-form'
@@ -16,6 +18,7 @@ import toast from 'react-hot-toast'
 import { useDispatch, useSelector } from 'react-redux'
 import { createUnit, fetchUnits } from 'src/store/unit/unitSlice'
 import { fetchLOBs, selectAllLOBs } from 'src/store/lob/lobSlice'
+import LocationPicker from 'src/components/LocationPicker'
 
 const Header = styled(Box)(({ theme }) => ({ display: 'flex', alignItems: 'center', padding: theme.spacing(6), justifyContent: 'space-between' }))
 const schema = yup.object().shape({
@@ -27,22 +30,47 @@ const schema = yup.object().shape({
 
 const AddUnitDrawer = ({ open, toggle }) => {
   const [loading, setLoading] = useState(false)
+  const [geolocation, setGeolocation] = useState({})
+  const [locationSettings, setLocationSettings] = useState({
+    geoFencingEnabled: false,
+    allowOutsidePunch: false,
+    requireExactMatch: false
+  })
+  
   const dispatch = useDispatch()
   const lobs = useSelector(selectAllLOBs)
   useEffect(() => { if (open) dispatch(fetchLOBs()) }, [open, dispatch])
+  
   const { reset, control, handleSubmit, formState: { errors } } = useForm({
     defaultValues: { lob_id: '', name: '', location: '', admin_name: '', admin_email: '', admin_phone: '' },
     mode: 'onChange', resolver: yupResolver(schema)
   })
+  
   const onSubmit = async data => {
     setLoading(true)
-    try { await dispatch(createUnit(data)).unwrap(); toast.success('Unit created! Admin credentials sent via email.'); dispatch(fetchUnits()); toggle(); reset() }
-    catch (err) { toast.error(typeof err === 'string' ? err : err?.message || 'Failed') }
+    try {
+      const payload = {
+        ...data,
+        ...(Object.keys(geolocation).length > 0 && { geolocation }),
+        locationSettings
+      }
+      
+      await dispatch(createUnit(payload)).unwrap()
+      toast.success('Unit created! Admin credentials sent via email.')
+      dispatch(fetchUnits())
+      toggle()
+      reset()
+      setGeolocation({})
+    }
+    catch (err) {
+      toast.error(typeof err === 'string' ? err : err?.message || 'Failed')
+    }
     finally { setLoading(false) }
   }
+  
   return (
     <Drawer open={open} anchor='right' variant='temporary' onClose={() => { toggle(); reset() }}
-      ModalProps={{ keepMounted: true }} sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 400 } } }}>
+      ModalProps={{ keepMounted: true }} sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 500, md: 600 }, overflowY: 'auto' } }}>
       <Header>
         <Typography variant='h5'>Add Unit</Typography>
         <IconButton size='small' onClick={() => { toggle(); reset() }}><Icon icon='tabler:x' fontSize='1.125rem' /></IconButton>
@@ -57,9 +85,38 @@ const AddUnitDrawer = ({ open, toggle }) => {
           <CustomTextField {...field} fullWidth label='Unit Name' sx={{ mb: 4 }} error={!!errors.name} helperText={errors.name?.message} />
         )} />
         <Controller name='location' control={control} render={({ field }) => (
-          <CustomTextField {...field} fullWidth label='Location (optional)' sx={{ mb: 4 }} />
+          <CustomTextField {...field} fullWidth label='Location Description (optional)' sx={{ mb: 2 }} placeholder='e.g., Mumbai Tech Park' />
         )} />
-        <Typography variant='subtitle2' sx={{ mb: 2, color: 'text.disabled', textTransform: 'uppercase', fontSize: '0.75rem' }}>Unit Admin</Typography>
+        
+        {/* Geolocation Picker */}
+        <LocationPicker value={geolocation} onChange={setGeolocation} />
+        
+        {/* Location Settings */}
+        {geolocation?.latitude && (
+          <Box sx={{ mt: 4 }}>
+            <Typography variant='subtitle2' sx={{ mb: 2, color: 'text.disabled', textTransform: 'uppercase', fontSize: '0.75rem' }}>
+              Geofencing Settings
+            </Typography>
+            <FormControlLabel
+              control={<Switch checked={locationSettings.geoFencingEnabled} onChange={(e) => setLocationSettings({...locationSettings, geoFencingEnabled: e.target.checked})} />}
+              label='Enable Geo-fencing for Attendance'
+            />
+            {locationSettings.geoFencingEnabled && (
+              <>
+                <FormControlLabel
+                  control={<Switch checked={locationSettings.allowOutsidePunch} onChange={(e) => setLocationSettings({...locationSettings, allowOutsidePunch: e.target.checked})} />}
+                  label='Allow punch outside radius (with warning)'
+                />
+                <FormControlLabel
+                  control={<Switch checked={locationSettings.requireExactMatch} onChange={(e) => setLocationSettings({...locationSettings, requireExactMatch: e.target.checked})} />}
+                  label='Strict radius check (block if outside)'
+                />
+              </>
+            )}
+          </Box>
+        )}
+        
+        <Typography variant='subtitle2' sx={{ mb: 2, mt: 4, color: 'text.disabled', textTransform: 'uppercase', fontSize: '0.75rem' }}>Unit Admin</Typography>
         <Controller name='admin_name' control={control} render={({ field }) => (
           <CustomTextField {...field} fullWidth label='Admin Name' sx={{ mb: 4 }} error={!!errors.admin_name} helperText={errors.admin_name?.message} />
         )} />
