@@ -240,7 +240,37 @@ const getColumns = (handleEdit, handleAssign, handleDelete) => [
     }
   },
   { flex: 0.12, minWidth: 110, field: 'location', headerName: 'Location',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{row.location || '—'}</Typography>
+    renderCell: ({ row }) => {
+      const hasGeo = row.geolocation?.latitude && row.geolocation?.longitude
+      const radius = row.geolocation?.radiusMeters || 200
+      
+      return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>
+            {row.location || '—'}
+          </Typography>
+          {hasGeo && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Icon icon='tabler:map-pin' fontSize={12} style={{ color: '#10b981' }} />
+              <Typography variant='caption' sx={{ color: 'success.main', fontSize: 11 }}>
+                {row.geolocation.latitude.toFixed(4)}, {row.geolocation.longitude.toFixed(4)}
+              </Typography>
+              <Chip 
+                label={`±${radius}m`}
+                size='small'
+                sx={{ 
+                  height: 18, 
+                  fontSize: 10, 
+                  bgcolor: 'success.light', 
+                  color: 'success.dark',
+                  '& .MuiChip-label': { px: 0.5 }
+                }}
+              />
+            </Box>
+          )}
+        </Box>
+      )
+    }
   },
   { flex: 0.1, minWidth: 90, field: 'status', headerName: 'Status',
     renderCell: ({ row }) => <CustomChip rounded skin='light' size='small' label={row.status || 'Active'} color={row.status === 'Active' ? 'success' : 'secondary'} />

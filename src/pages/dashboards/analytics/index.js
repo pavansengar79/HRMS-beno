@@ -80,19 +80,26 @@ const AnalyticsDashboard = () => {
     }
   }, [level, roleSlug, permissions, router])
 
-  // Priority: level-based routing over role-based routing
+  // FIXED: Role-based routing takes priority over level-based routing
+  // This ensures employees get EmployeeDashboard (not UnitDashboard)
   let DashboardComponent = null
-  if (level && LEVEL_DASHBOARD_MAP[level]) {
-    DashboardComponent = LEVEL_DASHBOARD_MAP[level]
-  } else if (roleSlug) {
+  
+  // Priority 1: Role-based routing (most specific)
+  if (roleSlug) {
     const key = String(roleSlug).toLowerCase().trim()
-    // Check if it's a known role
+    
+    // Check if it's a known role with specific dashboard
     if (ROLE_DASHBOARD_MAP[key]) {
       DashboardComponent = ROLE_DASHBOARD_MAP[key]
     } else if (isCustomRole(roleSlug)) {
       // Custom role - show CustomRoleDashboard with permission-based modules
       DashboardComponent = CustomRoleDashboard
     }
+  }
+  
+  // Priority 2: Level-based routing (fallback for org/company_admin without specific role dashboard)
+  if (!DashboardComponent && level && LEVEL_DASHBOARD_MAP[level]) {
+    DashboardComponent = LEVEL_DASHBOARD_MAP[level]
   }
 
   // If no dashboard found but has permissions, redirect to first available module

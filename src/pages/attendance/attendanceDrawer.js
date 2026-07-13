@@ -249,9 +249,58 @@ const AttendanceDrawer = ({ open, toggle, roleSlug, onSuccess }) => {
   const [submitting, setSubmitting]     = useState(false)
   const [punchAction, setPunchAction]   = useState(null)   // 'in' | 'out'
   const [punchSuccess, setPunchSuccess] = useState(false)
+  const [capturedLocation, setCapturedLocation] = useState(null)  // GPS coordinates
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationError, setLocationError] = useState(null)
 
   const { control, handleSubmit, reset, watch } = useForm({ defaultValues })
   const isWFH = watch('isWFH')
+  
+  // ── Capture GPS Location ────────────────────────────────────────────────────
+  const captureLocation = () => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        console.warn('[GeoLocation] Geolocation not supported')
+        resolve(null)
+        return
+      }
+      
+      setLocationLoading(true)
+      setLocationError(null)
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const locationData = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          }
+          console.log('[GeoLocation] Captured:', locationData)
+          setCapturedLocation(locationData)
+          setLocationLoading(false)
+          resolve(locationData)
+        },
+        (err) => {
+          console.warn('[GeoLocation] Capture failed:', err.message)
+          setLocationError(err.message)
+          setLocationLoading(false)
+          resolve(null)
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
+        }
+      )
+    })
+  }
+  
+  // Auto-capture location when drawer opens (for WFO)
+  useEffect(() => {
+    if (open && !isWFH) {
+      captureLocation()
+    }
+  }, [open, isWFH])
 
   // ── Derive punch state ────────────────────────────────────────────────────
   const canPunchIn  = !todayRecord?.checkIn
@@ -287,24 +336,49 @@ const AttendanceDrawer = ({ open, toggle, roleSlug, onSuccess }) => {
     setSubmitting(true)
     setPunchAction('in')
     try {
-      const res = await axiosRequest.post('/api/v1/attendance/me/punch-in', {
-        isWFH: data.isWFH
-      })
+      // Capture location if not WFH
+      let geolocation = null
+      if (!data.isWFH) {
+        // Try to get fresh GPS location
+        const freshLoc = await captureLocation()
+        if (freshLoc) {
+          geolocation = freshLoc
+        } else if (capturedLocation) {
+          // Use previously captured location
+          geolocation = capturedLocation
+        }
+      }
+      
+      const payload = {
+        isWFH: data.isWFH,
+        ...(geolocation && !data.isWFH && { geolocation })
+      }
+      
+      console.log('[PunchIn] Sending payload:', payload)
+      
+      const res = await axiosRequest.post('/api/v1/attendance/me/punch-in', payload)
       if (res?.success) {
         const record = res.data?.attendance ?? res.data
         setPunchSuccess(true)
         setTodayRecord(record)
+        
+        // Show location info if captured
+        const locInfo = record?.checkInLocation?.distance 
+          ? `📍 ${record.checkInLocation.distance}m from unit` 
+          : ''
+        
         toast.success(
           record?.isLate
-            ? `Punched in · Late by ${record.lateMinutes || '—'} min`
-            : 'Punched in successfully! 🎉',
+            ? `Punched in · Late by ${record.lateMinutes || '—'} min ${locInfo}`
+            : `Punched in successfully! 🎉 ${locInfo}`,
           { duration: 4000 }
         )
         onSuccess?.()
         setTimeout(() => setPunchSuccess(false), 2500)
       }
     } catch (err) {
-      toast.error(typeof err === 'string' ? err : err?.message || 'Punch-in failed')
+      const errMsg = typeof err === 'string' ? err : err?.message || err?.response?.data?.message || 'Punch-in failed'
+      toast.error(errMsg, { duration: 5000 })
     } finally {
       setSubmitting(false)
       setPunchAction(null)
@@ -495,32 +569,78 @@ const AttendanceDrawer = ({ open, toggle, roleSlug, onSuccess }) => {
             <Box>
               {/* WFH toggle — punch-in only */}
               {canPunchIn && (
-                <Box sx={{
-                  mb: 3, p: 3, borderRadius: 2,
-                  border: t => `1px solid ${t.palette.divider}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <>
+                  {/* Location Status Indicator (non-WFH only) */}
+                  {!isWFH && (
                     <Box sx={{
-                      width: 36, height: 36, borderRadius: 1,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      bgcolor: isWFH ? 'primary.main' : 'action.selected'
+                      mb: 2, p: 2, borderRadius: 2,
+                      border: t => `1px solid ${capturedLocation ? 'success.main' : locationError ? 'error.main' : 'warning.main'}`,
+                      bgcolor: t => t.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                      display: 'flex', alignItems: 'center', gap: 2
                     }}>
-                      <Icon icon={isWFH ? 'tabler:home' : 'tabler:building'} color={isWFH ? 'white' : 'inherit'} />
+                      <Box sx={{
+                        width: 32, height: 32, borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        bgcolor: capturedLocation ? 'success.main' : locationError ? 'error.main' : 'warning.main'
+                      }}>
+                        <Icon 
+                          icon={capturedLocation ? 'tabler:location-filled' : locationError ? 'tabler:location-x' : 'tabler:location-loading'} 
+                          color='white' 
+                          fontSize='1rem' 
+                        />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant='body2' fontWeight={500}>
+                          {capturedLocation 
+                            ? `Location Captured (${capturedLocation.accuracy?.toFixed(0) || '—'}m accuracy)`
+                            : locationError 
+                              ? 'Location Error'
+                              : 'Capturing Location…'}
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary'>
+                          {capturedLocation
+                            ? `📍 ${capturedLocation.latitude?.toFixed(4)}, ${capturedLocation.longitude?.toFixed(4)}`
+                            : locationError
+                              ? locationError
+                              : 'Enable GPS for accurate check-in'}
+                        </Typography>
+                      </Box>
+                      {locationLoading && (
+                        <CircularProgress size={20} color='warning' />
+                      )}
                     </Box>
-                    <Box>
-                      <Typography variant='body2' fontWeight={500}>
-                        {isWFH ? 'Work From Home' : 'Work From Office'}
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary'>Toggle to change mode</Typography>
+                  )}
+                
+                  {/* WFH/OFF switch */}
+                  <Box sx={{
+                    mb: 3, p: 3, borderRadius: 2,
+                    border: t => `1px solid ${t.palette.divider}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{
+                        width: 36, height: 36, borderRadius: 1,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        bgcolor: isWFH ? 'primary.main' : 'action.selected'
+                      }}>
+                        <Icon icon={isWFH ? 'tabler:home' : 'tabler:building'} color={isWFH ? 'white' : 'inherit'} />
+                      </Box>
+                      <Box>
+                        <Typography variant='body2' fontWeight={500}>
+                          {isWFH ? 'Work From Home' : 'Work From Office'}
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary'>
+                          {isWFH ? 'Location validation disabled' : 'Location required for check-in'}
+                        </Typography>
+                      </Box>
                     </Box>
+                    <Controller name='isWFH' control={control}
+                      render={({ field }) => (
+                        <Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />
+                      )}
+                    />
                   </Box>
-                  <Controller name='isWFH' control={control}
-                    render={({ field }) => (
-                      <Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />
-                    )}
-                  />
-                </Box>
+                </>
               )}
 
               {/* Note — punch-out only */}

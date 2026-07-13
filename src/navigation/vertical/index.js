@@ -206,11 +206,7 @@ const buildUnitNav = (unit, company, orgId, showBack = true, permissions = [], r
     ...(has('employee.read') ? [{ title: 'Employees', icon: 'tabler:users', path: p('users') }] : []),
     ...(has('department.read') ? [{ title: 'Departments', icon: 'tabler:building', path: p('department') }] : []),
     ...(has('designation.read') ? [{ title: 'Designations', icon: 'tabler:briefcase', path: p('designation') }] : []),
-    ...(has('attendance.read') ? [{ title: 'Attendance', icon: 'tabler:clock-check', path: p('attendance'), badgeContent: 'Live', badgeColor: 'success' }] : []),
-    ...(has('leave.read') ? [{ title: 'Leaves', icon: 'tabler:calendar-user', path: p('leaves'), badgeContent: 'New', badgeColor: 'error' }] : []),
-    ...(has('payroll.read') ? [{ title: 'Payroll', icon: 'tabler:cash', path: p('payroll'), badgeContent: 'Run', badgeColor: 'warning' }] : []),
-    ...(has('holiday.read') ? [{ title: 'Holidays', icon: 'tabler:calendar-event', path: p('holidays') }] : []),
-    ...(has('shift.read') ? [{ title: 'Shifts', icon: 'tabler:clock', path: p('shift') }] : []),
+    // Note: Business Units accessible at company level, not unit level
 
     // ── COMPLIANCE ────────────────────────────────────────────────────────
     ...(has('leavePolicy.read') || has('attendancePolicy.read') || has('payrollPolicy.read') || has('holiday.read')
@@ -241,15 +237,19 @@ const buildDynamicNav = (roleSlug, user, units, permissions = []) => {
   // Permission helper
   const has = slug => permissions.includes(slug)
   
-  // Get dynamic sidebar from permission map
-  const dynamicSidebar = getSidebarConfig(permissions)
-  
   return stamp([
     { title: 'Dashboard',          icon: 'tabler:layout-dashboard', path: '/dashboards/analytics' },
     { sectionTitle: unitName },
 
     { sectionTitle: 'HRMS' },
-    ...dynamicSidebar,
+    ...(has('employee.read') ? [{ title: 'Employees', icon: 'tabler:users', path: '/users' }] : []),
+    ...(has('department.read') ? [{ title: 'Departments', icon: 'tabler:building', path: '/department' }] : []),
+    ...(has('designation.read') ? [{ title: 'Designations', icon: 'tabler:briefcase', path: '/designation' }] : []),
+    ...(has('attendance.read') ? [{ title: 'Attendance', icon: 'tabler:clock-check', path: '/attendance', badgeContent: 'Live', badgeColor: 'success' }] : []),
+    ...(has('leave.read') ? [{ title: 'Leaves', icon: 'tabler:calendar-user', path: '/leaves', badgeContent: 'New', badgeColor: 'error' }] : []),
+    ...(has('payroll.read') ? [{ title: 'Payroll', icon: 'tabler:cash', path: '/payroll', badgeContent: 'Run', badgeColor: 'warning' }] : []),
+    ...(has('holiday.read') ? [{ title: 'Holidays', icon: 'tabler:calendar-event', path: '/holidays' }] : []),
+    ...(has('shift.read') ? [{ title: 'Shifts', icon: 'tabler:clock', path: '/shift' }] : []),
 
     // Policies - only show if user has any policy permission
     ...(has('leavePolicy.read') || has('attendancePolicy.read') || has('payrollPolicy.read') || has('holiday.read')

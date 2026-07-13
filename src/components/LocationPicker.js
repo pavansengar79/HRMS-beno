@@ -1,5 +1,6 @@
 // src/components/LocationPicker.js
 // Google Maps-based geolocation picker for unit creation/editing
+// Supports both auto-detect and manual coordinate entry
 
 import { useState, useEffect, useCallback } from 'react'
 import Box from '@mui/material/Box'
@@ -12,14 +13,20 @@ import Slider from '@mui/material/Slider'
 import Grid from '@mui/material/Grid'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
+import Link from '@mui/material/Link'
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
 import Icon from 'src/@core/components/icon'
-import { INDIAN_STATES, CITIES_BY_STATE, getCitiesForState } from 'src/utils/locationConstants'
+import { INDIAN_STATES, getCitiesForState } from 'src/utils/locationConstants'
 
 const LocationPicker = ({ value = {}, onChange }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [selectedState, setSelectedState] = useState(value?.address?.stateCode || '')
   const [cities, setCities] = useState([])
+  const [tabValue, setTabValue] = useState(0)
+  const [manualLat, setManualLat] = useState('')
+  const [manualLng, setManualLng] = useState('')
 
   // Update cities when state changes
   useEffect(() => {
@@ -142,6 +149,37 @@ const LocationPicker = ({ value = {}, onChange }) => {
     })
   }
 
+  // Manual location input handler
+  const handleManualLocationSubmit = () => {
+    const lat = parseFloat(manualLat)
+    const lng = parseFloat(manualLng)
+    
+    if (isNaN(lat) || isNaN(lng)) {
+      setError('Please enter valid latitude and longitude values')
+      return
+    }
+    
+    if (lat < -90 || lat > 90) {
+      setError('Latitude must be between -90 and 90')
+      return
+    }
+    
+    if (lng < -180 || lng > 180) {
+      setError('Longitude must be between -180 and 180')
+      return
+    }
+    
+    onChange({
+      ...value,
+      latitude: lat,
+      longitude: lng,
+      accuracy: 0
+    })
+    
+    setError(null)
+    reverseGeocode(lat, lng)
+  }
+
   const radiusMarks = [
     { value: 50, label: '50m' },
     { value: 100, label: '100m' },
@@ -153,19 +191,87 @@ const LocationPicker = ({ value = {}, onChange }) => {
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant='subtitle2' sx={{ mb: 2, color: 'text.disabled', textTransform: 'uppercase', fontSize: '0.75rem' }}>
-        Geolocation (Pick from Map)
+        Geolocation (Pick Location)
       </Typography>
 
-      {/* Get Current Location Button */}
-      <Button
-        variant='outlined'
-        startIcon={loading ? <CircularProgress size={16} /> : <Icon icon='tabler:map-pin' />}
-        onClick={getCurrentLocation}
-        disabled={loading}
-        sx={{ mb: 2 }}
-      >
-        {loading ? 'Getting Location...' : 'Get Current Location'}
-      </Button>
+      {/* Location Method Tabs */}
+      <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ mb: 2 }} variant="fullWidth">
+        <Tab label="Auto Detect" icon={<Icon icon='tabler:current-location' />} iconPosition="start" />
+        <Tab label="Manual Entry" icon={<Icon icon='tabler:edit' />} iconPosition="start" />
+      </Tabs>
+
+      {/* Tab 1: Auto Detect Location */}
+      {tabValue === 0 && (
+        <Box>
+          <Button
+            variant='outlined'
+            startIcon={loading ? <CircularProgress size={16} /> : <Icon icon='tabler:map-pin' />}
+            onClick={getCurrentLocation}
+            disabled={loading}
+            sx={{ mb: 2 }}
+          >
+            {loading ? 'Getting Location...' : 'Get Current Location'}
+          </Button>
+
+          <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
+            Click to automatically detect your current position using browser location services
+          </Typography>
+        </Box>
+      )}
+
+      {/* Tab 2: Manual Location Entry */}
+      {tabValue === 1 && (
+        <Box sx={{ mb: 2 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label='Latitude'
+                type='number'
+                value={manualLat}
+                onChange={(e) => setManualLat(e.target.value)}
+                placeholder='e.g., 19.0760'
+                helperText='Range: -90 to 90'
+                inputProps={{ step: 'any', min: -90, max: 90 }}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label='Longitude'
+                type='number'
+                value={manualLng}
+                onChange={(e) => setManualLng(e.target.value)}
+                placeholder='e.g., 72.8777'
+                helperText='Range: -180 to 180'
+                inputProps={{ step: 'any', min: -180, max: 180 }}
+              />
+            </Grid>
+          </Grid>
+          
+          <Button
+            variant='contained'
+            onClick={handleManualLocationSubmit}
+            sx={{ mt: 2 }}
+            disabled={!manualLat || !manualLng}
+          >
+            Set Location
+          </Button>
+          
+          <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 2 }}>
+            Find coordinates using{' '}
+            <Link 
+              href="https://www.google.com/maps" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              sx={{ cursor: 'pointer' }}
+            >
+              Google Maps
+            </Link>
+            : Right-click on map → Copy coordinates
+          </Typography>
+        </Box>
+      )}
 
       {/* Display coordinates */}
       {value?.latitude && value?.longitude && (
