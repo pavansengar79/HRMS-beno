@@ -3,6 +3,7 @@
 // ** React Imports
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
+import toast from 'react-hot-toast'
 
 // ** MUI Imports
 import Grid from '@mui/material/Grid'
@@ -33,13 +34,31 @@ const UserDetails = () => {
 
   const employee = useSelector(selectSelectedEmployee)
   const loading  = useSelector(selectEmployeeDetailLoading)
-const current_user = useSelector(selectUser)
+  const current_user = useSelector(selectUser)
   const permissions = useSelector(selectPermissions)
+  const userRole    = useSelector(selectRoleSlug) ?? ''
   
   console.log('Current user:', current_user.id)
-  // 
-  const isPermitted =  permissions.includes('employee.create') || permissions.includes('employee.update') 
-  const userRole    = useSelector(selectRoleSlug) ?? ''
+  
+  const canManageEmployees = permissions.includes('employee.create') || permissions.includes('employee.update')
+  
+  // ── Self-access check ──────────────────────────────────────────────────────
+  // All users can view and update their own profile WITHOUT employee.update permission
+  // Unit Admin, HR Manager, Manager can view/edit anyone
+  const isOwnProfile = current_user?._id === id || current_user?.id === id
+  const canViewOthers = ['unit_admin', 'hr_manager', 'manager'].includes(userRole)
+  
+  // Redirect if not authorized (employee viewing someone else)
+  useEffect(() => {
+    if (!isOwnProfile && !canViewOthers && !canManageEmployees) {
+      toast.error('You can only view your own profile')
+      router.push('/dashboards/analytics')
+    }
+  }, [isOwnProfile, canViewOthers, canManageEmployees, router])
+  
+  // ── Permission Logic ────────────────────────────────────────────────────────
+  // Can edit if: own profile OR has employee management permissions OR is admin
+  const isPermitted = isOwnProfile || canManageEmployees || canViewOthers
 
   useEffect(() => {
     if (id) {

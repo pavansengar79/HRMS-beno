@@ -105,6 +105,7 @@ export const { setCredentials, rehydrateAuth, clearCredentials, setLoading, setE
 export default authSlice.reducer
 
 export const selectUser            = s => s.auth.user
+export const selectUserId          = s => s.auth.user?._id || null
 export const selectToken           = s => s.auth.token
 export const selectIsAuthenticated = s => s.auth.isAuthenticated
 export const selectAuthLoading     = s => s.auth.loading

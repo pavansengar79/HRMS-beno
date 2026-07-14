@@ -126,8 +126,74 @@ const UserDropdown = props => {
     return `/users/${userId}/details/account`
   }
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleDropdownOpen = e => setAnchorEl(e.currentTarget)
+  // ── Fetch today's attendance status ───────────────────────────────────
+  const fetchAttendance = async () => {
+    try {
+      const res = await axiosRequest.get('/api/v1/attendance/me/today')
+      setAttendance(res.data)
+      if (res.data?.punchInTime) {
+        const diff = Math.floor((new Date() - new Date(res.data.punchInTime)) / 1000)
+        setElapsedTime(diff)
+      }
+    } catch (error) {
+      console.error('Failed to fetch attendance:', error)
+    }
+  }
+
+  // ── Timer effect ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (canMarkAttendance) {
+      fetchAttendance()
+    }
+  }, [canMarkAttendance])
+
+  useEffect(() => {
+    let interval
+    if (attendance?.isPunchedIn) {
+      interval = setInterval(() => {
+        setElapsedTime(prev => prev + 1)
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [attendance?.isPunchedIn])
+
+  // ── Format time (HH:MM:SS) ─────────────────────────────────────────────
+  const formatTime = (seconds) => {
+    const hrs = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  // ── Handlers ───────────────────────────────────────────────────────
+  const handlePunchIn = async () => {
+    setLoading(true)
+    try {
+      const res = await axiosRequest.post('/api/v1/attendance/me/punch-in', { isWFH })
+      toast.success(isWFH ? 'Punched in (WFH) successfully!' : 'Punched in successfully!')
+      setIsWFH(false) // Reset checkbox
+      fetchAttendance()
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to punch in')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePunchOut = async () => {
+    setLoading(true)
+    try {
+      const res = await axiosRequest.post('/api/v1/attendance/me/punch-out')
+      toast.success('Punched out successfully!')
+      fetchAttendance()
+    } catch (error) {
+      toast.error(error?.response?.data?.message || 'Failed to punch out')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDropdownOpen  = e => setAnchorEl(e.currentTarget)
   const handleDropdownClose = url => {
     if (url) router.push(url)
     setAnchorEl(null)
@@ -137,7 +203,6 @@ const UserDropdown = props => {
     handleDropdownClose()
   }
 
-  // ── Styles for menu items ───────────────────────────────────────────────────
   const styles = {
     px: 4,
     py: 1.75,

@@ -465,7 +465,7 @@ const UserViewLeft = ({ employee: initialEmployee, canEdit = true ,role,isPermit
   const handlePhotoChange = async e => {
     const file = e.target.files?.[0]
     if (!file) return
-
+console.log("employee",employee)
     // 1. Upload the file → get back the URL (profilePhoto)
     setUploading(true)
     try {
@@ -473,7 +473,7 @@ const UserViewLeft = ({ employee: initialEmployee, canEdit = true ,role,isPermit
       formData.append('file', file)
 console.log("Ewe",employee)
       const uploadRes = await axiosRequest.post(
-        `/api/v1/employees/${employee?.userId?._id}/upload-profile`,
+        `/api/v1/employees/${employee?._id}/upload-profile`,
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       )
