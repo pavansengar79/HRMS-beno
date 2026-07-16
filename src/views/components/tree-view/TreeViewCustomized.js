@@ -42,6 +42,9 @@ import { selectPermissions } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import toast from 'react-hot-toast'
 
+// ** Scope (org/company/unit) resolution — same hook used across the app
+import useUnitContext from 'src/hooks/useUnitContext'
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const countDescendants = node =>
@@ -339,6 +342,20 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
   const canEdit = permissions.includes('department.update')
   const canDelete = permissions.includes('department.delete')
 
+  // Resolves { orgId, companyId, unitId } from whichever context is active —
+  // hierarchical URL (/org/../company/../unit/..), JWT-scoped unit_admin /
+  // hr_manager profile, or the flat-route Redux selection.
+  const { companyId, unitId } = useUnitContext()
+
+  // Build a params object that only includes ids that actually exist —
+  // never send `unitId: undefined` on the wire.
+  const scopeParams = useCallback(() => {
+    const params = {}
+    if (companyId) params.companyId = companyId
+    if (unitId)    params.unit_id    = unitId
+    return params
+  }, [companyId, unitId])
+
   const [tree, setTree] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -355,7 +372,7 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
   const fetchTree = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await axiosRequest.get('/api/v1/departments')
+      const res = await axiosRequest.get('/api/v1/departments', { params: scopeParams() })
       const data = res.data ?? []
       setTree(data)
       // Auto-expand all root nodes on first load
@@ -367,8 +384,9 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [scopeParams])
 
+  // Re-fetch whenever the resolved scope changes (e.g. org admin switches unit)
   useEffect(() => { fetchTree() }, [fetchTree])
 
   // Re-fetch whenever parent increments refreshKey (e.g. after external create)
@@ -410,11 +428,14 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
     setDeptDialog(d => ({ ...d, loading: true }))
     try {
       if (editNode) {
-        await axiosRequest.put(`/api/v1/departments/${editNode.id}`, { name, description, status })
+        await axiosRequest.put(
+          `/api/v1/departments/${editNode.id}`,
+          { name, description, status, ...scopeParams() }
+        )
         toast.success('Department updated')
       } else {
         // Only include parentId key when it is a real value — never send null/undefined
-        const payload = { name, description: description || undefined }
+        const payload = { name, description: description || undefined, ...scopeParams() }
         if (parentId) payload.parentId = parentId
 
         await axiosRequest.post('/api/v1/departments/create', payload)
@@ -434,7 +455,7 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
   const handleDeleteConfirm = async () => {
     setDelDialog(d => ({ ...d, loading: true }))
     try {
-      await axiosRequest.delete(`/api/v1/departments/${delDialog.id}`)
+      await axiosRequest.delete(`/api/v1/departments/${delDialog.id}`, { params: scopeParams() })
       toast.success(`"${delDialog.label}" deleted`)
       setDelDialog({ open: false, id: null, label: '', childCount: 0, loading: false })
       fetchTree()

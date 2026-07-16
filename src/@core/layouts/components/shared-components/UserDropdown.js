@@ -22,7 +22,8 @@ import { useAuth } from 'src/hooks/useAuth'
 
 // ** Redux — read user info and role from store
 import { useSelector } from 'react-redux'
-import { selectUser, selectRole, selectRoleSlug, selectUserId, selectLevel } from 'src/store/auth/authSlice'
+import { selectUser, selectRole, selectRoleSlug, selectUserId, selectLevel, selectProfilePhoto } from 'src/store/auth/authSlice'
+import { getInitials } from 'src/utils/employeeAvatar'
 
 // ** Custom Components
 import AttendanceWidget from './AttendanceWidget'
@@ -96,6 +97,7 @@ const UserDropdown = props => {
   const roleSlug = useSelector(selectRoleSlug)
   const userId   = useSelector(selectUserId)
   const level    = useSelector(selectLevel)
+  const profilePhoto = useSelector(selectProfilePhoto)  // Employee DP
 
   const displayName  = user?.firstName || user?.name || user?.email || 'User'
   const displayEmail = user?.email     || ''
@@ -153,13 +155,8 @@ const UserDropdown = props => {
     }
   }
 
-  // ── Avatar initials fallback ───────────────────────────────────────────────
-  const initials = displayName
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
+  // ── Avatar with centralized logic ───────────────────────────────────────────────
+  const initials = getInitials(displayName)
 
   return (
     <Fragment>
@@ -172,11 +169,12 @@ const UserDropdown = props => {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Avatar
+          src={profilePhoto}
           alt={displayName}
           onClick={handleDropdownOpen}
           sx={{ width: 38, height: 38, backgroundColor: 'primary.main', fontSize: '0.875rem', fontWeight: 600 }}
         >
-          {initials}
+          {!profilePhoto && initials}
         </Avatar>
       </Badge>
 
@@ -198,10 +196,11 @@ const UserDropdown = props => {
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
               <Avatar
+                src={profilePhoto}
                 alt={displayName}
                 sx={{ width: '2.5rem', height: '2.5rem', backgroundColor: 'primary.main', fontSize: '0.875rem', fontWeight: 600 }}
               >
-                {initials}
+                {!profilePhoto && initials}
               </Avatar>
             </Badge>
 

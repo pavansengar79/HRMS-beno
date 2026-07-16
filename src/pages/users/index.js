@@ -12,6 +12,7 @@ import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Menu from '@mui/material/Menu'
 import Grid from '@mui/material/Grid'
+import Avatar from '@mui/material/Avatar'
 import Select from '@mui/material/Select'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
@@ -56,6 +57,7 @@ import AddEmployeeDrawer from 'src/views/apps/user/list/AddUserDrawer'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import ComposePopup from 'src/views/apps/email/ComposePopup'
 import UnitContextBanner from 'src/@core/components/CustomComponents/UnitContextBanner'
+import useUnitContext from 'src/hooks/useUnitContext'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -83,17 +85,22 @@ const EMPLOYMENT_TYPE_COLOR = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Avatar renderer
+// Avatar renderer - uses profilePhoto if available
 // ─────────────────────────────────────────────────────────────────────────────
-const renderAvatar = row => (
-  <CustomAvatar
-    skin='light'
-    color='primary'
-    sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
-  >
-    {getInitials(row.name || 'NA')}
-  </CustomAvatar>
-)
+const renderAvatar = row => {
+  const initials = getInitials(row.name || 'NA')
+  
+  return (
+    <CustomAvatar
+      src={row.profilePhoto}
+      skin='light'
+      color='primary'
+      sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
+    >
+      {!row.profilePhoto && initials}
+    </CustomAvatar>
+  )
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RolePickerDialog
@@ -463,11 +470,27 @@ const buildColumns = (canEdit, canDelete, canApprove, canChangeStatus, onEdit, o
   },
   {
     flex: 0.18, minWidth: 160, field: 'reportingManagerId', headerName: 'Reporting Manager',
-    renderCell: ({ row }) => (
-      <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>
-        {row.reportingManagerId?.name || row.reportingManager?.name || '—'}
-      </Typography>
-    )
+    renderCell: ({ row }) => {
+      const manager = row.reportingManagerId || row.reportingManager
+      const managerName = manager?.name || manager?.name || '—'
+      const managerPhoto = manager?.profilePhoto
+      const initials = managerName !== '—' ? managerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'
+      
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar 
+            src={managerPhoto} 
+            alt={managerName}
+            sx={{ width: 28, height: 28, fontSize: '0.75rem', backgroundColor: 'primary.main' }}
+          >
+            {!managerPhoto && initials}
+          </Avatar>
+          <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>
+            {managerName}
+          </Typography>
+        </Box>
+      )
+    }
   },
   {
     flex: 0.13, minWidth: 120, field: 'phone', headerName: 'Phone',
@@ -521,6 +544,11 @@ const EmployeeList = () => {
   const canApprove      = canEdit && userRole === 'unit_admin'
   const canChangeStatus = canEdit
 
+  // Resolves { orgId, companyId, unitId } from whichever context is active —
+  // hierarchical URL (/org/../company/../unit/..), JWT-scoped unit_admin /
+  // hr_manager profile, or the flat-route Redux selection. See useUnitContext.
+  const { companyId, unitId } = useUnitContext()
+
   const [search, setSearch]               = useState('')
   const [typeFilter, setTypeFilter]       = useState('')
   const [statusFilter, setStatusFilter]   = useState('')
@@ -537,7 +565,11 @@ const EmployeeList = () => {
   // activateTarget — shared by both Approve button & status dropdown → ACTIVE
   const [activateTarget, setActivateTarget] = useState(null)
 
-  useEffect(() => { dispatch(fetchAllEmployees()) }, [dispatch])
+  // Refetch whenever the resolved company/unit scope changes (e.g. org admin
+  // navigates from one unit to another via the hierarchical URL).
+  useEffect(() => {
+    dispatch(fetchAllEmployees({ companyId, unitId }))
+  }, [dispatch, companyId, unitId])
 
   // Keep local state in sync with redux
   useEffect(() => { setLocalEmployees(employees) }, [employees])
@@ -612,7 +644,7 @@ const EmployeeList = () => {
                   </Button>
                   <BulkImportDialog
                     entityType='employees'
-                    onImportComplete={() => dispatch(fetchAllEmployees())}
+                    onImportComplete={() => dispatch(fetchAllEmployees({ companyId, unitId }))}
                   />
                 </>
               )}
@@ -654,7 +686,7 @@ const EmployeeList = () => {
           <Divider sx={{ m: '0 !important' }} />
 
 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, px: 6, py: 3 }}>
-  {canCreate && <TableHeader value={search} handleFilter={handleFilter} toggle={canCreate ? handleOpenAdd : undefined} onInviteSuccess={() => dispatch(fetchAllEmployees())} />}
+  {canCreate && <TableHeader value={search} handleFilter={handleFilter} toggle={canCreate ? handleOpenAdd : undefined} onInviteSuccess={() => dispatch(fetchAllEmployees({ companyId, unitId }))} />}
 </Box>
          
 
@@ -673,7 +705,7 @@ const EmployeeList = () => {
         <AddEmployeeDrawer
           open={drawerOpen} toggle={handleCloseDrawer}
           editingEmployee={editingEmployee}
-          onSuccess={() => { handleCloseDrawer(); dispatch(fetchAllEmployees()) }}
+          onSuccess={() => { handleCloseDrawer(); dispatch(fetchAllEmployees({ companyId, unitId })) }}
         />
       )}
 

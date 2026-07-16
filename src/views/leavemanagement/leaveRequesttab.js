@@ -271,12 +271,15 @@ const TabLeaveRequests = () => {
   const [selectedId,   setSelectedId]   = useState(null)
 
   const { leavesRows: rows, leavesTotal: total, loading, actionLoading } = useSelector(state => state.leaves)
-  const leaveTypes  = useSelector(state => state.leaves.leaveTypes)
+  const leaveTypes  = useSelector(state => state.leaves.balancedLeaveTypes) || []
+
   const permissions = useSelector(selectPermissions) || []
   const roleSlug    = useSelector(selectRoleSlug)    || ''
 
   // HR manager check — same logic as TabLeaveApproval
   const isHrManager = roleSlug === 'hr_manager' || permissions.includes('leave.update')
+
+  console.log("leaveTypes",leaveTypes)
 
   const loadLeaves = useCallback(() => {
     dispatch(fetchMyLeaves({ page: paginationModel.page + 1, limit: paginationModel.pageSize }))
@@ -285,7 +288,7 @@ const TabLeaveRequests = () => {
   useEffect(() => { loadLeaves() }, [loadLeaves])
 
   useEffect(() => {
-    if (!leaveTypes.length) dispatch(fetchLeaveTypes())
+    if (!leaveTypes.length) dispatch(fetchMyBalance())
   }, [dispatch, leaveTypes.length])
 
   const openAction = (id, action) => {

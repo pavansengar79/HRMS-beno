@@ -1,32 +1,36 @@
-// ** Next Import
-import { useRouter } from 'next/router'
-import { useEffect, useState } from 'react'
+// src/views/policy/HierarchicalPolicyPage.js
+//
+// Used ONLY by the catch-all hierarchical route
+// (/org/[orgId]/company/[companyId]/unit/[unitId]/[module].js) when
+// module === 'policy'.
+//
+// The flat `src/pages/policy/index.js` + `[tab].js` pages hardcode
+// `router.push('/policy/...')` for tab switching, which — when reused
+// inside the hierarchical route — was wiping out the org/company/unit
+// segments from the URL entirely (real Next.js navigation, not just a
+// param).
+//
+// This wrapper keeps tab state as a `?tab=` query param appended to the
+// SAME hierarchical pathname via shallow routing, so the URL stays
+// `/org/:orgId/company/:companyId/unit/:unitId/policy?tab=leave` instead
+// of collapsing to `/policy/leave`.
 
-// ** View Import
+import { useRouter } from 'next/router'
 import PolicyManagement from 'src/views/policy/policyManagement'
 
-// Valid tab slugs — each maps to a separate policy section
-const VALID_TABS = ['company', 'leave', 'attendance', 'holiday', 'payroll', 'regularisation']
-
 const PolicyTab = () => {
-    const router = useRouter()
-    const { tab } = router.query
-    const [activeTab, setActiveTab] = useState('company')
+  const router = useRouter()
+  const { tab } = router.query
 
-    useEffect(() => {
-        if (!tab) return
+  const handleTabChange = value => {
+    router.push(
+      { pathname: router.pathname, query: { ...router.query, tab: value } },
+      undefined,
+      { shallow: true }
+    )
+  }
 
-        if (!VALID_TABS.includes(tab)) {
-            router.replace('/policy/company')
-        } else {
-            setActiveTab(tab)
-        }
-    }, [tab, router])
-
-    // Wait for router to be ready before rendering
-    if (!router.isReady) return null
-
-    return <PolicyManagement tab={activeTab} />
+  return <PolicyManagement tab={tab || 'company'} onTabChange={handleTabChange} />
 }
 
 export default PolicyTab

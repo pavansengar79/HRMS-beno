@@ -11,6 +11,7 @@ import Tooltip from '@mui/material/Tooltip'
 import { alpha } from '@mui/material/styles'
 import Icon from 'src/@core/components/icon'
 import axiosRequest from 'src/utils/AxiosInterceptor'
+import { getAvatarUrl, getInitials } from 'src/utils/employeeAvatar'
 
 /**
  * EmployeeProfile Component
@@ -79,8 +80,9 @@ const EmployeeProfile = ({
     )
   }
 
-  const initials = `${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}` || employee.name?.[0] || '?'
-  const profilePic = employee.profilePicture || employee.avatar || employee.photo
+  // Use centralized avatar utility
+  const profilePic = getAvatarUrl(employee)
+  const initials = getInitials(employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`)
 
   if (compact) {
     return (
@@ -89,7 +91,7 @@ const EmployeeProfile = ({
           <Avatar 
             src={profilePic} 
             sx={{ width: avatarSizes[size], height: avatarSizes[size] }}
-          >
+          >!profilePic && 
             {initials}
           </Avatar>
         )}
@@ -107,7 +109,7 @@ const EmployeeProfile = ({
           src={profilePic} 
           sx={{ width: avatarSizes[size], height: avatarSizes[size], fontSize: '1.25rem' }}
         >
-          {initials}
+          {!profilePic && initials}
         </Avatar>
       )}
       

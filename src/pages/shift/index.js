@@ -47,6 +47,7 @@ import {
 } from 'src/store/shift/shiftSwapSlice'
 import { fetchAllEmployees } from 'src/store/employee/employeeSlice'
 import { selectAllHierarchyUnits, fetchHierarchy } from 'src/store/hierarchy/hierarchySlice'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 import useUnitContext from 'src/hooks/useUnitContext'
 
 const Header = styled(Box)(({ theme }) => ({
@@ -847,6 +848,7 @@ const ShiftRosterPage = () => {
   // ✅ Use useUnitContext for consistent ID resolution
   const { orgId, companyId, unitId } = useUnitContext()
   const units = useSelector(selectAllHierarchyUnits)
+  const roleSlug = useSelector(selectRoleSlug)
 
   const [tabValue, setTabValue] = useState(0)
   const initialized = useRef(false)
@@ -865,13 +867,17 @@ const ShiftRosterPage = () => {
     const init = async () => {
       initialized.current = true
 
-      // Fetch hierarchy if needed
-      if (units.length === 0) {
+      // Fetch hierarchy ONLY for org_admin and company_admin roles
+      // unit_admin, hr_manager, manager, employee do NOT have access to /units API
+      const hierarchyRoles = ['org_admin', 'org_head', 'company_admin', 'company_hr_manager']
+      
+      // Fetch hierarchy only if user has access and units not loaded
+      if (units.length === 0 && hierarchyRoles.includes(roleSlug)) {
         try {
           await dispatch(fetchHierarchy()).unwrap()
         } catch (err) {
           console.error('Failed to fetch hierarchy:', err)
-          return
+          // Don't return - continue to fetch shift data
         }
       }
 

@@ -278,6 +278,8 @@ const SUPER_ADMIN_NAV = stamp([
   { title: 'Organisations',       icon: 'tabler:building-skyscraper', path: '/organisation' },
   { title: 'Customers',           icon: 'tabler:users-group',         path: '/customers' },
   { title: 'Plans & Billing',     icon: 'tabler:credit-card',         path: '/pages/plan' },
+  { sectionTitle: 'ADMINISTRATION' },
+  { title: 'Access Control',      icon: 'tabler:lock',                path: '/admin/access-control' },
 ])
 
 const EMPLOYEE_NAV = stamp([
@@ -329,11 +331,12 @@ const VerticalNavItems = () => {
   const hasPermission = slug => permissions.includes(slug) || roleSlug === 'super_admin'
 
   // Fetch hierarchy data once per role
+  // ONLY org_admin and company_admin can call companies/units APIs
+  // unit_admin, hr_manager, manager, employee do NOT have access to these APIs
   useEffect(() => {
     const hierarchyRoles = [
       'org_admin', 'org_head',
       'company_admin', 'company_hr_manager',
-      'unit_admin', 'hr_manager',
     ]
     if (roleSlug && hierarchyRoles.includes(roleSlug)) {
       dispatch(fetchHierarchy())

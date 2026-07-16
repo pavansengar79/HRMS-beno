@@ -591,7 +591,25 @@ console.log("Ewe",employee)
           <InfoRow icon={<Icon icon='tabler:mail' fontSize={ic.fontSize} />}              label='Email'       value={employee.email} isLink linkHref={`mailto:${employee.email}`} />
           <InfoRow icon={<Icon icon='tabler:building-community' fontSize={ic.fontSize} />} label='Department' value={deptName} />
           <InfoRow icon={<Icon icon='tabler:calendar-event' fontSize={ic.fontSize} />}    label='Joined'      value={joiningFormatted} />
-          {/* <InfoRow icon={<Icon icon='tabler:user-circle' fontSize={ic.fontSize} />}       label='Reports to'  value={managerName} /> */}
+          {/* Reporting Manager with avatar */}
+          <Box sx={{ display: 'flex', alignItems: 'center', py: 1.5 }}>
+            <Box sx={{ mr: 2, display: 'flex', alignItems: 'center' }}>
+              <Icon icon='tabler:user-circle' fontSize={ic.fontSize} />
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+              <Typography variant='caption' sx={{ color: 'text.disabled' }}>Reports to</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <Avatar
+                  src={employee.reportingManagerId?.profilePhoto}
+                  alt={managerName}
+                  sx={{ width: 24, height: 24, fontSize: '0.65rem', backgroundColor: 'primary.main' }}
+                >
+                  {!employee.reportingManagerId?.profilePhoto && managerName !== '—' && managerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                </Avatar>
+                <Typography variant='body2' sx={{ color: 'text.primary' }}>{managerName}</Typography>
+              </Box>
+            </Box>
+          </Box>
         </Box>
 
         <Divider sx={{ my: 2 }} />

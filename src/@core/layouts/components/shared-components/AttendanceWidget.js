@@ -5,6 +5,7 @@ import { Box, Button, Typography, CircularProgress, Avatar, AvatarGroup, Tooltip
 import { Icon } from '@iconify/react'
 import toast from 'react-hot-toast'
 import axiosRequest from 'src/utils/AxiosInterceptor'
+import { getInitials } from 'src/utils/employeeAvatar'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Attendance Widget - Self-contained, no drawer
@@ -213,7 +214,7 @@ const AttendanceWidget = ({ canMarkAttendance }) => {
             {clockedInEmployees.map(emp => (
               <Tooltip key={emp.attendanceId} title={`${emp.name} • ${formatPunchInTime(emp.checkIn)}`} arrow>
                 <Avatar alt={emp.name} src={emp.profilePhoto} sx={{ backgroundColor: 'primary.main', border: emp.isWFH ? '2px solid #0EA5E9' : '2px solid #22C55E' }}>
-                  {emp.name?.charAt(0)?.toUpperCase()}
+                  {!emp.profilePhoto && getInitials(emp.name)}
                 </Avatar>
               </Tooltip>
             ))}

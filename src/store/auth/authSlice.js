@@ -34,6 +34,7 @@ const initialState = {
   subscription: null,
   permissions: [], permissionsByModule: {},
   isAuthenticated: false, loading: false, error: null,
+  profilePhoto: null,  // Employee DP
 }
 
 const authSlice = createSlice({
@@ -46,6 +47,7 @@ const authSlice = createSlice({
       state.user = userWithoutRole; state.token = token
       state.isAuthenticated = true; state.loading = false; state.error = null
       state.subscription = subscription || null
+      state.profilePhoto = user?.profilePhoto || null  // Employee DP
       state.role = role?.display_name || role?.name || null
       state.roleSlug = role?.slug || null
       state.roleId = role?.id || role?._id || null
@@ -59,6 +61,7 @@ const authSlice = createSlice({
       state.user = userWithoutRole; state.token = token
       state.isAuthenticated = true; state.loading = false
       state.subscription = subscription || null
+      state.profilePhoto = user?.profilePhoto || null  // Employee DP
       state.role = role?.display_name || role?.name || null
       state.roleSlug = role?.slug || null
       state.roleId = role?.id || role?._id || null
@@ -83,6 +86,7 @@ const authSlice = createSlice({
           const { role, subscription, ...userWithoutRole } = payload.user
           state.user = userWithoutRole
           state.subscription = subscription || null
+          state.profilePhoto = payload.user?.profilePhoto || null  // Employee DP
           if (role) {
             state.role = role?.display_name || role?.name || null
             state.roleSlug = role?.slug || null
@@ -117,6 +121,7 @@ export const selectLevel           = s => s.auth.level
 export const selectSubscription    = s => s.auth.subscription
 export const selectPermissions     = s => s.auth.permissions
 export const selectPermissionsByModule = s => s.auth.permissionsByModule
+export const selectProfilePhoto    = s => s.auth.profilePhoto  // Employee DP selector
 
 // ─── Permission Check Helpers ───────────────────────────────────────────────
 export const hasPermission = (state, permissionName) => {

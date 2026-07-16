@@ -28,7 +28,7 @@ const EmployeesPage   = dynamic(() => import('src/pages/users'),       { loading
 const AttendancePage  = dynamic(() => import('src/pages/attendance'),  { loading: () => <Loader /> })
 const LeavesPage      = dynamic(() => import('src/pages/leaves'),      { loading: () => <Loader /> })
 const PayrollPage     = dynamic(() => import('src/pages/payroll'),     { loading: () => <Loader /> })
-const PolicyPage      = dynamic(() => import('src/pages/policy'),      { loading: () => <Loader /> })
+const PolicyPage = dynamic(() => import('src/views/policy/policyTab'), { loading: () => <Loader /> })
 const HolidaysPage    = dynamic(() => import('src/pages/holidays'),    { loading: () => <Loader /> })
 
 const MODULE_MAP = {

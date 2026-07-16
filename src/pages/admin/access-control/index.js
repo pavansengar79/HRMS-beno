@@ -125,7 +125,7 @@ const RoleDetailModal = ({ open, role, onClose, onEdit }) => {
       </DialogContent>
       <DialogActions>
         <Button variant='outlined' onClick={onClose}>Close</Button>
-        {!role.isSystem && <Button variant='contained' onClick={() => { onClose(); onEdit(role) }}>Edit Role</Button>}
+        {(roleSlug === 'SUPER_ADMIN' || !role.isSystem) && <Button variant='contained' onClick={() => { onClose(); onEdit(role) }}>Edit Role</Button>}
       </DialogActions>
     </Dialog>
   )
@@ -943,14 +943,14 @@ const AccessControlPage = () => {
                                 <Icon icon='tabler:layout-grid' fontSize={16} />
                               </IconButton>
                             </Tooltip>}
-                            {!isSystem && canUpdate && (
+                            {(roleSlug === 'SUPER_ADMIN' || !isSystem) && canUpdate && (
                               <Tooltip title='Edit Role'>
                                 <IconButton size='small' onClick={() => { setEditRole(role); setFormOpen(true) }}>
                                   <Icon icon='tabler:pencil' fontSize={16} />
                                 </IconButton>
                               </Tooltip>
                             )}
-                            {!isSystem && canDelete && (
+                            {(roleSlug === 'SUPER_ADMIN' || !isSystem) && canDelete && (
                               <Tooltip title={holders > 0 ? `Cannot delete — ${holders} users` : 'Delete Role'}>
                                 <span>
                                   <IconButton size='small' color='error' disabled={holders > 0} onClick={() => handleDelete(role)}>

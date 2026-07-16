@@ -26,7 +26,7 @@ export const fetchAllEmployees = createAsyncThunk(
       const params = new URLSearchParams()
       params.append('limit', limit)
       if (companyId) params.append('companyId', companyId)
-      if (unitId) params.append('unitId', unitId)
+      if (unitId) params.append('unit_id', unitId)
       if (departmentId) params.append('departmentId', departmentId)
       
       const res = await axiosRequest.get(`/api/v1/employees?${params.toString()}`)

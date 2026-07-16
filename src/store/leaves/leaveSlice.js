@@ -202,6 +202,7 @@ const leaveSlice = createSlice({
 
     // leave types
     leaveTypes: [],
+    balancedLeaveTypes: [],
     leaveTypesLoading: false,
     leaveTypesError: null,
 
@@ -309,9 +310,16 @@ const leaveSlice = createSlice({
         // Shape: double-wrapped { data: { success, data: { balances[] } } }
         d = payload.data.data
       }
+      // console.log("Balances:", d.balances);
       state.balanceEmployee = d.employee ?? null
       state.balanceYear     = d.year     ?? null
       state.balances        = d.balances ?? []
+      state.balancedLeaveTypes = (d.balances ?? [])
+  .filter(balance => (balance.remaining ?? balance.balance ?? 0) > 0)
+  .map(balance => ({
+    ...balance.leaveTypeId,
+    balance: balance.remaining ?? balance.balance
+  }))
       state.balanceSummary  = d.summary  ?? null
     }
 

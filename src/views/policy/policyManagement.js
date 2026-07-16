@@ -70,7 +70,7 @@ const TABS = [
 
 // ─── PolicyManagement ─────────────────────────────────────────────────────────
 
-const PolicyManagement = ({ tab }) => {
+const PolicyManagement = ({ tab, onTabChange }) => {
     const [activeTab, setActiveTab] = useState(tab)
     const [isLoading, setIsLoading] = useState(false)
 
@@ -81,17 +81,32 @@ const PolicyManagement = ({ tab }) => {
     // Filter tabs based on permissions
     const visibleTabs = TABS.filter(t => permissions.includes(t.permission))
 
+    // When embedded under a hierarchical (org/company/unit) route, the parent
+    // passes onTabChange so we update the URL via that context's own router
+    // logic instead of hardcoding a flat `/policy/...` path — which would
+    // strip the org/company/unit segments from the URL.
+    const goToTab = value => {
+        if (onTabChange) onTabChange(value)
+        else router.replace(`/policy/${value}`)
+    }
+
     useEffect(() => {
         if (tab && tab !== activeTab) setActiveTab(tab)
         // If current tab is not visible, redirect to first visible tab
         if (visibleTabs.length > 0 && !visibleTabs.find(t => t.value === tab)) {
-            router.replace(`/policy/${visibleTabs[0].value}`)
+            goToTab(visibleTabs[0].value)
         }
-    }, [tab, visibleTabs, router, activeTab])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab, visibleTabs, activeTab])
 
     const handleChange = (event, value) => {
-        setIsLoading(true)
-        router.push(`/policy/${value}`).then(() => setIsLoading(false))
+        if (onTabChange) {
+            setActiveTab(value)
+            onTabChange(value)
+        } else {
+            setIsLoading(true)
+            router.push(`/policy/${value}`).then(() => setIsLoading(false))
+        }
     }
 
     // If no tabs visible, show access denied

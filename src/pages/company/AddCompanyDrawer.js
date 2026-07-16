@@ -23,9 +23,9 @@ const schema = yup.object().shape({
   company_name:  yup.string().required('Company name is required'),
   company_email: yup.string().email('Enter valid email').required('Company email is required'),
   company_phone: yup.string().required('Phone is required'),
-  admin_name:    yup.string().required('Admin name is required'),
-  admin_email:   yup.string().email('Enter valid email').required('Admin email is required'),
-  admin_phone:   yup.string(),
+  // admin_name:    yup.string().required('Admin name is required'),
+  // admin_email:   yup.string().email('Enter valid email').required('Admin email is required'),
+  // admin_phone:   yup.string(),
 })
 
 const AddCompanyDrawer = ({ open, toggle }) => {
@@ -66,7 +66,7 @@ const AddCompanyDrawer = ({ open, toggle }) => {
         <Controller name='company_phone' control={control} render={({ field }) => (
           <CustomTextField {...field} fullWidth label='Company Phone' sx={{ mb: 4 }} error={!!errors.company_phone} helperText={errors.company_phone?.message} />
         )} />
-        <Typography variant='subtitle2' sx={{ mb: 2, color: 'text.disabled', textTransform: 'uppercase', fontSize: '0.75rem' }}>Admin Details</Typography>
+        {/* <Typography variant='subtitle2' sx={{ mb: 2, color: 'text.disabled', textTransform: 'uppercase', fontSize: '0.75rem' }}>Admin Details</Typography>
         <Controller name='admin_name' control={control} render={({ field }) => (
           <CustomTextField {...field} fullWidth label='Admin Full Name' sx={{ mb: 4 }} error={!!errors.admin_name} helperText={errors.admin_name?.message} />
         )} />
@@ -75,7 +75,7 @@ const AddCompanyDrawer = ({ open, toggle }) => {
         )} />
         <Controller name='admin_phone' control={control} render={({ field }) => (
           <CustomTextField {...field} fullWidth label='Admin Phone (optional)' sx={{ mb: 4 }} />
-        )} />
+        )} /> */}
         <Box sx={{ display: 'flex', gap: 4 }}>
           <Button fullWidth type='submit' variant='contained' disabled={loading}>
             {loading ? <CircularProgress size={20} /> : 'Create'}
