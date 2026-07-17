@@ -160,20 +160,23 @@ const useApplicabilityOptions = () => {
   const [departments, setDepartments] = useState([])
   const [designations, setDesignations] = useState([])
   const [roles, setRoles] = useState([])
+  const [shifts, setShifts] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchOptions = async () => {
       try {
         setLoading(true)
-        const [deptRes, desigRes, roleRes] = await Promise.all([
+        const [deptRes, desigRes, roleRes, shiftRes] = await Promise.all([
           axiosRequest.get('/api/v1/departments'),
           axiosRequest.get('/api/v1/designations'),
-          axiosRequest.get('/api/v1/roles')
+          axiosRequest.get('/api/v1/roles'),
+          axiosRequest.get('/api/v1/shifts?limit=100')
         ])
         setDepartments(deptRes?.data || [])
         setDesignations(desigRes?.data || [])
         setRoles(roleRes?.data || [])
+        setShifts(shiftRes?.data?.shifts || shiftRes?.data || [])
       } catch (err) {
         console.error('Failed to load applicability options:', err)
       } finally {
@@ -183,11 +186,18 @@ const useApplicabilityOptions = () => {
     fetchOptions()
   }, [])
 
+  return { departments, designations, roles, shifts, loading }
+}
+      }
+    }
+    fetchOptions()
+  }, [])
+
   return { departments, designations, roles, loading }
 }
 
 const ApplicabilitySection = ({ control, watch }) => {
-  const { departments, designations, roles, loading } = useApplicabilityOptions()
+  const { departments, designations, roles, shifts, loading } = useApplicabilityOptions()
   const [locationInput, setLocationInput] = useState('')
 
   // Helper to convert role slug to object for Autocomplete (backend stores roles as strings)
@@ -622,6 +632,49 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
 
         {/* ── Applicability ──────────────────────────────────────── */}
         <ApplicabilitySection control={control} watch={watch} />
+
+        <Divider />
+
+        {/* ── Shift Reference (Optional - Auto-populate timings) ──────────────────────── */}
+        <Box>
+          <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
+            Link to Shift (Optional)
+          </Typography>
+          <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
+            Select an existing shift to auto-populate timings below. Manual entry still available.
+          </Typography>
+          <Grid container spacing={4}>
+            <Grid item xs={12} sm={6}>
+              <Controller name='shift_id' control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    size='small'
+                    options={shifts}
+                    loading={loading}
+                    getOptionLabel={option => option.name || ''}
+                    isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
+                    value={shifts.find(s => s._id === field.value) || null}
+                    onChange={(_, newValue) => {
+                      field.onChange(newValue?._id || null)
+                      if (newValue) {
+                        setValue('shift.name', newValue.name)
+                        setValue('shift.start', newValue.startTime)
+                        setValue('shift.end', newValue.endTime)
+                        setValue('shift.graceMinutes', newValue.gracePeriodMinutes)
+                        setValue('shift.minimumHours', Math.floor((newValue.workingMinutes || 480) / 60))
+                        setValue('shift.halfDayMinHours', Math.floor((newValue.halfDayThresholdMinutes || 240) / 60))
+                        toast.success(`Shift timings loaded from "${newValue.name}"`)
+                      }
+                    }}
+                    renderInput={params => (
+                      <TextField {...params} label='Select Shift' placeholder='Search shifts...' />
+                    )}
+                  />
+                )}
+              />
+            </Grid>
+          </Grid>
+        </Box>
 
         <Divider />
 

@@ -18,6 +18,17 @@ import {
   TableCell,
   TableHead,
   TableRow,
+} from '@mui/material'
+import { alpha } from '@mui/material/styles'
+import Icon from 'src/@core/components/icon'
+import toast from 'react-hot-toast'
+
+import CreateDelegationDialog from './create'
+import { 
+  fetchMyDelegations, 
+  fetchReceivedDelegations,
+  revokeDelegation 
+} from 'src/store/delegation/delegationSlice'
   TableContainer,
   Avatar,
   LinearProgress,
@@ -70,15 +81,17 @@ const DelegationPage = () => {
   // Use existing delegation slice pattern
   const delegationState = useSelector(state => state.delegation || {})
   const {
-    list: delegations = [],
-    received: receivedDelegations = [],
-    loading = false,
+    myDelegations = [],
+    receivedDelegations = [],
+    myDelegationsLoading = false,
+    receivedLoading = false,
     error
   } = delegationState
 
   // ── Fetch delegations on mount ──────────────────────────────────────────────
   useEffect(() => {
-    // Will integrate with actual Redux actions when slice is updated
+    dispatch(fetchMyDelegations({ page: 1, limit: 20 }))
+    dispatch(fetchReceivedDelegations({ page: 1, limit: 20 }))
   }, [dispatch])
 
   // ── Format date ─────────────────────────────────────────────────────────────
@@ -92,7 +105,8 @@ const DelegationPage = () => {
   }
 
   // ── Current list based on tab ────────────────────────────────────────────────
-  const currentList = activeTab === 0 ? delegations : receivedDelegations
+  const currentList = activeTab === 0 ? myDelegations : receivedDelegations
+  const loading = activeTab === 0 ? myDelegationsLoading : receivedLoading
 
   return (
     <Grid container spacing={6}>
@@ -191,17 +205,36 @@ const DelegationPage = () => {
                               color: '#6366f1',
                               fontWeight: 600
                             }}>
-                              ?
+                              {(activeTab === 0 ? delegation.delegatee?.name : delegation.delegator?.name)?.charAt(0) || '?'}
                             </Avatar>
                             <Box>
                               <Typography variant='body2' fontWeight={600}>
-                                User
+                                {activeTab === 0 
+                                  ? (delegation.delegatee?.name || delegation.delegatee?.email || 'Unknown User')
+                                  : (delegation.delegator?.name || delegation.delegator?.email || 'Unknown User')
+                                }
                               </Typography>
                             </Box>
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Typography variant='body2'>—</Typography>
+                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                            {(delegation.permissionSlugs || delegation.permissions || []).slice(0, 3).map(perm => (
+                              <Chip 
+                                key={perm} 
+                                label={perm} 
+                                size='small' 
+                                variant='outlined'
+                              />
+                            ))}
+                            {(delegation.permissionSlugs || delegation.permissions || []).length > 3 && (
+                              <Chip 
+                                label={`+${(delegation.permissionSlugs || delegation.permissions || []).length - 3}`} 
+                                size='small' 
+                                color='primary'
+                              />
+                            )}
+                          </Box>
                         </TableCell>
                         <TableCell>
                           <Typography variant='body2'>{fmtDate(delegation.startDate)}</Typography>
