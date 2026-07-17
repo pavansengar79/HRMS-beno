@@ -18,17 +18,6 @@ import {
   TableCell,
   TableHead,
   TableRow,
-} from '@mui/material'
-import { alpha } from '@mui/material/styles'
-import Icon from 'src/@core/components/icon'
-import toast from 'react-hot-toast'
-
-import CreateDelegationDialog from './create'
-import { 
-  fetchMyDelegations, 
-  fetchReceivedDelegations,
-  revokeDelegation 
-} from 'src/store/delegation/delegationSlice'
   TableContainer,
   Avatar,
   LinearProgress,
@@ -46,6 +35,11 @@ import Icon from 'src/@core/components/icon'
 import toast from 'react-hot-toast'
 
 import CreateDelegationDialog from './create'
+import { 
+  fetchMyDelegations, 
+  fetchReceivedDelegations,
+  revokeDelegation 
+} from 'src/store/delegation/delegationSlice'
 
 // ─── Status Color Map ───────────────────────────────────────────────────────
 const statusColors = {

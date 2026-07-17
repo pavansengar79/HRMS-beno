@@ -143,6 +143,12 @@ export const PERMISSION_BUTTONS = {
   HOLIDAY_CREATE: 'holiday.create',
   HOLIDAY_UPDATE: 'holiday.update',
   HOLIDAY_DELETE: 'holiday.delete',
+
+  // Biometric module
+  BIOMETRIC_VIEW: 'biometric.read',
+  BIOMETRIC_CREATE: 'biometric.create',
+  BIOMETRIC_UPDATE: 'biometric.update',
+  BIOMETRIC_DELETE: 'biometric.delete',
 }
 
 

@@ -47,7 +47,7 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 import { useForm, Controller, useFieldArray } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { useSelector } from 'react-redux'
-import { selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectRoleSlug, selectPermissions } from 'src/store/auth/authSlice'
 
 // ** API
 import axiosRequest from 'src/utils/AxiosInterceptor'
@@ -56,8 +56,9 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 
 const EMPLOYMENT_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']
 
-// ─── Hook to fetch dropdown options ───────────────────────────────────────────
+// ─── Hook to fetch dropdown options with permission checks ────────────────────
 const useApplicabilityOptions = () => {
+  const permissions = useSelector(selectPermissions) || []
   const [departments, setDepartments] = useState([])
   const [designations, setDesignations] = useState([])
   const [roles, setRoles] = useState([])
@@ -67,14 +68,36 @@ const useApplicabilityOptions = () => {
     const fetchOptions = async () => {
       try {
         setLoading(true)
-        const [deptRes, desigRes, roleRes] = await Promise.all([
-          axiosRequest.get('/api/v1/departments'),
-          axiosRequest.get('/api/v1/designations'),
-          axiosRequest.get('/api/v1/roles')
-        ])
-        setDepartments(deptRes?.data || [])
-        setDesignations(desigRes?.data || [])
-        setRoles(roleRes?.data || [])
+        const requests = []
+        const keys = []
+        
+        // Only fetch if user has read permission for each resource
+        if (permissions.includes('department.read')) {
+          requests.push(axiosRequest.get('/api/v1/departments'))
+          keys.push('departments')
+        }
+        if (permissions.includes('designation.read')) {
+          requests.push(axiosRequest.get('/api/v1/designations'))
+          keys.push('designations')
+        }
+        if (permissions.includes('role.read')) {
+          requests.push(axiosRequest.get('/api/v1/roles'))
+          keys.push('roles')
+        }
+
+        if (requests.length === 0) {
+          setLoading(false)
+          return
+        }
+
+        const responses = await Promise.all(requests)
+        
+        responses.forEach((res, index) => {
+          const key = keys[index]
+          if (key === 'departments') setDepartments(res?.data || [])
+          else if (key === 'designations') setDesignations(res?.data || [])
+          else if (key === 'roles') setRoles(res?.data || [])
+        })
       } catch (err) {
         console.error('Failed to load applicability options:', err)
       } finally {
@@ -82,7 +105,7 @@ const useApplicabilityOptions = () => {
       }
     }
     fetchOptions()
-  }, [])
+  }, [permissions])
 
   return { departments, designations, roles, loading }
 }
@@ -914,9 +937,51 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
   useEffect(() => {
     if (open) {
       if (editData) {
+        // ✅ Convert IDs to objects for multiselect fields
+        const convertedApplicableFor = {
+          departments: (editData.applicableFor?.departments || []).map(id => {
+            if (typeof id === 'string') {
+              // Find full object from options, else keep as string ID
+              const found = departmentOptions.find(d => d._id === id || d.id === id)
+              return found || id  // Return ID string if not found
+            }
+            // Already an object (with _id property)
+            if (id && typeof id === 'object' && (id._id || id.id)) {
+              // Try to find matching object from options
+              const found = departmentOptions.find(d => d._id === id._id || d.id === id.id)
+              return found || id  // Return original object if not found
+            }
+            return id
+          }),
+          designations: (editData.applicableFor?.designations || []).map(id => {
+            if (typeof id === 'string') {
+              const found = designationOptions.find(d => d._id === id || d.id === id)
+              return found || id
+            }
+            if (id && typeof id === 'object' && (id._id || id.id)) {
+              const found = designationOptions.find(d => d._id === id._id || d.id === id.id)
+              return found || id
+            }
+            return id
+          }),
+          roles: (editData.applicableFor?.roles || []).map(id => {
+            if (typeof id === 'string') {
+              const found = roleOptions.find(r => r._id === id || r.id === id || r.slug === id)
+              return found || id
+            }
+            if (id && typeof id === 'object' && (id._id || id.id)) {
+              const found = roleOptions.find(r => r._id === id._id || r.id === id.id)
+              return found || id
+            }
+            return id
+          }),
+          employmentTypes: editData.applicableFor?.employmentTypes || ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']
+        }
+
         reset({
           ...defaultPolicyValues,
           ...editData,
+          applicableFor: convertedApplicableFor,
           leaveTypes: (editData.leaveTypes || []).map(lt => ({
             ...defaultPolicyLeaveEntry,
             leaveTypeId: lt.leaveTypeId || '',
@@ -943,6 +1008,7 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
         reset(defaultPolicyValues)
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editData, reset])
 
   // ✅ Strip internal/meta fields before sending to backend
@@ -1205,24 +1271,36 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                     size='small'
                     loading={applicabilityLoading}
                     options={departmentOptions}
-                    getOptionLabel={option => option.name || ''}
-                    isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
+                    getOptionLabel={option => {
+                      // Handle both string IDs and objects
+                      if (typeof option === 'string') return departmentOptions.find(d => d._id === option)?.name || option
+                      return option?.name || ''
+                    }}
+                    isOptionEqualToValue={(option, value) => {
+                      const valueId = value._id || value.id || value
+                      return option._id === valueId || option.id === valueId
+                    }}
                     value={field.value || []}
                     onChange={(_, newValue) => field.onChange(newValue)}
                     renderInput={params => (
                       <TextField {...params} placeholder='Select departments' />
                     )}
                     renderTags={(value, getTagProps) =>
-                      value.map((option, index) => (
-                        <Chip
-                          {...getTagProps({ index })}
-                          key={option._id || option.id}
-                          label={option.name}
-                          size='small'
-                          variant='tonal'
-                          color='primary'
-                        />
-                      ))
+                      value.map((option, index) => {
+                        // Handle both object and string ID formats
+                        const id = typeof option === 'string' ? option : (option._id || option.id)
+                        const name = typeof option === 'string' ? option : (option.name || option)
+                        return (
+                          <Chip
+                            {...getTagProps({ index })}
+                            key={id}
+                            label={name}
+                            size='small'
+                            variant='tonal'
+                            color='primary'
+                          />
+                        )
+                      })
                     }
                   />
                 )}
@@ -1240,24 +1318,36 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                     size='small'
                     loading={applicabilityLoading}
                     options={designationOptions}
-                    getOptionLabel={option => option.name || ''}
-                    isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
+                    getOptionLabel={option => {
+                      // Handle both string IDs and objects
+                      if (typeof option === 'string') return designationOptions.find(d => d._id === option)?.name || option
+                      return option?.name || ''
+                    }}
+                    isOptionEqualToValue={(option, value) => {
+                      const valueId = value._id || value.id || value
+                      return option._id === valueId || option.id === valueId
+                    }}
                     value={field.value || []}
                     onChange={(_, newValue) => field.onChange(newValue)}
                     renderInput={params => (
                       <TextField {...params} placeholder='Select designations' />
                     )}
                     renderTags={(value, getTagProps) =>
-                      value.map((option, index) => (
-                        <Chip
-                          {...getTagProps({ index })}
-                          key={option._id || option.id}
-                          label={option.name}
-                          size='small'
-                          variant='tonal'
-                          color='warning'
-                        />
-                      ))
+                      value.map((option, index) => {
+                        // Handle both object and string ID formats
+                        const id = typeof option === 'string' ? option : (option._id || option.id)
+                        const name = typeof option === 'string' ? option : (option.name || option)
+                        return (
+                          <Chip
+                            {...getTagProps({ index })}
+                            key={id}
+                            label={name}
+                            size='small'
+                            variant='tonal'
+                            color='warning'
+                          />
+                        )
+                      })
                     }
                   />
                 )}
@@ -1275,24 +1365,39 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                     size='small'
                     loading={applicabilityLoading}
                     options={roleOptions}
-                    getOptionLabel={option => option.name || option.slug || ''}
-                    isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
+                    getOptionLabel={option => {
+                      // Handle both string IDs and objects
+                      if (typeof option === 'string') {
+                        const found = roleOptions.find(r => r._id === option || r.slug === option)
+                        return found?.name || found?.slug || option
+                      }
+                      return option?.name || option?.slug || ''
+                    }}
+                    isOptionEqualToValue={(option, value) => {
+                      const valueId = value._id || value.id || value
+                      return option._id === valueId || option.id === valueId
+                    }}
                     value={field.value || []}
                     onChange={(_, newValue) => field.onChange(newValue)}
                     renderInput={params => (
                       <TextField {...params} placeholder='Select roles' />
                     )}
                     renderTags={(value, getTagProps) =>
-                      value.map((option, index) => (
-                        <Chip
-                          {...getTagProps({ index })}
-                          key={option._id || option.id}
-                          label={option.name || option.slug}
-                          size='small'
-                          variant='tonal'
-                          color='secondary'
-                        />
-                      ))
+                      value.map((option, index) => {
+                        // Handle both object and string ID formats
+                        const id = typeof option === 'string' ? option : (option._id || option.id)
+                        const name = typeof option === 'string' ? option : (option.name || option.slug || option)
+                        return (
+                          <Chip
+                            {...getTagProps({ index })}
+                            key={id}
+                            label={name}
+                            size='small'
+                            variant='tonal'
+                            color='secondary'
+                          />
+                        )
+                      })
                     }
                   />
                 )}

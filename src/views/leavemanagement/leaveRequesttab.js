@@ -31,6 +31,7 @@ import {
   applyLeave,
   fetchLeaveTypes,
   updateLeaveStatus,
+  fetchMyBalance,
 } from 'src/store/leaves/leaveSlice'
 import { selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
 

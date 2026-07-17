@@ -207,6 +207,16 @@ const buildUnitNav = (unit, company, orgId, showBack = true, permissions = [], r
     ...(has('department.read') ? [{ title: 'Departments', icon: 'tabler:building', path: p('department') }] : []),
     ...(has('designation.read') ? [{ title: 'Designations', icon: 'tabler:briefcase', path: p('designation') }] : []),
     // Note: Business Units accessible at company level, not unit level
+    ...(has('biometric.read') ? [
+      { 
+        title: 'Biometric', 
+        icon: 'tabler:fingerprint', 
+        children: [
+          { title: 'Configuration', icon: 'tabler:settings', path: '/biometric/config' },
+          { title: 'Operations', icon: 'tabler:devices', path: '/biometric/manage' }
+        ]
+      }
+    ] : []),
 
     // ── COMPLIANCE ────────────────────────────────────────────────────────
     ...(has('leavePolicy.read') || has('attendancePolicy.read') || has('payrollPolicy.read') || has('holiday.read')
@@ -250,6 +260,16 @@ const buildDynamicNav = (roleSlug, user, units, permissions = []) => {
     ...(has('payroll.read') ? [{ title: 'Payroll', icon: 'tabler:cash', path: '/payroll', badgeContent: 'Run', badgeColor: 'warning' }] : []),
     ...(has('holiday.read') ? [{ title: 'Holidays', icon: 'tabler:calendar-event', path: '/holidays' }] : []),
     ...(has('shift.read') ? [{ title: 'Shifts', icon: 'tabler:clock', path: '/shift' }] : []),
+    ...(has('biometric.read') ? [
+      { 
+        title: 'Biometric', 
+        icon: 'tabler:fingerprint', 
+        children: [
+          { title: 'Configuration', icon: 'tabler:settings', path: '/biometric/config' },
+          { title: 'Operations', icon: 'tabler:devices', path: '/biometric/manage' }
+        ]
+      }
+    ] : []),
 
     // Policies - only show if user has any policy permission
     ...(has('leavePolicy.read') || has('attendancePolicy.read') || has('payrollPolicy.read') || has('holiday.read')

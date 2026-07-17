@@ -902,6 +902,73 @@ export const PERMISSION_PAGE_MAP = {
     dependencies: ['role.read'],
     description: 'Delete roles',
     category: 'Administration'
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // BIOMETRIC MODULE
+  // ─────────────────────────────────────────────────────────
+  'biometric.read': {
+    module: 'biometric',
+    pages: ['/biometric'],
+    actions: ['view_biometric_config', 'view_devices', 'view_sync_logs'],
+    ui: {
+      sidebar: {
+        title: 'Biometric',
+        icon: 'tabler:fingerprint',
+        badge: null,
+        order: 8
+      },
+      buttons: {
+        view: true
+      }
+    },
+    description: 'View biometric device configuration',
+    category: 'HR Operations'
+  },
+
+  'biometric.create': {
+    module: 'biometric',
+    pages: ['/biometric'],
+    actions: ['add_device', 'push_employee_to_device'],
+    ui: {
+      buttons: {
+        add: true,
+        push: true
+      }
+    },
+    dependencies: ['biometric.read'],
+    description: 'Add biometric devices and push employees',
+    category: 'HR Operations'
+  },
+
+  'biometric.update': {
+    module: 'biometric',
+    pages: ['/biometric'],
+    actions: ['edit_biometric_config', 'test_connection', 'sync_attendance'],
+    ui: {
+      buttons: {
+        edit: true,
+        sync: true,
+        test: true
+      }
+    },
+    dependencies: ['biometric.read'],
+    description: 'Edit config, test connection, sync attendance',
+    category: 'HR Operations'
+  },
+
+  'biometric.delete': {
+    module: 'biometric',
+    pages: ['/biometric'],
+    actions: ['remove_device'],
+    ui: {
+      buttons: {
+        delete: true
+      }
+    },
+    dependencies: ['biometric.read'],
+    description: 'Remove biometric devices',
+    category: 'HR Operations'
   }
 };
 

@@ -52,7 +52,7 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { useSelector } from 'react-redux'
-import { selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectRoleSlug, selectPermissions } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -89,10 +89,12 @@ const defaultValues = {
     name: 'Standard',
     start: '09:00',
     end: '18:00',
+    isNextDay: false,
     graceMinutes: 15,
     minimumHours: 8,
     halfDayMinHours: 4
   },
+  shift_id: null,
   lateMark: {
     enabled: true,
     countAfterMinutes: 15,
@@ -155,8 +157,9 @@ const StatusChip = ({ status }) => {
 // Handles departments (ObjectId array), roles (string array),
 // locations (string array), employmentTypes (enum array)
 
-// ─── Hook to fetch dropdown options ───────────────────────────────────────────
+// ─── Hook to fetch dropdown options with permission checks ────────────────────
 const useApplicabilityOptions = () => {
+  const permissions = useSelector(selectPermissions) || []
   const [departments, setDepartments] = useState([])
   const [designations, setDesignations] = useState([])
   const [roles, setRoles] = useState([])
@@ -167,16 +170,41 @@ const useApplicabilityOptions = () => {
     const fetchOptions = async () => {
       try {
         setLoading(true)
-        const [deptRes, desigRes, roleRes, shiftRes] = await Promise.all([
-          axiosRequest.get('/api/v1/departments'),
-          axiosRequest.get('/api/v1/designations'),
-          axiosRequest.get('/api/v1/roles'),
-          axiosRequest.get('/api/v1/shifts?limit=100')
-        ])
-        setDepartments(deptRes?.data || [])
-        setDesignations(desigRes?.data || [])
-        setRoles(roleRes?.data || [])
-        setShifts(shiftRes?.data?.shifts || shiftRes?.data || [])
+        const requests = []
+        const keys = []
+        
+        // Only fetch if user has read permission for each resource
+        if (permissions.includes('department.read')) {
+          requests.push(axiosRequest.get('/api/v1/departments'))
+          keys.push('departments')
+        }
+        if (permissions.includes('designation.read')) {
+          requests.push(axiosRequest.get('/api/v1/designations'))
+          keys.push('designations')
+        }
+        if (permissions.includes('role.read')) {
+          requests.push(axiosRequest.get('/api/v1/roles'))
+          keys.push('roles')
+        }
+        if (permissions.includes('shift.read')) {
+          requests.push(axiosRequest.get('/api/v1/shifts?limit=100'))
+          keys.push('shifts')
+        }
+
+        if (requests.length === 0) {
+          setLoading(false)
+          return
+        }
+
+        const responses = await Promise.all(requests)
+        
+        responses.forEach((res, index) => {
+          const key = keys[index]
+          if (key === 'departments') setDepartments(res?.data || [])
+          else if (key === 'designations') setDesignations(res?.data || [])
+          else if (key === 'roles') setRoles(res?.data || [])
+          else if (key === 'shifts') setShifts(res?.data?.shifts || res?.data || [])
+        })
       } catch (err) {
         console.error('Failed to load applicability options:', err)
       } finally {
@@ -184,16 +212,9 @@ const useApplicabilityOptions = () => {
       }
     }
     fetchOptions()
-  }, [])
+  }, [permissions])
 
   return { departments, designations, roles, shifts, loading }
-}
-      }
-    }
-    fetchOptions()
-  }, [])
-
-  return { departments, designations, roles, loading }
 }
 
 const ApplicabilitySection = ({ control, watch }) => {
@@ -419,9 +440,17 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
   const [saving, setSaving] = useState(false)
   const isEdit = Boolean(editData?._id)
 
-  // Get options for helper functions
-  const { designations: allDesignations, roles: allRoles } = useApplicabilityOptions()
+  // Get options for helper functions and shift autocomplete
+  const { designations: allDesignations, roles: allRoles, shifts, loading } = useApplicabilityOptions()
+  const permissions = useSelector(selectPermissions) || []
+  const canViewShifts = permissions.includes('shift.read')
 
+  const { control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({ defaultValues })
+
+  const lateMarkEnabled = watch('lateMark.enabled')
+  const overtimeEnabled = watch('overtime.enabled')
+  const sandwichEnabled = watch('sandwichRule.enabled')
+  
   // Helper to convert role slug to object for Autocomplete (backend stores roles as strings)
   const getRoleObject = (slugOrObj) => {
     if (typeof slugOrObj === 'object' && slugOrObj !== null) return slugOrObj
@@ -433,12 +462,6 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
     if (typeof idOrObj === 'object' && idOrObj !== null) return idOrObj
     return allDesignations.find(d => d?._id === idOrObj || d?.id === idOrObj) || { _id: idOrObj, name: idOrObj }
   }
-
-  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm({ defaultValues })
-
-  const lateMarkEnabled = watch('lateMark.enabled')
-  const overtimeEnabled = watch('overtime.enabled')
-  const sandwichEnabled = watch('sandwichRule.enabled')
 
   useEffect(() => {
     if (open) {
@@ -459,10 +482,12 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             name: editData.shift?.name || 'Standard',
             start: editData.shift?.start || '09:00',
             end: editData.shift?.end || '18:00',
+            isNextDay: editData.shift?.isNextDay ?? false,
             graceMinutes: editData.shift?.graceMinutes ?? 15,
             minimumHours: editData.shift?.minimumHours ?? 8,
             halfDayMinHours: editData.shift?.halfDayMinHours ?? 4
           },
+          shift_id: editData.shift_id?._id || editData.shift_id || null,
           lateMark: {
             enabled: editData.lateMark?.enabled ?? true,
             countAfterMinutes: editData.lateMark?.countAfterMinutes ?? 15,
@@ -534,7 +559,8 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
         },
         shiftSwapApprovalType: data.shiftSwapApprovalType || 'EMPLOYEE_THEN_MANAGER',
         description: data.description || '',
-        status: data.status || 'draft'
+        status: data.status || 'draft',
+        shift_id: data.shift_id || null
       }
 
       // Extract IDs from selected objects for departments, designations, roles
@@ -636,47 +662,51 @@ const AttendancePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
         <Divider />
 
         {/* ── Shift Reference (Optional - Auto-populate timings) ──────────────────────── */}
-        <Box>
-          <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
-            Link to Shift (Optional)
-          </Typography>
-          <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
-            Select an existing shift to auto-populate timings below. Manual entry still available.
-          </Typography>
-          <Grid container spacing={4}>
-            <Grid item xs={12} sm={6}>
-              <Controller name='shift_id' control={control}
-                render={({ field }) => (
-                  <Autocomplete
-                    size='small'
-                    options={shifts}
-                    loading={loading}
-                    getOptionLabel={option => option.name || ''}
-                    isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
-                    value={shifts.find(s => s._id === field.value) || null}
-                    onChange={(_, newValue) => {
-                      field.onChange(newValue?._id || null)
-                      if (newValue) {
-                        setValue('shift.name', newValue.name)
-                        setValue('shift.start', newValue.startTime)
-                        setValue('shift.end', newValue.endTime)
-                        setValue('shift.graceMinutes', newValue.gracePeriodMinutes)
-                        setValue('shift.minimumHours', Math.floor((newValue.workingMinutes || 480) / 60))
-                        setValue('shift.halfDayMinHours', Math.floor((newValue.halfDayThresholdMinutes || 240) / 60))
-                        toast.success(`Shift timings loaded from "${newValue.name}"`)
-                      }
-                    }}
-                    renderInput={params => (
-                      <TextField {...params} label='Select Shift' placeholder='Search shifts...' />
+        {canViewShifts && (
+          <>
+            <Box>
+              <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
+                Link to Shift (Optional)
+              </Typography>
+              <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
+                Select an existing shift to auto-populate timings below. Manual entry still available.
+              </Typography>
+              <Grid container spacing={4}>
+                <Grid item xs={12} sm={6}>
+                  <Controller name='shift_id' control={control}
+                    render={({ field }) => (
+                      <Autocomplete
+                        size='small'
+                        options={shifts}
+                        loading={loading}
+                        getOptionLabel={option => option.name || ''}
+                        isOptionEqualToValue={(option, value) => option._id === value._id || option.id === value.id}
+                        value={shifts.find(s => s._id === field.value) || null}
+                        onChange={(_, newValue) => {
+                          field.onChange(newValue?._id || null)
+                          if (newValue) {
+                            setValue('shift.name', newValue.name)
+                            setValue('shift.start', newValue.startTime)
+                            setValue('shift.end', newValue.endTime)
+                            setValue('shift.isNextDay', newValue.isNextDay || false)
+                            setValue('shift.graceMinutes', newValue.gracePeriodMinutes)
+                            setValue('shift.minimumHours', Math.floor((newValue.workingMinutes || 480) / 60))
+                            setValue('shift.halfDayMinHours', Math.floor((newValue.halfDayThresholdMinutes || 240) / 60))
+                            toast.success(`Shift timings loaded from "${newValue.name}"`)
+                          }
+                        }}
+                        renderInput={params => (
+                          <TextField {...params} label='Select Shift' placeholder='Search shifts...' />
+                        )}
+                      />
                     )}
                   />
-                )}
-              />
-            </Grid>
-          </Grid>
-        </Box>
-
-        <Divider />
+                </Grid>
+              </Grid>
+            </Box>
+            <Divider />
+          </>
+        )}
 
         {/* ── Shift Timings ──────────────────────────────────────── */}
         <Box>
