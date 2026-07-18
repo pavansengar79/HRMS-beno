@@ -114,13 +114,39 @@ const BiometricManagePage = () => {
   
   // Transactions data
   const [transactions, setTransactions] = useState([])
-  const [transactionRange, setTransactionRange] = useState({
-    fromDateTime: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    toDateTime: new Date()
-  })
+  
+  // Initialize transactionRange to today's full date range: 00:00 to 23:59
+  const getTodayRange = () => {
+    const today = new Date()
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0)
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999)
+    return { fromDateTime: startOfDay, toDateTime: endOfDay }
+  }
+  
+  const [transactionRange, setTransactionRange] = useState(getTodayRange())
+  
+  // Sync results
+  const [syncResult, setSyncResult] = useState(null)
   
   // Finger index for enrollment
   const [fingerIndex, setFingerIndex] = useState(0)
+  
+  // Assign biometric code state
+  const [assignCodeDialogOpen, setAssignCodeDialogOpen] = useState(false)
+  const [selectedBiometricCode, setSelectedBiometricCode] = useState(null)
+  const [employeesWithoutCode, setEmployeesWithoutCode] = useState([])
+  const [selectedEmployeeToAssign, setSelectedEmployeeToAssign] = useState('')
+  
+  // Pagination state
+  const [matchedPage, setMatchedPage] = useState(1)
+  const [unmatchedPage, setUnmatchedPage] = useState(1)
+  const [paginationData, setPaginationData] = useState({
+    matchedTotal: 0,
+    unmatchedTotal: 0,
+    matchedTotalPages: 1,
+    unmatchedTotalPages: 1
+  })
+  const RECORDS_PER_PAGE = 20
 
   // ─── Auth Check ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -152,6 +178,55 @@ const BiometricManagePage = () => {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  // ─── Auto-Sync on Attendance Tab Toggle ────────────────────────────────────────
+  // Automatically sync attendance when user toggles to attendance tab
+  // Uses today's full date range: 00:00:00 to 23:59:59
+  const [hasAutoSynced, setHasAutoSynced] = useState(false)
+  
+  useEffect(() => {
+    // Only auto-sync when toggling to attendance tab, and only once per session
+    if (config?._id && selectedDevice && activeTab === 'attendance' && !hasAutoSynced) {
+      autoSyncAttendance()
+      setHasAutoSynced(true)
+    }
+  }, [config?._id, selectedDevice, activeTab, hasAutoSynced])
+
+  const autoSyncAttendance = async () => {
+    if (!config || !selectedDevice) return
+    
+    setOperationLoading(true)
+    setSyncResult(null)
+    try {
+      // Use today's full date range: 00:00:00 to 23:59:59
+      const today = new Date()
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0)
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999)
+      
+      const res = await axiosRequest.post(
+        `/api/v1/biometric/config/${config._id}/devices/${selectedDevice}/sync`,
+        {
+          startTime: startOfDay,
+          endTime: endOfDay
+        }
+      )
+      
+      if (res?.success) {
+        setSyncResult(res?.data)
+        toast.success(`Auto-synced: ${res?.data?.recordsCreated || 0} created, ${res?.data?.recordsMatched || 0} matched`)
+        setPaginationData({
+          matchedTotal: res?.data?.pagination?.matchedTotal || 0,
+          unmatchedTotal: res?.data?.pagination?.unmatchedTotal || 0,
+          matchedTotalPages: Math.ceil((res?.data?.pagination?.matchedTotal || 0) / RECORDS_PER_PAGE),
+          unmatchedTotalPages: Math.ceil((res?.data?.pagination?.unmatchedTotal || 0) / RECORDS_PER_PAGE)
+        })
+      }
+    } catch (err) {
+      console.error('Auto-sync failed:', err)
+    } finally {
+      setOperationLoading(false)
     }
   }
 
@@ -199,6 +274,134 @@ const BiometricManagePage = () => {
       }
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Failed to push employee')
+    } finally {
+      setOperationLoading(false)
+    }
+  }
+
+  // ─── Poll Command Status ────────────────────────────────────────────────
+  const pollCommandStatus = async (commandId, maxAttempts = 30) => {
+    let attempts = 0
+    const poll = async () => {
+      try {
+        const res = await axiosRequest.get(`/api/v1/biometric/commands/${commandId}/status`)
+        
+        if (res?.data?.status === 'PENDING' && attempts < maxAttempts) {
+          attempts++
+          setCommandStatus(res?.data)
+          setTimeout(poll, 2000) // Poll every 2 seconds
+        } else if (res?.data?.status === 'SUCCESS') {
+          setCommandStatus(res?.data)
+          toast.success('Operation completed successfully!')
+          fetchEmployees() // Refresh employee list
+        } else if (res?.data?.status === 'FAILED') {
+          setCommandStatus(res?.data)
+          toast.error('Operation failed')
+        }
+      } catch (err) {
+        console.error('Poll error:', err)
+        toast.error('Failed to check command status')
+      }
+    }
+    poll()
+  }
+
+  // ─── Bulk Push All Employees ────────────────────────────────────────────
+  const bulkPushEmployees = async () => {
+    if (!selectedDevice) {
+      toast.error('Please select a device first')
+      return
+    }
+
+    setOperationLoading(true)
+    try {
+      const res = await axiosRequest.post(
+        `/api/v1/biometric/config/${config._id}/devices/${selectedDevice}/bulk-push`
+      )
+      
+      if (res?.success) {
+        toast.success(`Pushing ${res?.data?.pushed} employees to device...`)
+        if (res?.data?.commandId) {
+          setCommandId(res?.data?.commandId)
+          setCommandStatusDialogOpen(true)
+          pollCommandStatus(res?.data?.commandId)
+        }
+        fetchEmployees()
+      } else {
+        toast.error(res?.message || 'Failed to bulk push employees')
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to bulk push employees')
+    } finally {
+      setOperationLoading(false)
+    }
+  }
+
+  // ─── Sync All Devices ───────────────────────────────────────────────────
+  const syncAllDevices = async () => {
+    if (!config?.devices?.length) {
+      toast.error('No devices configured')
+      return
+    }
+
+    setOperationLoading(true)
+    setSyncResult(null)
+    try {
+      const today = new Date()
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0)
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999)
+
+      const res = await axiosRequest.post(
+        `/api/v1/biometric/config/${config._id}/sync-all`,
+        {
+          startTime: startOfDay.toISOString(),
+          endTime: endOfDay.toISOString()
+        }
+      )
+      
+      if (res?.success) {
+        setSyncResult(res?.data)
+        toast.success(`Synced ${res?.data?.synced} devices: ${res?.data?.totalCreated} created, ${res?.data?.totalMatched} matched`)
+      } else {
+        toast.error(res?.message || 'Failed to sync all devices')
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to sync all devices')
+    } finally {
+      setOperationLoading(false)
+    }
+  }
+
+  // ─── Sync Single Device (existing) ──────────────────────────────────────
+  const syncAttendance = async (deviceSerial) => {
+    if (!config) {
+      toast.error('No configuration loaded')
+      return
+    }
+
+    setOperationLoading(true)
+    setSyncResult(null)
+    try {
+      const today = new Date()
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0)
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999)
+
+      const res = await axiosRequest.post(
+        `/api/v1/biometric/config/${config._id}/devices/${deviceSerial}/sync`,
+        {
+          startTime: startOfDay.toISOString(),
+          endTime: endOfDay.toISOString()
+        }
+      )
+      
+      if (res?.success) {
+        setSyncResult(res?.data)
+        toast.success(`Synced: ${res?.data?.recordsCreated || 0} created, ${res?.data?.recordsMatched || 0} matched`)
+      } else {
+        toast.error(res?.message || 'Sync failed')
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Sync failed')
     } finally {
       setOperationLoading(false)
     }
@@ -295,31 +498,65 @@ const BiometricManagePage = () => {
     }
   }
 
-  // ─── Sync Attendance (Pull Transactions) ────────────────────────────────
-  const syncAttendance = async () => {
-    if (!selectedDevice) {
-      toast.error('Please select a device first')
-      return
-    }
+  // IST date formatter
+  const toIST = (isoString) => {
+    if (!isoString) return '-'
+    const d = new Date(isoString)
+    return d.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  }
 
+  // ─── Assign Biometric Code ─────────────────────────────────────────────
+  const openAssignCodeDialog = async (biometricCode) => {
+    setSelectedBiometricCode(biometricCode)
+    setSelectedEmployeeToAssign('')
     setOperationLoading(true)
     try {
-      const res = await axiosRequest.post(
-        `/api/v1/biometric/config/${config._id}/devices/${selectedDevice}/sync`,
-        {
-          startTime: transactionRange.fromDateTime,
-          endTime: transactionRange.toDateTime
-        }
-      )
+      const res = await axiosRequest.get(`/api/v1/biometric/units/${config.unit_id}/employees/without-code`)
+      setEmployeesWithoutCode(res?.data || [])
+      setAssignCodeDialogOpen(true)
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to load employees')
+    } finally {
+      setOperationLoading(false)
+    }
+  }
+
+  const handleAssignBiometricCode = async () => {
+    if (!selectedEmployeeToAssign) {
+      toast.error('Please select an employee')
+      return
+    }
+    
+    setOperationLoading(true)
+    try {
+      const res = await axiosRequest.post(`/api/v1/biometric/employees/${selectedEmployeeToAssign}/assign-code`, {
+        biometricCode: selectedBiometricCode
+      })
       
       if (res?.success) {
-        toast.success(`Synced ${res?.data?.recordsMatched || 0} records`)
-        fetchConfig()
-      } else {
-        toast.error(res?.message || 'Sync failed')
+        toast.success(res?.message || `Biometric code ${selectedBiometricCode} assigned successfully`)
+        setAssignCodeDialogOpen(false)
+        fetchEmployees() // Refresh employee list
+        
+        // Remove the assigned code from unmatched records
+        if (syncResult && syncResult.unmatchedRecords) {
+          setSyncResult({
+            ...syncResult,
+            unmatchedRecords: syncResult.unmatchedRecords.filter(r => r.employeeCode !== selectedBiometricCode),
+            unmatchedCount: syncResult.unmatchedCount - 1
+          })
+        }
       }
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Sync failed')
+      toast.error(err?.response?.data?.message || 'Failed to assign biometric code')
     } finally {
       setOperationLoading(false)
     }
@@ -623,6 +860,137 @@ const BiometricManagePage = () => {
 
               <Divider sx={{ my: 4 }} />
 
+              {/* Sync Summary */}
+              {syncResult && (
+                <Box sx={{ mb: 4 }}>
+                  <Stack direction='row' spacing={2} alignItems='center' sx={{ mb: 2 }}>
+                    <Typography variant='h6'>Sync Result</Typography>
+                    <Chip label={`${syncResult.recordsFetched} fetched`} size='small' />
+                    <Chip label={`${syncResult.recordsMatched} matched`} color='success' size='small' />
+                    <Chip label={`${syncResult.unmatchedCount} unmatched`} color='warning' size='small' />
+                  </Stack>
+
+                  {/* Matched Records Table */}
+                  {syncResult.matchedRecords?.length > 0 && (
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant='subtitle1' sx={{ mb: 1, fontWeight: 600 }}>
+                        Today's Biometric Attendance ({syncResult.matchedRecords?.length} employees)
+                      </Typography>
+                      <TableContainer component={Card} variant='outlined'>
+                        <Table size='small'>
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Employee</TableCell>
+                              <TableCell>Code</TableCell>
+                              <TableCell>Department</TableCell>
+                              <TableCell>Designation</TableCell>
+                              <TableCell>Check In (IST)</TableCell>
+                              <TableCell>Check Out (IST)</TableCell>
+                              <TableCell>Total Punches</TableCell>
+                              <TableCell>Working Hours</TableCell>
+                              <TableCell>Status</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {syncResult.matchedRecords.map((rec, idx) => (
+                              <TableRow key={idx}>
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    {rec.employeePhoto ? (
+                                      <img src={rec.employeePhoto} alt={rec.employeeName} style={{ width: 32, height: 32, borderRadius: '50%' }} />
+                                    ) : (
+                                      <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.875rem', fontWeight: 600 }}>
+                                        {rec.employeeName?.charAt(0)?.toUpperCase()}
+                                      </Box>
+                                    )}
+                                    <Box>
+                                      <Typography variant='body2' fontWeight={600}>{rec.employeeName}</Typography>
+                                      <Typography variant='caption' color='text.secondary'>{rec.employeeEmail}</Typography>
+                                    </Box>
+                                  </Box>
+                                </TableCell>
+                                <TableCell>
+                                  <Chip label={rec.employeeCode} size='small' variant='outlined' />
+                                </TableCell>
+                                <TableCell>{rec.department}</TableCell>
+                                <TableCell>{rec.designation}</TableCell>
+                                <TableCell>{toIST(rec.checkIn || rec.firstPunch)}</TableCell>
+                                <TableCell>{rec.checkOut ? toIST(rec.checkOut) : '-'}</TableCell>
+                                <TableCell>
+                                  <Chip label={rec.totalPunches || 1} size='small' color='default' />
+                                </TableCell>
+                                <TableCell>
+                                  {rec.workingHours ? `${rec.workingHours}h` : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {rec.created ? (
+                                    <Chip label='Auto-created' color='success' size='small' />
+                                  ) : (
+                                    <Chip label='Updated' color='primary' size='small' />
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  )}
+
+                  {/* Unmatched Records Table */}
+                  {syncResult.unmatchedRecords?.length > 0 && (
+                    <Box>
+                      <Typography variant='subtitle1' sx={{ mb: 1, fontWeight: 600 }}>
+                        Unmatched Records ({syncResult.unmatchedRecords?.length} unknown biometric codes)
+                      </Typography>
+                      <Alert severity='warning' sx={{ mb: 2 }}>
+                        These biometric codes don't have corresponding employees in HRMS. 
+                        Click "Assign to Employee" to map this code to an employee.
+                      </Alert>
+                      <TableContainer component={Card} variant='outlined'>
+                        <Table size='small'>
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Biometric Code</TableCell>
+                              <TableCell>First Punch (IST)</TableCell>
+                              <TableCell>Last Punch (IST)</TableCell>
+                              <TableCell>Total Punches</TableCell>
+                              <TableCell>Action</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {syncResult.unmatchedRecords.map((rec, idx) => (
+                              <TableRow key={idx}>
+                                <TableCell>
+                                  <Chip label={rec.employeeCode} color='warning' size='small' />
+                                </TableCell>
+                                <TableCell>{toIST(rec.punchTime)}</TableCell>
+                                <TableCell>{toIST(rec.lastPunchTime || rec.punchTime)}</TableCell>
+                                <TableCell>
+                                  <Chip label={rec.totalPunches || 1} size='small' />
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    size='small'
+                                    variant='contained'
+                                    color='primary'
+                                    onClick={() => openAssignCodeDialog(rec.employeeCode)}
+                                    disabled={operationLoading}
+                                    startIcon={<Icon icon='tabler:link' />}
+                                  >
+                                    Assign to Employee
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
               <Typography variant='h6' sx={{ mb: 2 }}>
                 Last Sync Status
               </Typography>
@@ -732,17 +1100,8 @@ const BiometricManagePage = () => {
                       <Button
                         variant='contained'
                         fullWidth
-                        onClick={async () => {
-                          const employeesToPush = employees.filter(e => e.status === 'ACTIVE' && !e.biometricCode)
-                          if (employeesToPush.length === 0) {
-                            toast.info('No employees to push')
-                            return
-                          }
-                          toast.info(`Pushing ${employeesToPush.length} employees...`)
-                          // Note: Would need bulk push endpoint
-                          toast.error('Bulk push endpoint not implemented yet')
-                        }}
-                        disabled={!selectedDevice}
+                        onClick={bulkPushEmployees}
+                        disabled={!selectedDevice || operationLoading}
                         startIcon={<Icon icon='tabler:users' />}
                       >
                         Push All Active Employees
@@ -761,14 +1120,8 @@ const BiometricManagePage = () => {
                       <Button
                         variant='contained'
                         fullWidth
-                        onClick={async () => {
-                          const activeDevices = config?.devices?.filter(d => d.isActive) || []
-                          toast.info(`Syncing ${activeDevices.length} devices...`)
-                          for (const device of activeDevices) {
-                            await syncAttendance(device.serialNumber)
-                          }
-                        }}
-                        disabled={!config?.devices?.length}
+                        onClick={syncAllDevices}
+                        disabled={!config?.devices?.length || operationLoading}
                         startIcon={<Icon icon='tabler:refresh' />}
                       >
                         Sync All Devices
@@ -867,6 +1220,108 @@ const BiometricManagePage = () => {
           >
             {operationLoading ? <CircularProgress size={20} /> : 'Start Enrollment'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Assign Biometric Code Dialog */}
+      <Dialog open={assignCodeDialogOpen} onClose={() => setAssignCodeDialogOpen(false)} maxWidth='sm' fullWidth>
+        <DialogTitle>Assign Biometric Code {selectedBiometricCode}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Alert severity='info' sx={{ mb: 3 }}>
+              This will assign biometric code <strong>{selectedBiometricCode}</strong> to the selected employee.
+              After assignment, the employee can enroll their fingerprint on the device.
+            </Alert>
+            
+            <Typography variant='subtitle2' sx={{ mb: 1 }}>
+              Select Employee (Active employees without biometric code):
+            </Typography>
+            
+            <Select
+              fullWidth
+              value={selectedEmployeeToAssign}
+              onChange={(e) => setSelectedEmployeeToAssign(e.target.value)}
+              displayEmpty
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value='' disabled>
+                {employeesWithoutCode.length === 0 ? 'No employees without code' : 'Select an employee...'}
+              </MenuItem>
+              {employeesWithoutCode.map(emp => (
+                <MenuItem key={emp._id} value={emp._id}>
+                  {emp.name} ({emp.employeeId}) {emp.departmentId?.name ? `- ${emp.departmentId.name}` : ''}
+                </MenuItem>
+              ))}
+            </Select>
+            
+            {employeesWithoutCode.length === 0 && (
+              <Typography variant='body2' color='text.secondary'>
+                All active employees already have biometric codes assigned.
+                You may need to create a new employee first.
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssignCodeDialogOpen(false)}>Cancel</Button>
+          <Button 
+            variant='contained'
+            onClick={handleAssignBiometricCode}
+            disabled={!selectedEmployeeToAssign || operationLoading}
+          >
+            {operationLoading ? <CircularProgress size={20} /> : 'Assign Code'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Command Status Dialog */}
+      <Dialog open={commandStatusDialogOpen} onClose={() => setCommandStatusDialogOpen(false)} maxWidth='sm' fullWidth>
+        <DialogTitle>Command Status</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant='body1' sx={{ mb: 2 }}>
+              Command ID: <strong>{commandId}</strong>
+            </Typography>
+            
+            {commandStatus ? (
+              <>
+                <Alert 
+                  severity={
+                    commandStatus.status === 'SUCCESS' ? 'success' :
+                    commandStatus.status === 'FAILED' ? 'error' : 'info'
+                  }
+                  sx={{ mb: 2 }}
+                >
+                  Status: <strong>{commandStatus.status}</strong>
+                </Alert>
+                
+                {commandStatus.responseData && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant='subtitle2'>Response:</Typography>
+                    <Typography variant='body2' component='pre' sx={{ bgcolor: 'grey.100', p: 2, borderRadius: 1 }}>
+                      {JSON.stringify(commandStatus.responseData, null, 2)}
+                    </Typography>
+                  </Box>
+                )}
+              </>
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <CircularProgress size={20} />
+                <Typography>Checking command status...</Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCommandStatusDialogOpen(false)}>Close</Button>
+          {commandStatus?.status === 'PENDING' && (
+            <Button 
+              variant='outlined'
+              onClick={() => pollCommandStatus(commandId)}
+            >
+              Refresh Status
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>
