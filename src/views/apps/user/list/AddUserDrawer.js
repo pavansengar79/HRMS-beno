@@ -33,8 +33,9 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import toast from 'react-hot-toast'
 
 // ** Redux
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { createEmployee, updateEmployee } from 'src/store/employee/employeeSlice'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 
 // ** Interceptor
 import axiosRequest from 'src/utils/AxiosInterceptor'
@@ -55,30 +56,35 @@ const Header = styled(Box)(({ theme }) => ({
 const addSchema = yup.object().shape({
   name:           yup.string().trim().min(2, 'Min 2 characters').required('Name is required'),
   email:          yup.string().email('Invalid email').required('Email is required'),
-  phone:          yup.string().matches(/^[0-9]{10}$/, 'Enter valid 10-digit number').required('Phone is required'),
+  phone:          yup.string().matches(/^[0-9]{10}$/, 'Enter valid 10-digit number').optional(),
   departmentId:   yup.string().required('Department is required'),
   joiningDate:    yup.string().required('Joining date is required'),
   employmentType: yup.string().required('Employment type is required'),
-  salaryBasic:    yup.number().typeError('Must be a number').min(0).optional(),
-  salaryHra:      yup.number().typeError('Must be a number').min(0).optional(),
-  salaryTravel:   yup.number().typeError('Must be a number').min(0).optional(),
-  salaryPf:       yup.number().typeError('Must be a number').min(0).optional(),
-  salaryTds:      yup.number().typeError('Must be a number').min(0).optional(),
   designationId: yup.string().optional(),
   reportingManagerId: yup.string().optional(),
+  // Salary fields - no validation, completely optional
+  salaryBasic:    yup.string().optional(),
+  salaryHra:      yup.string().optional(),
+  salaryTravel:   yup.string().optional(),
+  salaryPf:       yup.string().optional(),
+  salaryTds:      yup.string().optional(),
 })
 
-// Edit schema validates only the fields the PUT API accepts
-// All other fields are shown but readOnly — no validation needed for them
+// Edit schema - ALL fields editable for admin/HR
 const editSchema = yup.object().shape({
-  phone:        yup.string().matches(/^[0-9]{10}$/, 'Enter valid 10-digit number').required('Phone is required'),
+  name:           yup.string().trim().min(2, 'Min 2 characters').optional(),
+  phone:          yup.string().matches(/^[0-9]{10}$/, 'Enter valid 10-digit number').optional(),
+  departmentId:   yup.string().optional(),
+  joiningDate:    yup.string().optional(),
+  employmentType: yup.string().optional(),
   designationId: yup.string().optional(),
   reportingManagerId: yup.string().optional(),
-  salaryBasic:  yup.number().typeError('Must be a number').min(0).optional(),
-  salaryHra:    yup.number().typeError('Must be a number').min(0).optional(),
-  salaryTravel: yup.number().typeError('Must be a number').min(0).optional(),
-  salaryPf:     yup.number().typeError('Must be a number').min(0).optional(),
-  salaryTds:    yup.number().typeError('Must be a number').min(0).optional(),
+  // Salary fields - no validation, completely optional
+  salaryBasic:  yup.string().optional(),
+  salaryHra:    yup.string().optional(),
+  salaryTravel: yup.string().optional(),
+  salaryPf:     yup.string().optional(),
+  salaryTds:    yup.string().optional(),
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,6 +99,8 @@ const editSchema = yup.object().shape({
 const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
   const dispatch   = useDispatch()
   const isEditMode = Boolean(editingEmployee)
+  const roleSlug   = useSelector(selectRoleSlug)
+  const isAdminOrHR = ['org_admin', 'company_admin', 'unit_admin', 'hr_manager', 'company_hr_manager', 'super_admin', 'admin', 'hr'].includes(roleSlug)
 
   const [departments, setDepartments] = useState([])
   const [designations, setDesignations] = useState([])
@@ -119,11 +127,15 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
 
     if (isEditMode && editingEmployee) {
       // Pre-fill ALL fields from the employee object
+      // Extract +91 prefix from phone if present
+      let phoneValue = editingEmployee.phone || ''
+      phoneValue = phoneValue.replace(/^\+91\s?/, '')
+      
       reset({
-        // Read-only fields (shown for context)
+        // Name, joiningDate, employmentType editable for admin/HR
         name:           editingEmployee.name                        || '',
         email:          editingEmployee.email                       || '',
-        departmentId:   editingEmployee.departmentId?.name          || // show name for display
+        departmentId:   editingEmployee.departmentId?._id          || // use ID for dropdown
                         editingEmployee.departmentId                || '',
         joiningDate:    editingEmployee.joiningDate
                           ? editingEmployee.joiningDate.substring(0, 10)  // YYYY-MM-DD for date input
@@ -133,7 +145,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
         reportingManagerId: editingEmployee.reportingManagerId?._id || editingEmployee.reportingManagerId || '',
 
         // Editable fields
-        phone:        editingEmployee.phone              || '',
+        phone:        phoneValue,
         salaryBasic:  editingEmployee.salary?.basic      || '',
         salaryHra:    editingEmployee.salary?.hra        || '',
         salaryTravel: editingEmployee.salary?.travelAllowance || '',
@@ -177,12 +189,20 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
   // ── Submit ────────────────────────────────────────────────────────────────
   const onSubmit = async data => {
     try {
+      // Remove +91 prefix if user added it
+      const phoneValue = (data.phone || '').replace(/^\+91\s?/, '')
+      
       if (isEditMode) {
-        // PUT sends editable fields — phone, salary, designation, reporting manager
+        // PUT sends editable fields — admin/HR can edit name, joiningDate, employmentType
         const payload = {
-          phone: data.phone,
+          ...(phoneValue ? { phone: phoneValue } : {}),
           ...(data.designationId ? { designationId: data.designationId } : {}),
           ...(data.reportingManagerId ? { reportingManagerId: data.reportingManagerId } : {}),
+          // Admin/HR only fields
+          ...(isAdminOrHR && data.name?.trim() ? { name: data.name.trim() } : {}),
+          ...(isAdminOrHR && data.departmentId ? { departmentId: data.departmentId } : {}),
+          ...(isAdminOrHR && data.joiningDate ? { joiningDate: data.joiningDate } : {}),
+          ...(isAdminOrHR && data.employmentType ? { employmentType: data.employmentType } : {}),
           salary: {
             ...(data.salaryBasic  !== '' && data.salaryBasic  != null && { basic:           Number(data.salaryBasic)  }),
             ...(data.salaryHra    !== '' && data.salaryHra    != null && { hra:             Number(data.salaryHra)    }),
@@ -200,7 +220,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
         const payload = {
           name:           data.name.trim(),
           email:          data.email.trim().toLowerCase(),
-          phone:          data.phone.trim(),
+          ...(phoneValue ? { phone: phoneValue } : {}),
           departmentId:   data.departmentId,
           joiningDate:    data.joiningDate,
           employmentType: data.employmentType,
@@ -287,7 +307,10 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
         }}>
           <Icon icon='tabler:info-circle' fontSize='1rem' style={{ color: 'interit', flexShrink: 0 }} />
           <Typography variant='caption' style={{ color: 'inherit' }}>
-            Only Phone, Salary, Designation, and Reporting Manager can be updated. Other fields are shown for reference.
+            {isAdminOrHR 
+              ? 'You can edit ALL fields: Name, Department, Joining Date, Employment Type, Phone, Salary, Designation, and Reporting Manager.'
+              : 'Only Phone, Salary, Designation, and Reporting Manager can be updated. Other fields are shown for reference.'
+            }
           </Typography>
         </Box>
       )}
@@ -303,7 +326,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
               </Typography>
             </Grid>
 
-            {/* Name */}
+            {/* Name - editable for admin/HR in edit mode */}
             <Grid item xs={12}>
               <Controller name='name' control={control} render={({ field }) => (
                 <CustomTextField
@@ -315,10 +338,10 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   helperText={errors.name?.message}
                   disabled={isSubmitting}
                   InputProps={{
-                    readOnly: isEditMode,
-                    endAdornment: isEditMode ? <ReadOnlyBadge /> : null
+                    readOnly: isEditMode && !isAdminOrHR,
+                    endAdornment: isEditMode && !isAdminOrHR ? <ReadOnlyBadge /> : null
                   }}
-                  sx={{ ...(isEditMode && { '& .MuiInputBase-input': { color: 'text.disabled' } }) }}
+                  sx={{ ...(isEditMode && !isAdminOrHR && { '& .MuiInputBase-input': { color: 'text.disabled' } }) }}
                 />
               )} />
             </Grid>
@@ -344,16 +367,16 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
               )} />
             </Grid>
 
-            {/* Phone — editable in BOTH modes */}
+            {/* Phone — editable in BOTH modes, optional */}
             <Grid item xs={12}>
               <Controller name='phone' control={control} render={({ field }) => (
                 <CustomTextField
                   {...field}
                   fullWidth
-                  label='Phone'
+                  label='Phone (optional)'
                   placeholder='9876543210'
                   error={Boolean(errors.phone)}
-                  helperText={errors.phone?.message}
+                  helperText={errors.phone?.message || 'Enter 10-digit number (e.g., 9876543210)'}
                   disabled={isSubmitting}
                 />
               )} />
@@ -367,10 +390,10 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
               </Typography>
             </Grid>
 
-            {/* Department */}
+            {/* Department - editable for admin/HR in edit mode */}
             <Grid item xs={12}>
-              {isEditMode ? (
-                // In edit mode show department name as read-only text field
+              {isEditMode && !isAdminOrHR ? (
+                // Non-admin/HR: Show department name as read-only
                 <Controller name='departmentId' control={control} render={({ field }) => (
                   <CustomTextField
                     {...field}
@@ -385,7 +408,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   />
                 )} />
               ) : (
-                // In add mode show dropdown
+                // Admin/HR or Add mode: Show dropdown
                 <Controller name='departmentId' control={control} render={({ field }) => (
                   <CustomTextField
                     {...field}
@@ -398,14 +421,14 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   >
                     <MenuItem value=''>Select department</MenuItem>
                     {departments.map(d => (
-                      <MenuItem key={d.id} value={d._id}>{d.name}</MenuItem>
+                      <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
                     ))}
                   </CustomTextField>
                 )} />
               )}
             </Grid>
 
-            {/* Joining Date */}
+            {/* Joining Date - editable for admin/HR in edit mode */}
             <Grid item xs={12} sm={6}>
               <Controller name='joiningDate' control={control} render={({ field }) => (
                 <CustomTextField
@@ -418,17 +441,17 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   helperText={errors.joiningDate?.message}
                   disabled={isSubmitting}
                   InputProps={{
-                    readOnly: isEditMode,
-                    endAdornment: isEditMode ? <ReadOnlyBadge /> : null
+                    readOnly: isEditMode && !isAdminOrHR,
+                    endAdornment: isEditMode && !isAdminOrHR ? <ReadOnlyBadge /> : null
                   }}
-                  sx={{ ...(isEditMode && { '& .MuiInputBase-input': { color: 'text.disabled' } }) }}
+                  sx={{ ...(isEditMode && !isAdminOrHR && { '& .MuiInputBase-input': { color: 'text.disabled' } }) }}
                 />
               )} />
             </Grid>
 
-            {/* Employment Type */}
+            {/* Employment Type - editable for admin/HR in edit mode */}
             <Grid item xs={12} sm={6}>
-              {isEditMode ? (
+              {isEditMode && !isAdminOrHR ? (
                 <Controller name='employmentType' control={control} render={({ field }) => (
                   <CustomTextField
                     {...field}
@@ -503,16 +526,16 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
               )} />
             </Grid>
 
-            {/* ── Section: Salary ──────────────────────────────────── */}
+            {/* ── Section: Salary (ALL fields optional) ───────────────────────── */}
             <Grid item xs={12}>
               <Divider sx={{ my: 1 }} />
               <Typography variant='body2' sx={{ color: 'text.disabled', textTransform: 'uppercase', mt: 2, mb: 1 }}>
-                Salary {!isEditMode && '(optional)'}
+                Salary (optional - can be filled later)
               </Typography>
             </Grid>
 
             {[
-              { name: 'salaryBasic',  label: 'Basic' },
+              { name: 'salaryBasic',  label: 'Basic Salary' },
               { name: 'salaryHra',    label: 'HRA' },
               { name: 'salaryTravel', label: 'Travel Allowance' },
               { name: 'salaryPf',     label: 'PF' },
@@ -523,11 +546,9 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   <CustomTextField
                     {...field}
                     fullWidth
-                    type='number'
                     label={label}
-                    placeholder='0'
-                    error={Boolean(errors[name])}
-                    helperText={errors[name]?.message}
+                    placeholder='Optional - leave empty'
+                    helperText='Optional - can be added later'
                     disabled={isSubmitting}
                     InputProps={{
                       startAdornment: (

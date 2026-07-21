@@ -152,7 +152,30 @@ const AdminUserList = () => {
   useEffect(() => { load() }, [load])
   useEffect(() => { setLocalUsers(users) }, [users])
 
-  // ── Filtered rows (client-side search fallback) ───────────────────────────
+  // ── SECURITY: Role Level Hierarchy ──
+  const LEVEL_FOR_SLUG = {
+    org_admin: 'org',
+    company_admin: 'company',
+    company_hr_manager: 'company',
+    unit_admin: 'unit',
+    hr_manager: 'unit',
+  };
+  
+  const userLevel = LEVEL_FOR_SLUG[userRole] ?? 'unit';
+  const hierarchy = { org: 1, company: 2, unit: 3 };
+  const currentUserLevelOrder = hierarchy[userLevel] || 3;
+
+  // Determine visible levels based on current user
+  const getVisibleLevels = (level) => {
+    if (level === 'org') {
+      return ['org', 'company']; // org_admin sees org + company
+    }
+    return [level]; // others see only their level
+  };
+  
+  const visibleLevels = getVisibleLevels(userLevel);
+
+  // ── Filtered rows - role level filtering ──
   const filteredRows = localUsers.filter(u => {
     const q = search.toLowerCase()
     const matchSearch =
@@ -160,7 +183,12 @@ const AdminUserList = () => {
       u.name?.toLowerCase().includes(q) ||
       u.email?.toLowerCase().includes(q)
     const matchStatus = !statusFilter || u.status === statusFilter
-    return matchSearch && matchStatus
+    
+    // SECURITY: Role level filter - based on hierarchy rules
+    const userRoleLevel = u.roleId?.level || u.role?.level || 'unit';
+    const matchLevel = visibleLevels.includes(userRoleLevel);
+    
+    return matchSearch && matchStatus && matchLevel
   })
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -245,15 +273,21 @@ const AdminUserList = () => {
     },
     {
       flex: 0.1, minWidth: 80, field: 'actions', headerName: 'Actions', sortable: false,
-      renderCell: ({ row }) => (
-        <RowOptions
-          user={row}
-          canEdit={canEdit}
-          canDelete={canDelete && row.roleId?.isSystem !== true}
-          onEdit={u => setEditTarget(u)}
-          onDelete={u => setDeleteTarget(u)}
-        />
-      ),
+      renderCell: ({ row }) => {
+        const rowLevel = row.roleId?.level || row.role?.level || 'unit';
+        const canEditThisRow = canEdit && visibleLevels.includes(rowLevel);
+        const canDeleteThisRow = canDelete && visibleLevels.includes(rowLevel) && row.roleId?.isSystem !== true;
+        
+        return (
+          <RowOptions
+            user={row}
+            canEdit={canEditThisRow}
+            canDelete={canDeleteThisRow}
+            onEdit={u => setEditTarget(u)}
+            onDelete={u => setDeleteTarget(u)}
+          />
+        );
+      },
     },
   ]
 

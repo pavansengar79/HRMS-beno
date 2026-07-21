@@ -60,11 +60,11 @@ const AdminInviteDrawer = ({ open, onClose, onSuccess }) => {
   console.log("userLevel",userLevel)
   const needsDept = userLevel === 'unit' && selectedRoleSlug === 'employee'
 
-  // Roles filtered by level hierarchy
-  // org admin sees org+company, company admin sees company+unit, unit admin sees unit only
+  // Roles filtered by level hierarchy - STRICT LEVEL ISOLATION
+  // org admin creates org + company, company admin creates company ONLY, unit admin creates unit only
   const LEVEL_HIERARCHY = {
     org:     ['org', 'company'],           // org can create org + company admins
-    company: ['company', 'unit'],          // company can create company + unit admins
+    company: ['company'],                   // company can ONLY create company admins (NO unit)
     unit:    ['unit'],                     // unit can only create unit-level users
   }
   const allowedLevels = LEVEL_HIERARCHY[userLevel] || [userLevel]

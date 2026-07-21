@@ -302,34 +302,54 @@ const SUPER_ADMIN_NAV = stamp([
   { title: 'Access Control',      icon: 'tabler:lock',                path: '/admin/access-control' },
 ])
 
-const EMPLOYEE_NAV = stamp([
-  { title: 'My Dashboard',        icon: 'tabler:layout-dashboard',    path: '/dashboards/analytics' },
-  { sectionTitle: 'MY WORKSPACE' },
-  { title: 'My Attendance',       icon: 'tabler:clock',               path: '/attendance/my' },
-  { title: 'Leave Requests',      icon: 'tabler:calendar-check',      path: '/leaves' },
-  { title: 'My Payslips',         icon: 'tabler:file-invoice',        path: '/payroll/my' },
-  { title: 'My Schedule',         icon: 'tabler:calendar',            path: '/calendar' },
-  { sectionTitle: 'TAX PLANNING' },
-  { title: 'Investment Declaration', icon: 'tabler:piggy-bank',       path: '/payroll/investment-declarations' },
-  { sectionTitle: 'INFORMATION' },
-  { title: 'Company Policies',    icon: 'tabler:shield-check',        path: '/policy' },
-  { title: 'Holidays',            icon: 'tabler:calendar-event',      path: '/holidays' },
-])
+// Employee navigation is now built dynamically with permission checks
+// See buildEmployeeNav function below
 
-const MANAGER_NAV = stamp([
-  { title: 'Dashboard',           icon: 'tabler:layout-dashboard',    path: '/dashboards/analytics' },
-  { sectionTitle: 'MY TEAM' },
-  { title: 'Team Attendance',  icon: 'tabler:clock-check', path: '/attendance/team' },
-  { title: 'Leave Approvals',  icon: 'tabler:calendar-user', path: '/leaves' },
-  { title: 'Delegation',          icon: 'tabler:users-plus',          path: '/delegation' },
-  { sectionTitle: 'MY WORKSPACE' },
-  { title: 'My Attendance',       icon: 'tabler:clock',               path: '/attendance/my' },
-  { title: 'My Leaves',           icon: 'tabler:calendar-check',      path: '/leaves' },
-  { title: 'My Payslips',         icon: 'tabler:file-invoice',        path: '/payroll/my' },
-  { title: 'Investment Declaration', icon: 'tabler:piggy-bank',       path: '/payroll/investment-declarations' },
-  { sectionTitle: 'INFORMATION' },
-  { title: 'Company Policies',    icon: 'tabler:shield-check',        path: '/policy' },
-])
+// Manager navigation is now built dynamically with permission checks
+// See buildManagerNav function below
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Employee Navigation (dynamic with permission checks)
+// ─────────────────────────────────────────────────────────────────────────────
+const buildEmployeeNav = (permissions = []) => {
+  const has = slug => permissions.includes(slug)
+  
+  return stamp([
+    { title: 'My Dashboard',        icon: 'tabler:layout-dashboard',    path: '/dashboards/analytics' },
+    { sectionTitle: 'MY WORKSPACE' },
+    // Only show attendance if user has leave.read permission
+    ...(has('leave.read') ? [{ title: 'My Attendance', icon: 'tabler:clock', path: '/attendance/my' }] : []),
+    // Only show leave requests if user has leave.read permission
+    ...(has('leave.read') ? [{ title: 'Leave Requests', icon: 'tabler:calendar-check', path: '/leaves' }] : []),
+    { title: 'My Payslips',         icon: 'tabler:file-invoice',        path: '/payroll/my' },
+    { sectionTitle: 'TAX PLANNING' },
+    { title: 'Investment Declaration', icon: 'tabler:piggy-bank',       path: '/payroll/investment-declarations' },
+    { sectionTitle: 'INFORMATION' },
+    { title: 'Holidays',            icon: 'tabler:calendar-event',      path: '/holidays' },
+  ])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manager Navigation (dynamic with permission checks)
+// ─────────────────────────────────────────────────────────────────────────────
+const buildManagerNav = (permissions = []) => {
+  const has = slug => permissions.includes(slug)
+  
+  return stamp([
+    { title: 'Dashboard',           icon: 'tabler:layout-dashboard',    path: '/dashboards/analytics' },
+    { sectionTitle: 'MY TEAM' },
+    { title: 'Team Attendance',  icon: 'tabler:clock-check', path: '/attendance/team' },
+    { title: 'Leave Approvals',  icon: 'tabler:calendar-user', path: '/leaves' },
+    { title: 'Delegation',          icon: 'tabler:users-plus',          path: '/delegation' },
+    { sectionTitle: 'MY WORKSPACE' },
+    // Only show attendance if user has leave.read permission
+    ...(has('leave.read') ? [{ title: 'My Attendance', icon: 'tabler:clock', path: '/attendance/my' }] : []),
+    // Only show leave if user has leave.read permission
+    ...(has('leave.read') ? [{ title: 'My Leaves', icon: 'tabler:calendar-check', path: '/leaves' }] : []),
+    { title: 'My Payslips',         icon: 'tabler:file-invoice',        path: '/payroll/my' },
+    { title: 'Investment Declaration', icon: 'tabler:piggy-bank',       path: '/payroll/investment-declarations' },
+  ])
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main hook — VerticalNavItems
@@ -410,10 +430,10 @@ const VerticalNavItems = () => {
       return SUPER_ADMIN_NAV
 
     case 'employee':
-      return EMPLOYEE_NAV
+      return buildEmployeeNav(permissions)
 
     case 'manager':
-      return MANAGER_NAV
+      return buildManagerNav(permissions)
 
     case 'unit_admin':
     case 'hr_manager':

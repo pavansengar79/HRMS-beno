@@ -115,11 +115,11 @@ const PayrollTabs = ({ activeTab, children }) => {
                 icon={<Icon fontSize='1.125rem' icon='tabler:history' />}
               />
             )}
-            <Tab
+            {/* <Tab
               value='investment'
               label='Investment Declarations'
               icon={<Icon fontSize='1.125rem' icon='tabler:ReceiptTax' />}
-            />
+            /> */}
             {!isEmployeeOnly && (
               <Tab
                 value='lock'

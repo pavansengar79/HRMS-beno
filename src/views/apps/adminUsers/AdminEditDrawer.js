@@ -60,9 +60,37 @@ const AdminEditDrawer = ({ open, onClose, user, onSuccess }) => {
 
     setDropLoading(true)
     axiosRequest.get('/api/v1/roles/')
-      .then(res => { if (res?.success && Array.isArray(res.data)) {
-        setRoles(res.data.filter(r => !r.level || r.level === userLevel))
-      } })
+      .then(res => { 
+        if (res?.success && Array.isArray(res.data)) {
+          // SECURITY: Filter roles based on hierarchy rules - STRICT LEVEL ISOLATION
+          // org_admin editing org user → can assign org + company roles
+          // org_admin editing company user → can assign org + company roles
+          // company_admin editing company user → can assign company roles ONLY
+          // unit_admin editing unit user → can assign unit roles only
+          
+          const LEVEL_HIERARCHY = {
+            org:     ['org', 'company'],           // org can assign org + company roles
+            company: ['company'],                   // company can assign company roles ONLY (NO unit)
+            unit:    ['unit'],                     // unit can assign unit roles only
+          }
+          
+          // Get the level of the user being edited
+          const targetUserLevel = user?.roleId?.level || user?.role?.level || 'unit'
+          
+          // Determine allowed levels based on BOTH:
+          // 1. Current user's level (what they CAN access)
+          // 2. Target user's level (context of edit operation)
+          const currentUserAllowedLevels = LEVEL_HIERARCHY[userLevel] || [userLevel]
+          
+          // Filter roles that are allowed for current user AND match hierarchy
+          const allowedRoles = res.data.filter(r => {
+            if (!r.level) return true  // Show roles without level specification
+            return currentUserAllowedLevels.includes(r.level)
+          })
+          
+          setRoles(allowedRoles)
+        } 
+      })
       .catch(() => setError('Failed to load roles.'))
       .finally(() => setDropLoading(false))
   }, [open, user, userLevel])

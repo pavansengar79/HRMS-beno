@@ -401,21 +401,25 @@ const TabLeaveTypes = () => {
   const [editData, setEditData] = useState(null)
 
   const { leaveTypes, leaveTypesLoading } = useSelector(state => state.leaves)
+  const permissions = useSelector(state => state.auth.permissions) || []
+  const hasUpdatePermission = permissions.includes('leave.update')
 
   const fetchTypes = useCallback(() => { dispatch(fetchLeaveTypes()) }, [dispatch])
   useEffect(() => { fetchTypes() }, [fetchTypes])
 
   const openAdd  = () => { setEditData(null);  setDrawerOpen(true) }
-  const openEdit = lt  => { setEditData(lt);    setDrawerOpen(true) }
+  const openEdit = lt  => { if (hasUpdatePermission) { setEditData(lt); setDrawerOpen(true) } }
 
   return (
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
         <Typography variant='h5'>Leave Types</Typography>
-        <Button variant='contained' size='small' startIcon={<Icon icon='tabler:plus' />} onClick={openAdd}>
-          Add Leave Type
-        </Button>
+        {hasUpdatePermission && (
+          <Button variant='contained' size='small' startIcon={<Icon icon='tabler:plus' />} onClick={openAdd}>
+            Add Leave Type
+          </Button>
+        )}
       </Box>
 
       {/* List */}
@@ -459,12 +463,14 @@ const TabLeaveTypes = () => {
                     {!lt.isActive              && <Chip label='Inactive'    size='small' color='default' />}
                   </Box>
 
-                  {/* Edit */}
-                  <Tooltip title='Edit'>
-                    <IconButton size='small' onClick={() => openEdit(lt)}>
-                      <Icon icon='tabler:pencil' fontSize='1.1rem' />
-                    </IconButton>
-                  </Tooltip>
+                  {/* Edit - only show if user has leave.update permission */}
+                  {hasUpdatePermission && (
+                    <Tooltip title='Edit'>
+                      <IconButton size='small' onClick={() => openEdit(lt)}>
+                        <Icon icon='tabler:pencil' fontSize='1.1rem' />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </Box>
               </CardContent>
             </Card>

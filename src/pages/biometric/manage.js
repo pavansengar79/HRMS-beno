@@ -188,14 +188,16 @@ const BiometricManagePage = () => {
   
   useEffect(() => {
     // Only auto-sync when toggling to attendance tab, and only once per session
-    if (config?._id && selectedDevice && activeTab === 'attendance' && !hasAutoSynced) {
+    // Guard: selectedDevice must be a non-empty string (serial number)
+    if (config?._id && selectedDevice && typeof selectedDevice === 'string' && selectedDevice !== '' && activeTab === 'attendance' && !hasAutoSynced) {
       autoSyncAttendance()
       setHasAutoSynced(true)
     }
   }, [config?._id, selectedDevice, activeTab, hasAutoSynced])
 
   const autoSyncAttendance = async () => {
-    if (!config || !selectedDevice) return
+    // Guard: strict validation for device serial
+    if (!config || !selectedDevice || typeof selectedDevice !== 'string' || selectedDevice === '') return
     
     setOperationLoading(true)
     setSyncResult(null)
@@ -374,6 +376,12 @@ const BiometricManagePage = () => {
 
   // ─── Sync Single Device (existing) ──────────────────────────────────────
   const syncAttendance = async (deviceSerial) => {
+    // Guard: validate device serial parameter
+    if (!deviceSerial || typeof deviceSerial !== 'string' || deviceSerial === '') {
+      toast.error('Invalid device selected')
+      return
+    }
+    
     if (!config) {
       toast.error('No configuration loaded')
       return
@@ -848,8 +856,8 @@ const BiometricManagePage = () => {
                     variant='contained'
                     size='large'
                     fullWidth
-                    onClick={syncAttendance}
-                    disabled={!selectedDevice || operationLoading}
+                    onClick={() => syncAttendance(selectedDevice)}
+                    disabled={!selectedDevice || selectedDevice === '' || operationLoading}
                     startIcon={operationLoading ? <CircularProgress size={20} /> : <Icon icon='tabler:refresh' />}
                     sx={{ height: '100%' }}
                   >
