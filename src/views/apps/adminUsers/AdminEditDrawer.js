@@ -1,7 +1,7 @@
 // src/views/apps/adminUsers/AdminEditDrawer.jsx
 // Edit administrative user — update name, phone, role, status
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -12,10 +12,12 @@ import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
+import Avatar from '@mui/material/Avatar'
 
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import axiosRequest from 'src/utils/AxiosInterceptor'
+import toast from 'react-hot-toast'
 
 import { useSelector } from 'react-redux'
 import { selectRoleSlug } from 'src/store/auth/authSlice'
@@ -43,11 +45,15 @@ const AdminEditDrawer = ({ open, onClose, user, onSuccess }) => {
   const [roleId,   setRoleId]   = useState('')
   const [status,   setStatus]   = useState('ACTIVE')
   const [note,     setNote]     = useState('')
+  const [profilePhoto, setProfilePhoto] = useState(null)       // New file object
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState(null) // Preview URL
 
   const [roles,       setRoles]       = useState([])
   const [dropLoading, setDropLoading] = useState(false)
   const [submitting,  setSubmitting]  = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [error,       setError]       = useState('')
+  const photoInputRef = useRef(null)
 
   useEffect(() => {
     if (!open || !user) return
@@ -57,6 +63,10 @@ const AdminEditDrawer = ({ open, onClose, user, onSuccess }) => {
     setStatus(user.status || 'ACTIVE')
     setNote('')
     setError('')
+    
+    // Pre-fill profile photo if exists
+    setProfilePhoto(null)
+    setProfilePhotoPreview(user.profilePhoto || null)
 
     setDropLoading(true)
     axiosRequest.get('/api/v1/roles/')
@@ -96,6 +106,48 @@ const AdminEditDrawer = ({ open, onClose, user, onSuccess }) => {
   }, [open, user, userLevel])
 
   const handleClose = () => { if (!submitting) { setError(''); onClose() } }
+
+  // ── Profile Photo Upload ─────────────────────────────────────────────────────
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid file type. Please upload an image (JPEG, PNG, GIF, or WebP)')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds 5MB. Please upload a smaller image.')
+      return
+    }
+
+    // Upload immediately
+    setUploadingPhoto(true)
+    try {
+      const formData = new FormData()
+      formData.append('profilePhoto', file)
+
+      const res = await axiosRequest.post(`/api/v1/users/${user._id}/photo`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      if (res?.success) {
+        setProfilePhoto(file)
+        setProfilePhotoPreview(res.data.profilePhoto)
+        toast.success('Profile photo uploaded successfully')
+      } else {
+        toast.error(res?.message || 'Photo upload failed')
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Photo upload failed')
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
 
   const handleSubmit = async () => {
     setError('')
@@ -145,6 +197,98 @@ const AdminEditDrawer = ({ open, onClose, user, onSuccess }) => {
 
       <Box sx={{ p: 5, display: 'flex', flexDirection: 'column', gap: 4, flex: 1, overflowY: 'auto' }}>
         {error && <Alert severity='error' onClose={() => setError('')}>{error}</Alert>}
+
+        {/* Profile Photo Upload */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+          <input
+            type='file'
+            accept='image/jpeg,image/jpg,image/png,image/gif,image/webp'
+            ref={photoInputRef}
+            onChange={handlePhotoUpload}
+            style={{ display: 'none' }}
+            disabled={submitting || uploadingPhoto}
+          />
+          <Box
+            sx={{
+              position: 'relative',
+              width: 100,
+              height: 100,
+              borderRadius: '50%',
+              border: '2px dashed',
+              borderColor: 'divider',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              bgcolor: 'background.default',
+              '&:hover': {
+                borderColor: 'primary.main'
+              }
+            }}
+            onClick={() => !submitting && !uploadingPhoto && photoInputRef.current?.click()}
+          >
+            {profilePhotoPreview ? (
+              <>
+                <Avatar
+                  src={profilePhotoPreview}
+                  sx={{ width: '100%', height: '100%' }}
+                />
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    bgcolor: 'rgba(0, 0, 0, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    borderRadius: '50%',
+                    '&:hover': {
+                      opacity: 1
+                    }
+                  }}
+                >
+                  <Icon icon='tabler:camera' fontSize={24} color='white' />
+                </Box>
+              </>
+            ) : (
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.5
+                }}
+              >
+                <Icon icon='tabler:user' fontSize={28} color='action.active' />
+                <Typography variant='caption' sx={{ fontSize: '0.65rem' }} color='text.secondary'>
+                  Add Photo
+                </Typography>
+              </Box>
+            )}
+            
+            {uploadingPhoto && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  bgcolor: 'rgba(255, 255, 255, 0.8)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%'
+                }}
+              >
+                <CircularProgress size={24} />
+              </Box>
+            )}
+          </Box>
+          <Typography variant='caption' color='text.secondary' sx={{ mt: 1, textAlign: 'center' }}>
+            JPEG, PNG, GIF, WebP • Max 5MB
+          </Typography>
+        </Box>
 
         <CustomTextField
           fullWidth label='Full Name *'

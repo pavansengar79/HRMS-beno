@@ -18,12 +18,13 @@
 // API: GET/PUT /api/v1/company-config/config
 //      PUT /api/v1/companies/:id
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSelector } from 'react-redux'
 import { useRouter } from 'next/router'
 import { selectRoleSlug, selectCompanyId, selectOrgId, selectPermissions } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import toast from 'react-hot-toast'
+import { INDIAN_STATES, getCitiesForState } from 'src/utils/locationConstants'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
@@ -244,6 +245,10 @@ const SystemConfigPage = () => {
   const [initLoading, setInitLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [companyId, setCompanyId] = useState(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef(null)
+  const [companyLogo, setCompanyLogo] = useState(null)
+  const [availableCities, setAvailableCities] = useState([])
 
   // Step 1: Company Details (Essentials handled on separate page by Org Admin)
   const [profile, setProfile] = useState({ legalName: '', brandName: '', cin: '', tan: '', gst: '', pf: '', esic: '', ptState: 'Karnataka', industry: 'Information Technology', regAddress: '', corrAddress: '' })
@@ -265,6 +270,7 @@ const SystemConfigPage = () => {
           const compRes = await axiosRequest.get(`/api/v1/companies/${userCompanyId}`).catch(() => null)
           const company = compRes?.data || null  // AxiosInterceptor returns response.data, so compRes = { success, data }
           if (company) {
+            setCompanyLogo(company.logo_url || null)  // Load company logo
             // Build registered address string
             const regAddr = company.registered_address
               ? [company.registered_address.street, company.registered_address.city, company.registered_address.state, company.registered_address.pincode].filter(Boolean).join(', ')
@@ -322,6 +328,41 @@ const SystemConfigPage = () => {
       setCompleted(p => ({ ...p, 0: true })); toast.success('Company details saved'); setActiveStep(1)
     } catch (err) { toast.error(err?.response?.data?.message || 'Save failed') }
     finally { setSaving(false) }
+  }
+
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid file type. Please upload an image (JPEG, PNG, GIF, or WebP)')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds 5MB. Please upload a smaller image.')
+      return
+    }
+
+    setUploadingLogo(true)
+    try {
+      const formData = new FormData()
+      formData.append('logo', file)
+
+      const res = await axiosRequest.post('/api/v1/companies/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      setCompanyLogo(res.data.logo_url)
+      toast.success('Company logo uploaded successfully')
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Logo upload failed')
+    } finally {
+      setUploadingLogo(false)
+    }
   }
 
   const savePrefs = async () => {
@@ -485,6 +526,114 @@ const SystemConfigPage = () => {
       {/* Step 1: Company Details */}
       {activeStep === 0 && (
         <Box>
+          {/* ── Company Logo Card ─────────────────────────────────────────────── */}
+          <Card sx={{ mb: 4 }}>
+            <Box sx={{ px: 5, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Company Logo</Typography>
+              <Typography variant='caption' color='text.secondary'>Upload your company logo (appears on reports, invoices, payslips)</Typography>
+            </Box>
+            <Box sx={{ p: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input
+                type='file'
+                accept='image/jpeg,image/jpg,image/png,image/gif,image/webp'
+                ref={logoInputRef}
+                onChange={handleLogoUpload}
+                style={{ display: 'none' }}
+              />
+              
+              <Box
+                sx={{
+                  position: 'relative',
+                  width: 120,
+                  height: 120,
+                  borderRadius: 2,
+                  border: '2px dashed',
+                  borderColor: 'divider',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  bgcolor: 'background.default',
+                  '&:hover': {
+                    borderColor: 'primary.main'
+                  }
+                }}
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {companyLogo ? (
+                  <>
+                    <Box
+                      component='img'
+                      src={companyLogo}
+                      alt='Company Logo'
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        bgcolor: 'rgba(0, 0, 0, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                        '&:hover': {
+                          opacity: 1
+                        }
+                      }}
+                    >
+                      <Icon icon='tabler:camera' fontSize={32} color='white' />
+                    </Box>
+                  </>
+                ) : (
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 1
+                    }}
+                  >
+                    <Icon icon='tabler:camera' fontSize={32} color='action.active' />
+                    <Typography variant='caption' color='text.secondary'>
+                      Upload Logo
+                    </Typography>
+                  </Box>
+                )}
+                
+                {uploadingLogo && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      bgcolor: 'rgba(255, 255, 255, 0.8)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <CircularProgress size={32} />
+                  </Box>
+                )}
+              </Box>
+              
+              <Box sx={{ flex: 1 }}>
+                <Typography variant='body2' sx={{ mb: 1, fontWeight: 500 }}>
+                  {companyLogo ? 'Company logo uploaded ✓' : 'No logo uploaded'}
+                </Typography>
+                <Typography variant='caption' color='text.secondary'>
+                  Supported: JPEG, PNG, GIF, WebP · Max: 5MB · Recommended: 512x512px
+                </Typography>
+              </Box>
+            </Box>
+          </Card>
+
           <Alert severity='info' sx={{ mb: 4 }} icon={<Icon icon='tabler:info-circle' />}>
             <strong>Optional — but needed before payroll:</strong> PF registration, ESIC registration, and PT State are required for correct payroll deductions.
           </Alert>

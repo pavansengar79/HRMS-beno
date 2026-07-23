@@ -217,21 +217,51 @@ const AdminUserList = () => {
   const columns = [
     {
       flex: 0.25, minWidth: 220, field: 'name', headerName: 'User',
-      renderCell: ({ row }) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <CustomAvatar skin='light' color='primary' sx={{ width: 36, height: 36, fontSize: '0.875rem' }}>
-            {getInitials(row.name || row.email || 'U')}
-          </CustomAvatar>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography noWrap sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
-              {row.name || '—'}
-            </Typography>
-            <Typography noWrap variant='caption' sx={{ color: 'text.disabled' }}>
-              {row.email}
-            </Typography>
+      renderCell: ({ row }) => {
+        const userLevel = row.roleId?.level || row.role?.level
+        const roleSlug = row.roleId?.slug || row.role?.slug
+        
+        // Determine which image to show: profilePhoto > company logo > unit logo > initials
+        const getAvatarImage = () => {
+          if (row.profilePhoto) return row.profilePhoto
+          if (userLevel === 'company' && row.company?.logo_url) return row.company.logo_url
+          if (userLevel === 'unit' && row.unit?.logo_url) return row.unit.logo_url
+          return null
+        }
+        const avatarImage = getAvatarImage()
+        
+        // Show company/unit info below role for differentiation
+        const getSubtext = () => {
+          if (userLevel === 'company' && row.company?.company_name) return row.company.company_name
+          if (userLevel === 'unit' && row.unit?.unit_name) return row.unit.unit_name
+          return null
+        }
+        const subtext = getSubtext()
+        
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {avatarImage ? (
+              <CustomAvatar
+                src={avatarImage}
+                alt={row.name || 'User'}
+                sx={{ width: 36, height: 36 }}
+              />
+            ) : (
+              <CustomAvatar skin='light' color='primary' sx={{ width: 36, height: 36, fontSize: '0.875rem' }}>
+                {getInitials(row.name || row.email || 'U')}
+              </CustomAvatar>
+            )}
+            <Box sx={{ minWidth: 0 }}>
+              <Typography noWrap sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                {row.name || '—'}
+              </Typography>
+              <Typography noWrap variant='caption' sx={{ color: 'text.disabled' }}>
+                {subtext || row.email}
+              </Typography>
+            </Box>
           </Box>
-        </Box>
-      ),
+        )
+      },
     },
     {
       flex: 0.2, minWidth: 160, field: 'role', headerName: 'Role',
@@ -253,6 +283,44 @@ const AdminUserList = () => {
         ) : <Typography variant='body2' sx={{ color: 'text.disabled' }}>—</Typography>
       },
     },
+    // ── Company/Unit column - visibility based on current user role ──
+    ...(userLevel === 'unit' ? [] : [{
+      flex: 0.15, minWidth: 160, field: 'company', headerName: userLevel === 'org' ? 'Company' : 'Unit',
+      renderCell: ({ row }) => {
+        const rowLevel = row.roleId?.level || row.role?.level
+        
+        // Org admin sees: Company name + logo for company-level users
+        if (userLevel === 'org') {
+          if (rowLevel === 'company' && row.company) {
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {row.company.logo_url && (
+                  <Box component='img' src={row.company.logo_url} sx={{ width: 20, height: 20, borderRadius: 1, objectFit: 'contain' }} />
+                )}
+                <Typography variant='body2' sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                  {row.company.company_name || '—'}
+                </Typography>
+              </Box>
+            )
+          }
+          return <Typography variant='body2' sx={{ color: 'text.disabled' }}>—</Typography>
+        }
+        
+        // Company admin sees: Unit name for unit-level users
+        if (userLevel === 'company') {
+          if (rowLevel === 'unit' && row.unit) {
+            return (
+              <Typography variant='body2' sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+                {row.unit.unit_name || '—'}
+              </Typography>
+            )
+          }
+          return <Typography variant='body2' sx={{ color: 'text.disabled' }}>—</Typography>
+        }
+        
+        return <Typography variant='body2' sx={{ color: 'text.disabled' }}>—</Typography>
+      },
+    }]),
     {
       flex: 0.15, minWidth: 110, field: 'status', headerName: 'Status',
       renderCell: ({ row }) => (

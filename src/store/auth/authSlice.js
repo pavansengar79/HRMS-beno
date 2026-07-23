@@ -35,6 +35,11 @@ const initialState = {
   permissions: [], permissionsByModule: {},
   isAuthenticated: false, loading: false, error: null,
   profilePhoto: null,  // Employee DP
+  orgLogo: null,       // Organization logo
+  companyLogo: null,   // Company logo
+  organization: null, // Populated organization data
+  company: null,       // Populated company data
+  unit: null,          // Populated unit data
 }
 
 const authSlice = createSlice({
@@ -48,6 +53,11 @@ const authSlice = createSlice({
       state.isAuthenticated = true; state.loading = false; state.error = null
       state.subscription = subscription || null
       state.profilePhoto = user?.profilePhoto || null  // Employee DP
+      state.orgLogo = user?.orgLogo || null            // Organization logo
+      state.companyLogo = user?.companyLogo || null    // Company logo
+      state.organization = user?.organization || null  // Populated organization
+      state.company = user?.company || null            // Populated company
+      state.unit = user?.unit || null                  // Populated unit
       state.role = role?.display_name || role?.name || null
       state.roleSlug = role?.slug || null
       state.roleId = role?.id || role?._id || null
@@ -62,6 +72,11 @@ const authSlice = createSlice({
       state.isAuthenticated = true; state.loading = false
       state.subscription = subscription || null
       state.profilePhoto = user?.profilePhoto || null  // Employee DP
+      state.orgLogo = user?.orgLogo || null            // Organization logo
+      state.companyLogo = user?.companyLogo || null    // Company logo
+      state.organization = user?.organization || null  // Populated organization
+      state.company = user?.company || null            // Populated company
+      state.unit = user?.unit || null                  // Populated unit
       state.role = role?.display_name || role?.name || null
       state.roleSlug = role?.slug || null
       state.roleId = role?.id || role?._id || null
@@ -87,6 +102,11 @@ const authSlice = createSlice({
           state.user = userWithoutRole
           state.subscription = subscription || null
           state.profilePhoto = payload.user?.profilePhoto || null  // Employee DP
+          state.orgLogo = payload.user?.orgLogo || null            // Organization logo
+          state.companyLogo = payload.user?.companyLogo || null   // Company logo
+          state.organization = payload.user?.organization || null  // Populated organization
+          state.company = payload.user?.company || null            // Populated company
+          state.unit = payload.user?.unit || null                  // Populated unit
           if (role) {
             state.role = role?.display_name || role?.name || null
             state.roleSlug = role?.slug || null
@@ -122,6 +142,11 @@ export const selectSubscription    = s => s.auth.subscription
 export const selectPermissions     = s => s.auth.permissions
 export const selectPermissionsByModule = s => s.auth.permissionsByModule
 export const selectProfilePhoto    = s => s.auth.profilePhoto  // Employee DP selector
+export const selectOrgLogo          = s => s.auth.orgLogo       // Organization logo selector
+export const selectCompanyLogo      = s => s.auth.companyLogo   // Company logo selector
+export const selectOrganization     = s => s.auth.organization  // Populated organization selector
+export const selectCompany          = s => s.auth.company       // Populated company selector
+export const selectUnit             = s => s.auth.unit          // Populated unit selector
 
 // ─── Permission Check Helpers ───────────────────────────────────────────────
 export const hasPermission = (state, permissionName) => {

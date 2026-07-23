@@ -9,7 +9,7 @@
 //
 // API: GET/PUT /api/v1/organization/config
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSelector } from 'react-redux'
 import { useRouter } from 'next/router'
 import { selectRoleSlug, selectOrgId } from 'src/store/auth/authSlice'
@@ -27,6 +27,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import CustomChip from 'src/@core/components/mui/chip'
+import { INDIAN_STATES, getCitiesForState } from 'src/utils/locationConstants'
 
 const TIMEZONES  = ['Asia/Kolkata (IST +5:30)', 'UTC', 'US/Eastern', 'US/Pacific', 'Europe/London']
 const CURRENCIES = ['INR — Indian Rupee (₹)', 'USD — US Dollar ($)', 'GBP — British Pound (£)', 'EUR — Euro (€)']
@@ -47,6 +48,9 @@ const EssentialsConfigPage = () => {
   const [initLoading, setInitLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef(null)
+  const [availableCities, setAvailableCities] = useState([])
 
   // Organization config state
   const [org, setOrg] = useState({ 
@@ -99,6 +103,12 @@ const EssentialsConfigPage = () => {
             }
           })
           
+          // Load cities if state is already selected
+          if (data.address?.state) {
+            const cities = getCitiesForState(data.address.state)
+            setAvailableCities(cities)
+          }
+          
           if (data.timezone || data.currency) setSaved(true)
         }
       } catch (_) {}
@@ -131,6 +141,41 @@ const EssentialsConfigPage = () => {
       toast.error(err?.response?.data?.message || 'Save failed') 
     }
     finally { setSaving(false) }
+  }
+
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid file type. Please upload an image (JPEG, PNG, GIF, or WebP)')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size exceeds 5MB. Please upload a smaller image.')
+      return
+    }
+
+    setUploadingLogo(true)
+    try {
+      const formData = new FormData()
+      formData.append('logo', file)
+
+      const res = await axiosRequest.post('/api/v1/organization/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      setOrg(prev => ({ ...prev, logo_url: res.data.logo_url }))
+      toast.success('Organization logo uploaded successfully')
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Logo upload failed')
+    } finally {
+      setUploadingLogo(false)
+    }
   }
 
   if (initLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 12 }}><CircularProgress /></Box>
@@ -170,6 +215,114 @@ const EssentialsConfigPage = () => {
           Company-specific settings (PAN, GST, PF/ESIC, etc.) are configured by Company Admins.
         </Typography>
       </Alert>
+
+      {/* ── Organization Logo Card ─────────────────────────────────────────────── */}
+      <Card sx={{ mb: 4 }}>
+        <Box sx={{ px: 5, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Organization Logo</Typography>
+          <Typography variant='caption' color='text.secondary'>Upload your organization logo (appears on reports, emails, invoices)</Typography>
+        </Box>
+        <Box sx={{ p: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <input
+            type='file'
+            accept='image/jpeg,image/jpg,image/png,image/gif,image/webp'
+            ref={logoInputRef}
+            onChange={handleLogoUpload}
+            style={{ display: 'none' }}
+          />
+          
+          <Box
+            sx={{
+              position: 'relative',
+              width: 120,
+              height: 120,
+              borderRadius: 2,
+              border: '2px dashed',
+              borderColor: 'divider',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              bgcolor: 'background.default',
+              '&:hover': {
+                borderColor: 'primary.main'
+              }
+            }}
+            onClick={() => logoInputRef.current?.click()}
+          >
+            {org.logo_url ? (
+              <>
+                <Box
+                  component='img'
+                  src={org.logo_url}
+                  alt='Organization Logo'
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                />
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    bgcolor: 'rgba(0, 0, 0, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    '&:hover': {
+                      opacity: 1
+                    }
+                  }}
+                >
+                  <Icon icon='tabler:camera' fontSize={32} color='white' />
+                </Box>
+              </>
+            ) : (
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1
+                }}
+              >
+                <Icon icon='tabler:camera' fontSize={32} color='action.active' />
+                <Typography variant='caption' color='text.secondary'>
+                  Upload Logo
+                </Typography>
+              </Box>
+            )}
+            
+            {uploadingLogo && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  bgcolor: 'rgba(255, 255, 255, 0.8)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <CircularProgress size={32} />
+              </Box>
+            )}
+          </Box>
+          
+          <Box sx={{ flex: 1 }}>
+            <Typography variant='body2' sx={{ mb: 1, fontWeight: 500 }}>
+              {org.logo_url ? 'Logo uploaded ✓' : 'No logo uploaded'}
+            </Typography>
+            <Typography variant='caption' color='text.secondary'>
+              Supported formats: JPEG, PNG, GIF, WebP. Max size: 5MB. Recommended: Square image (512x512px)
+            </Typography>
+          </Box>
+        </Box>
+      </Card>
 
       {/* ── Organization Details Card ─────────────────────────────────────────────── */}
       <Card sx={{ mb: 4 }}>
@@ -237,18 +390,34 @@ const EssentialsConfigPage = () => {
             <Grid item xs={12} sm={4}>
               <CustomTextField 
                 fullWidth 
-                label='City'
-                value={org.address.city}
-                onChange={e => { setOrg(p => ({ ...p, address: { ...p.address, city: e.target.value } })); setSaved(false) }}
-              />
+                select
+                label='State'
+                value={org.address.state}
+                onChange={e => { 
+                  const selectedState = e.target.value
+                  setOrg(p => ({ ...p, address: { ...p.address, state: selectedState, city: '' } })); 
+                  setAvailableCities(getCitiesForState(selectedState))
+                  setSaved(false) 
+                }}
+              >
+                {INDIAN_STATES.map(s => (
+                  <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
+                ))}
+              </CustomTextField>
             </Grid>
             <Grid item xs={12} sm={4}>
               <CustomTextField 
                 fullWidth 
-                label='State'
-                value={org.address.state}
-                onChange={e => { setOrg(p => ({ ...p, address: { ...p.address, state: e.target.value } })); setSaved(false) }}
-              />
+                select
+                label='City'
+                value={org.address.city}
+                onChange={e => { setOrg(p => ({ ...p, address: { ...p.address, city: e.target.value } })); setSaved(false) }}
+                disabled={!org.address.state}
+              >
+                {availableCities.map(city => (
+                  <MenuItem key={city} value={city}>{city}</MenuItem>
+                ))}
+              </CustomTextField>
             </Grid>
             <Grid item xs={12} sm={4}>
               <CustomTextField 

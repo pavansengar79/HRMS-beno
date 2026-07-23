@@ -17,6 +17,7 @@ import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import MenuItem from '@mui/material/MenuItem'
+import MuiTooltip from '@mui/material/Tooltip'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import Icon from 'src/@core/components/icon'
 import toast from 'react-hot-toast'
@@ -66,6 +67,9 @@ export default function UnitDashboard({ companyId, unitId }) {
   const dispatch = useDispatch()
   const theme = useTheme(); const isDark = theme.palette.mode === 'dark'
   const { data, loading, error } = useSelector(s => s.dashboard)
+  const organization = useSelector(s => s.auth.organization)
+  const company = useSelector(s => s.auth.company)
+  const unit = useSelector(s => s.auth.unit)
   const now = new Date()
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
@@ -128,7 +132,47 @@ export default function UnitDashboard({ companyId, unitId }) {
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 5 }}>
         <Box>
           <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>Unit Dashboard</Typography>
-          <Typography variant='body2' color='text.secondary'>Unit Admin · Team Overview</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant='body2' color='text.secondary'>Unit Admin · Team Overview</Typography>
+            {unit && (
+              <MuiTooltip 
+                title={
+                  <Card sx={{ p: 2, minWidth: 250, bgcolor: 'background.paper', boxShadow: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                      <Avatar src={organization?.logo_url} sx={{ width: 24, height: 24 }} />
+                      <Typography variant='body2'>
+                        {organization?.name || 'Organization'}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ textAlign: 'center' }}>↓</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, my: 1 }}>
+                      <Avatar src={company?.logo_url} sx={{ width: 24, height: 24 }} />
+                      <Typography variant='body2'>
+                        {company?.company_name || 'Company'}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ textAlign: 'center' }}>↓</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                      <Icon icon='tabler:building-pavilion' width={24} height={24} />
+                      <Typography variant='body2'>
+                        {unit?.name || 'Unit'}
+                      </Typography>
+                    </Box>
+                  </Card>
+                }
+                arrow
+                placement='right'
+              >
+                <Chip 
+                  label={unit.name || 'Unit'} 
+                  size='small' 
+                  color='primary' 
+                  variant='outlined'
+                  sx={{ fontSize: '11px', height: '20px', cursor: 'pointer' }}
+                />
+              </MuiTooltip>
+            )}
+          </Box>
         </Box>
         <CustomTextField select value={month} onChange={e => setMonth(e.target.value)} size='small' sx={{ minWidth: 140 }}>
           {MONTH_OPTIONS.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}

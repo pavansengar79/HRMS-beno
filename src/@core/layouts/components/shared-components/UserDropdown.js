@@ -22,7 +22,7 @@ import { useAuth } from 'src/hooks/useAuth'
 
 // ** Redux — read user info and role from store
 import { useSelector } from 'react-redux'
-import { selectUser, selectRole, selectRoleSlug, selectUserId, selectLevel, selectProfilePhoto } from 'src/store/auth/authSlice'
+import { selectUser, selectRole, selectRoleSlug, selectUserId, selectLevel, selectProfilePhoto, selectOrgLogo, selectCompanyLogo } from 'src/store/auth/authSlice'
 import { getInitials } from 'src/utils/employeeAvatar'
 
 // ** Custom Components
@@ -98,6 +98,19 @@ const UserDropdown = props => {
   const userId   = useSelector(selectUserId)
   const level    = useSelector(selectLevel)
   const profilePhoto = useSelector(selectProfilePhoto)  // Employee DP
+  const orgLogo = useSelector(selectOrgLogo)            // Organization logo
+  const companyLogo = useSelector(selectCompanyLogo)    // Company logo
+
+  // ── Determine which logo to show based on role ────────────────────────────────
+  const getAvatarImage = () => {
+    // Priority: Employee DP > Company Logo > Org Logo
+    if (profilePhoto) return profilePhoto
+    if (roleSlug === 'company_admin' && companyLogo) return companyLogo
+    if (roleSlug === 'org_admin' && orgLogo) return orgLogo
+    return null
+  }
+
+  const avatarImage = getAvatarImage()
 
   const displayName  = user?.firstName || user?.name || user?.email || 'User'
   const displayEmail = user?.email     || ''
@@ -169,12 +182,12 @@ const UserDropdown = props => {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Avatar
-          src={profilePhoto}
+          src={avatarImage}
           alt={displayName}
           onClick={handleDropdownOpen}
           sx={{ width: 38, height: 38, backgroundColor: 'primary.main', fontSize: '0.875rem', fontWeight: 600 }}
         >
-          {!profilePhoto && initials}
+          {!avatarImage && initials}
         </Avatar>
       </Badge>
 
@@ -196,11 +209,11 @@ const UserDropdown = props => {
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
               <Avatar
-                src={profilePhoto}
+                src={avatarImage}
                 alt={displayName}
                 sx={{ width: '2.5rem', height: '2.5rem', backgroundColor: 'primary.main', fontSize: '0.875rem', fontWeight: 600 }}
               >
-                {!profilePhoto && initials}
+                {!avatarImage && initials}
               </Avatar>
             </Badge>
 
