@@ -123,24 +123,40 @@ const TeamOverviewWidget = ({ rows, loading }) => {
 
 const buildTeamColumns = (onRegularize, onEmployeeClick, showDateCol = true, isHR = false) => [
   {
-    flex: 0.22, minWidth: 200, field: 'employeeName', headerName: 'Employee',
-    renderCell: ({ row }) => (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}
-        onClick={() => onEmployeeClick?.(row)}
-      >
-        <CustomAvatar skin='light' color='primary' sx={{ width: 34, height: 34, fontSize: '0.875rem' }}>
-          {(row.employeeId?.name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-        </CustomAvatar>
-        <Box>
-          <Typography noWrap sx={{ fontWeight: 500, fontSize: '0.875rem', '&:hover': { textDecoration: 'underline' } }}>
-            {row.employeeId?.name || '—'}
-          </Typography>
-          {row.employeeId?.employeeId && (
-            <Typography variant='caption' color='text.secondary'>{row.employeeId.employeeId}</Typography>
+    flex: 0.22, minWidth: 220, field: 'employeeName', headerName: 'Employee',
+    renderCell: ({ row }) => {
+      const emp = row.employeeId
+      if (!emp) return <Typography variant='body2'>—</Typography>
+      
+      const initials = (emp.name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+      const hasPhoto = emp.profilePhoto && emp.profilePhoto.trim() !== ''
+      
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}
+          onClick={() => onEmployeeClick?.(row)}
+        >
+          {hasPhoto ? (
+            <CustomAvatar 
+              src={emp.profilePhoto} 
+              alt={emp.name}
+              sx={{ width: 34, height: 34 }}
+            />
+          ) : (
+            <CustomAvatar skin='light' color='primary' sx={{ width: 34, height: 34, fontSize: '0.875rem' }}>
+              {initials}
+            </CustomAvatar>
           )}
+          <Box>
+            <Typography noWrap sx={{ fontWeight: 500, fontSize: '0.875rem', '&:hover': { textDecoration: 'underline' } }}>
+              {emp.name || '—'}
+            </Typography>
+            {emp.employeeId && (
+              <Typography variant='caption' color='text.secondary'>{emp.employeeId}</Typography>
+            )}
+          </Box>
         </Box>
-      </Box>
-    ),
+      )
+    },
   },
   ...(showDateCol ? [{
     flex: 0.15, minWidth: 130, field: 'date', headerName: 'Date',
@@ -549,11 +565,14 @@ export default function TeamAttendance() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleEmployeeClick = (row) => {
+    const emp = row.employeeId || {}
     setSelectedEmployee({
-      id: row.employeeId?._id || row.employeeId?.id,
-      name: row.employeeId?.name || '—',
-      employeeId: row.employeeId?.employeeId || '—',
-      departmentId: row.employeeId?.departmentId,
+      id: emp._id || emp.id,
+      name: emp.name || '—',
+      employeeId: emp.employeeId || '—',
+      email: emp.email || '—',
+      departmentId: emp.departmentId,
+      profilePhoto: emp.profilePhoto || null,
     })
     fetchEmployeeSummary(row)
   }

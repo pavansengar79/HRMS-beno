@@ -258,6 +258,8 @@ const buildDynamicNav = (roleSlug, user, units, permissions = []) => {
     ...(has('attendance.read') ? [{ title: 'Attendance', icon: 'tabler:clock-check', path: '/attendance', badgeContent: 'Live', badgeColor: 'success' }] : []),
     ...(has('leave.read') ? [{ title: 'Leaves', icon: 'tabler:calendar-user', path: '/leaves', badgeContent: 'New', badgeColor: 'error' }] : []),
     ...(has('payroll.read') ? [{ title: 'Payroll', icon: 'tabler:cash', path: '/payroll', badgeContent: 'Run', badgeColor: 'warning' }] : []),
+    // Investment Declaration for HR/Admin
+    ...(has('investment_declaration.read') ? [{ title: 'Investment Declarations', icon: 'tabler:piggy-bank', path: '/payroll/investment-declarations' }] : []),
     ...(has('holiday.read') ? [{ title: 'Holidays', icon: 'tabler:calendar-event', path: '/holidays' }] : []),
     ...(has('shift.read') ? [{ title: 'Shifts', icon: 'tabler:clock', path: '/shift' }] : []),
     ...(has('biometric.read') ? [
@@ -322,8 +324,9 @@ const buildEmployeeNav = (permissions = []) => {
     // Only show leave requests if user has leave.read permission
     ...(has('leave.read') ? [{ title: 'Leave Requests', icon: 'tabler:calendar-check', path: '/leaves' }] : []),
     { title: 'My Payslips',         icon: 'tabler:file-invoice',        path: '/payroll/my' },
-    { sectionTitle: 'TAX PLANNING' },
-    { title: 'Investment Declaration', icon: 'tabler:piggy-bank',       path: '/payroll/investment-declarations' },
+    // Only show investment declaration if user has investment_declaration.read permission
+    ...(has('investment_declaration.read') ? [{ sectionTitle: 'TAX PLANNING' }] : []),
+    ...(has('investment_declaration.read') ? [{ title: 'Investment Declaration', icon: 'tabler:piggy-bank', path: '/payroll/investment-declarations' }] : []),
     { sectionTitle: 'INFORMATION' },
     { title: 'Holidays',            icon: 'tabler:calendar-event',      path: '/holidays' },
   ])
@@ -347,7 +350,8 @@ const buildManagerNav = (permissions = []) => {
     // Only show leave if user has leave.read permission
     ...(has('leave.read') ? [{ title: 'My Leaves', icon: 'tabler:calendar-check', path: '/leaves' }] : []),
     { title: 'My Payslips',         icon: 'tabler:file-invoice',        path: '/payroll/my' },
-    { title: 'Investment Declaration', icon: 'tabler:piggy-bank',       path: '/payroll/investment-declarations' },
+    // Only show investment declaration if user has investment_declaration.read permission
+    ...(has('investment_declaration.read') ? [{ title: 'Investment Declaration', icon: 'tabler:piggy-bank', path: '/payroll/investment-declarations' }] : []),
   ])
 }
 

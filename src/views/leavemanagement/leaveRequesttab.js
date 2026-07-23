@@ -21,10 +21,12 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Chip from '@mui/material/Chip'
 import Tooltip from '@mui/material/Tooltip'
 import TextField from '@mui/material/TextField'
+import Avatar from '@mui/material/Avatar'
 import { DataGrid } from '@mui/x-data-grid'
 
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import CustomAvatar from 'src/@core/components/mui/avatar'
 
 import {
   fetchMyLeaves,
@@ -34,6 +36,7 @@ import {
   fetchMyBalance,
 } from 'src/store/leaves/leaveSlice'
 import { selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
+import { getAvatarUrl, getInitials } from 'src/utils/employeeAvatar'
 
 const fmtDate = date => {
   if (!date) return '—'
@@ -310,15 +313,41 @@ const TabLeaveRequests = () => {
   }
 
   const columns = [
+    // {
+    //   field: '_id',
+    //   headerName: '#',
+    //   width: 80,
+    //   renderCell: params => (
+    //     <Typography variant='body2' color='text.secondary'>
+    //       {String(params.row._id).slice(-6).toUpperCase()}
+    //     </Typography>
+    //   )
+    // },
     {
-      field: '_id',
-      headerName: '#',
-      width: 70,
-      renderCell: params => (
-        <Typography variant='body2' color='text.secondary'>
-          {String(params.row._id).slice(-6).toUpperCase()}
-        </Typography>
-      )
+      field: 'employeeId',
+      headerName: 'Employee',
+      flex: 1.5,
+      renderCell: ({ row }) => {
+        const emp = row.employeeId
+        if (!emp) return <Typography variant='body2'>—</Typography>
+        const avatarUrl = getAvatarUrl(emp)
+        const initials = getInitials(emp.name)
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {avatarUrl ? (
+              <Avatar src={avatarUrl} alt={emp.name} sx={{ width: 32, height: 32 }} />
+            ) : (
+              <CustomAvatar skin='light' color='primary' sx={{ width: 32, height: 32, fontSize: '0.75rem' }}>
+                {initials}
+              </CustomAvatar>
+            )}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant='body2' fontWeight={600} noWrap>{emp.name || '—'}</Typography>
+              <Typography variant='caption' color='text.secondary' noWrap>{emp.employeeId || ''}</Typography>
+            </Box>
+          </Box>
+        )
+      }
     },
     {
       field: 'leaveType',
@@ -338,13 +367,17 @@ const TabLeaveRequests = () => {
       field: 'startDate',
       headerName: 'From',
       flex: 1,
-      renderCell: ({ row }) => fmtDate(row.startDate || row.fromDate)
+      renderCell: ({ row }) => (
+        <Typography variant='body2'>{fmtDate(row.startDate || row.fromDate)}</Typography>
+      )
     },
     {
       field: 'endDate',
       headerName: 'To',
       flex: 1,
-      renderCell: ({ row }) => fmtDate(row.endDate || row.toDate)
+      renderCell: ({ row }) => (
+        <Typography variant='body2'>{fmtDate(row.endDate || row.toDate)}</Typography>
+      )
     },
     {
       field: 'totalDays',
@@ -354,29 +387,101 @@ const TabLeaveRequests = () => {
         <Chip label={`${getTotalDays(row)}d`} size='small' variant='tonal' color='primary' />
       )
     },
+    // {
+    //   field: 'l1Status',
+    //   headerName: 'L1 Status',
+    //   width: 110,
+    //   renderCell: ({ row }) => {
+    //     const status = (row.l1Status || '').toLowerCase()
+    //     if (!status || status === 'null') return <Chip label='—' size='small' variant='outlined' />
+    //     return <LeaveStatusChip status={status} />
+    //   }
+    // },
+    // {
+    //   field: 'l2Status',
+    //   headerName: 'L2 Status',
+    //   width: 110,
+    //   renderCell: ({ row }) => {
+    //     const status = (row.l2Status || '').toLowerCase()
+    //     if (!status || status === 'null') return <Chip label='—' size='small' variant='outlined' />
+    //     return <LeaveStatusChip status={status} />
+    //   }
+    // },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: 'Final Status',
       flex: 1,
-      renderCell: ({ row }) => <LeaveStatusChip status={(row.status || row.state || '').toString().toLowerCase()} />
+      renderCell: ({ row }) => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <LeaveStatusChip status={(row.status || row.state || '').toString().toLowerCase()} />
+          {row.isActionable && (
+            <Chip 
+              label='Actionable' 
+              size='small' 
+              color='warning' 
+              variant='outlined'
+              sx={{ height: 20, fontSize: '0.65rem' }}
+            />
+          )}
+        </Box>
+      )
+    },
+    {
+      field: 'approvals',
+      headerName: 'Approval History',
+      flex: 1.2,
+      renderCell: ({ row }) => {
+        const history = row.approvalHistory || []
+        if (history.length === 0) return <Typography variant='caption' color='text.disabled'>No approvals</Typography>
+        
+        return (
+          <Tooltip 
+            title={
+              <Box sx={{ p: 1 }}>
+                {history.map((h, i) => (
+                  <Box key={i} sx={{ mb: i < history.length - 1 ? 1 : 0 }}>
+                    <Typography variant='caption' fontWeight={600}>
+                      L{h.level}: {h.approverName}
+                    </Typography>
+                    <Typography variant='caption' display='block' color='text.secondary'>
+                      {h.action} • {h.comment || 'No comment'}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            }
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Icon icon='tabler:history' fontSize='1rem' />
+              <Typography variant='caption'>
+                {history.length} step{history.length > 1 ? 's' : ''}
+              </Typography>
+            </Box>
+          </Tooltip>
+        )
+      }
     },
     {
       field: 'reason',
       headerName: 'Reason',
-      flex: 1.5,
+      flex: 1.2,
       renderCell: ({ row }) => (
-        <Typography variant='body2' noWrap title={getReason(row)}>{getReason(row)}</Typography>
+        <Tooltip title={getReason(row)}>
+          <Typography variant='body2' noWrap sx={{ maxWidth: 150 }}>{getReason(row)}</Typography>
+        </Tooltip>
       )
     },
     // ── HR-only actions column ─────────────────
     ...(isHrManager ? [{
       field: 'actions',
       headerName: 'Actions',
-      width: 100,
+      width: 120,
       sortable: false,
       renderCell: ({ row }) => {
-        const isPending = (row.status || row.state || '').toString().toLowerCase() === 'pending'
-        if (!isPending) return null
+        // FIXED: Allow approval for both PENDING and UNDER_REVIEW status
+        const status = (row.status || row.state || '').toString().toLowerCase()
+        const canApprove = status === 'pending' || status === 'under_review'
+        if (!canApprove) return null
         return (
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <Tooltip title='Approve'>

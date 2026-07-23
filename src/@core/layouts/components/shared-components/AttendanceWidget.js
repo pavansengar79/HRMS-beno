@@ -361,11 +361,132 @@ const AttendanceWidget = ({ canMarkAttendance }) => {
               color='error'
               size='small'
               onClick={() => setPunchOutDialog(true)}
-              disabled={loading}
+              disabled={loading || attendance?.punchSource === 'BIOMETRIC'}
               startIcon={<Icon icon='tabler:logout' />}
             >
               Punch Out
             </Button>
+            
+            {attendance?.punchSource === 'BIOMETRIC' && (
+              <Typography variant='caption' color='text.secondary' sx={{ display: 'block', fontStyle: 'italic', textAlign: 'center', mt: 1 }}>
+                Attendance synced from biometric. Will finalize after shift end.
+              </Typography>
+            )}
+          </>
+        ) : attendance ? (
+          /* ── Completed Attendance State (Biometric/Closed) ───────────────────── */
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    backgroundColor: 'info.main'
+                  }}
+                />
+                <Typography variant='body1' sx={{ fontWeight: 600, color: 'info.main', fontSize: '0.95rem' }}>
+                  {attendance.punchSource?.includes('BIOMETRIC') ? 'Biometric Synced' : 'Completed'}
+                </Typography>
+              </Box>
+              {attendance?.isWFH && <Chip label='WFH' size='small' color='info' sx={{ height: 24, fontWeight: 600 }} />}
+            </Box>
+
+            {/* Shift Info */}
+            {attendance?.shiftStart && attendance?.shiftEnd && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <Icon icon='tabler:clock' style={{ fontSize: 16, color: '#64748B' }} />
+                <Typography variant='caption' color='text.secondary'>
+                  Shift: {attendance.shiftStart} - {attendance.shiftEnd}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Attendance Summary Card */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.75,
+                mb: 2,
+                p: 1.5,
+                borderRadius: 2,
+                backgroundColor: theme =>
+                  theme.palette.mode === 'dark' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(59, 130, 246, 0.05)',
+                border: '1px solid',
+                borderColor: 'info.main',
+                overflow: 'hidden'
+              }}
+            >
+              <Box sx={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'info.light'
+                  }}
+                >
+                  <Icon icon='tabler:circle-check' style={{ fontSize: 20, color: '#3B82F6' }} />
+                </Box>
+              </Box>
+
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', lineHeight: 1.3 }}>
+                  Today's Attendance
+                </Typography>
+                <Typography
+                  variant='h6'
+                  color='info.main'
+                  noWrap
+                  sx={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: 0.5, lineHeight: 1.3 }}
+                >
+                  {attendance.workingHoursFormatted || `${(attendance.workingHours || 0).toFixed(1)}h`}
+                </Typography>
+                <Typography variant='caption' color='text.secondary' noWrap sx={{ display: 'block', lineHeight: 1.3 }}>
+                  {formatPunchInTime(attendance.checkIn)} → {attendance.checkOut ? formatPunchInTime(attendance.checkOut) : '—'}
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Status indicators */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <Chip
+                label={attendance.status || 'PRESENT'}
+                size='small'
+                color={attendance.status === 'PRESENT' ? 'success' : attendance.status === 'LATE' ? 'warning' : 'default'}
+                sx={{ height: 24, fontWeight: 600 }}
+              />
+              {attendance.punchSource?.includes('BIOMETRIC') && (
+                <Chip
+                  label={attendance.punchSource}
+                  size='small'
+                  variant='outlined'
+                  color='primary'
+                  sx={{ height: 24, fontSize: '0.65rem' }}
+                />
+              )}
+              {attendance.overtimeHours > 0 && (
+                <Chip
+                  label={`OT: ${attendance.overtimeHours}h`}
+                  size='small'
+                  color='success'
+                  variant='tonal'
+                  sx={{ height: 24 }}
+                />
+              )}
+            </Box>
+
+            {/* Biometric sync message */}
+            {attendance.punchSource?.includes('BIOMETRIC') && (
+              <Typography variant='caption' color='text.secondary' sx={{ display: 'block', fontStyle: 'italic' }}>
+                Attendance synced from biometric device. No action required.
+              </Typography>
+            )}
           </>
         ) : (
           /* ── Not Punched In State ──────────────────────── */

@@ -140,14 +140,34 @@ const MonthlySummaryCards = ({ summary, loading }) => {
 
 const buildMyAttendanceColumns = () => [
   {
-    flex: 0.2, minWidth: 130, field: 'date', headerName: 'Date',
-    renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
-        {row.date
-          ? new Date(row.date).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
-          : '—'}
-      </Typography>
-    ),
+    flex: 0.2, minWidth: 200, field: 'date', headerName: 'Date',
+    renderCell: ({ row }) => {
+      // Show employee profile if available (for consistency with team view)
+      const emp = row.employeeId
+      const dateStr = row.date
+        ? new Date(row.date).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+        : '—'
+      
+      if (!emp) {
+        return <Typography noWrap sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>{dateStr}</Typography>
+      }
+      
+      const initials = (emp.name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+      const hasPhoto = emp.profilePhoto && emp.profilePhoto.trim() !== ''
+      
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {hasPhoto ? (
+            <CustomAvatar src={emp.profilePhoto} alt={emp.name} sx={{ width: 34, height: 34 }} />
+          ) : (
+            <CustomAvatar skin='light' color='primary' sx={{ width: 34, height: 34, fontSize: '0.875rem' }}>
+              {initials}
+            </CustomAvatar>
+          )}
+          <Typography noWrap sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>{dateStr}</Typography>
+        </Box>
+      )
+    },
   },
   {
     flex: 0.15, minWidth: 110, field: 'checkIn', headerName: 'Punch In',

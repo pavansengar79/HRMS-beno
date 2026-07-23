@@ -175,7 +175,7 @@ export const EmployeeSummaryDialog = ({ open, onClose, employee, month, summaryD
           <Typography variant='h6'>Attendance Summary</Typography>
           {employee && month && (
             <Typography variant='caption' color='text.secondary'>
-              {employee.name} ({employee.employeeId}) · {month}
+              {employee.name} ({employee.employeeId}){employee.email && ` · ${employee.email}`} · {month}
             </Typography>
           )}
         </Box>

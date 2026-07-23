@@ -149,6 +149,12 @@ export const PERMISSION_BUTTONS = {
   BIOMETRIC_CREATE: 'biometric.create',
   BIOMETRIC_UPDATE: 'biometric.update',
   BIOMETRIC_DELETE: 'biometric.delete',
+
+  // Investment Declaration module
+  INVESTMENT_DECLARATION_CREATE: 'investment_declaration.create',
+  INVESTMENT_DECLARATION_VIEW: 'investment_declaration.read',
+  INVESTMENT_DECLARATION_UPDATE: 'investment_declaration.update',
+  INVESTMENT_DECLARATION_DELETE: 'investment_declaration.delete',
 }
 
 
