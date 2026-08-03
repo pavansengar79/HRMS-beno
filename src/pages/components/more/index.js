@@ -16,7 +16,7 @@ import CardContent from '@mui/material/CardContent'
 import TableContainer from '@mui/material/TableContainer'
 
 // ** Data Imports
-import componentData from 'src/@fake-db/components/data'
+import componentData from 'src/@test-db/components/data'
 
 const LinkStyled = styled(Link)(({ theme }) => ({
   textDecoration: 'none',

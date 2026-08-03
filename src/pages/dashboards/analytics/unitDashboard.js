@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchUnitDashboard } from 'src/store/dashboard/dashboardSlice'
 import { updateLeaveStatus } from 'src/store/leaves/leaveSlice'
+import { selectUnit } from 'src/store/auth/authSlice'
 import { useTheme, alpha } from '@mui/material/styles'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
@@ -66,10 +67,10 @@ const MONTH_OPTIONS = (() => {
 export default function UnitDashboard({ companyId, unitId }) {
   const dispatch = useDispatch()
   const theme = useTheme(); const isDark = theme.palette.mode === 'dark'
+  const unit = useSelector(selectUnit)
   const { data, loading, error } = useSelector(s => s.dashboard)
   const organization = useSelector(s => s.auth.organization)
   const company = useSelector(s => s.auth.company)
-  const unit = useSelector(s => s.auth.unit)
   const now = new Date()
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
@@ -131,7 +132,7 @@ export default function UnitDashboard({ companyId, unitId }) {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 5 }}>
         <Box>
-          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>Unit Dashboard</Typography>
+          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>{unit?.name || 'Unit'} Dashboard</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant='body2' color='text.secondary'>Unit Admin · Team Overview</Typography>
             {unit && (

@@ -106,10 +106,23 @@ const LoginPage = () => {
           router.replace('/')
         }
       } else {
-        toast.error(res?.message || 'Login failed. Check your credentials.')
+        // Clear password field on failed login
+        const errorMsg = res?.message || 'Login failed. Check your credentials.'
+        toast.error(errorMsg, { duration: 5000 })
       }
     } catch (err) {
-      toast.error(typeof err === 'string' ? err : 'Invalid credentials. Please try again.')
+      // Handle different error response formats
+      let errorMsg = 'Invalid credentials. Please try again.'
+      
+      if (typeof err === 'string') {
+        errorMsg = err
+      } else if (err?.response?.data?.message) {
+        errorMsg = err.response.data.message
+      } else if (err?.message) {
+        errorMsg = err.message
+      }
+      
+      toast.error(errorMsg, { duration: 5000 })
     } finally {
       setSubmitting(false)
     }

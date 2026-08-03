@@ -33,6 +33,19 @@ import themeConfig from 'src/configs/themeConfig'
 
 
 const categoryTitle = {
+  employees: 'Employees',
+  leave: 'Leave Requests',
+  departments: 'Departments',
+  designations: 'Designations',
+  holidays: 'Holidays',
+  shifts: 'Shifts',
+  rosters: 'Rosters',
+  attendance: 'Attendance',
+  auditLogs: 'Audit Logs',
+  notifications: 'Notifications',
+  units: 'Units',
+  companies: 'Companies',
+  roles: 'Roles',
   file: 'File',
   dealerhelpdesk: 'Dealer Help Desk',
   banner: 'Banner',
@@ -263,16 +276,35 @@ const AutocompleteComponent = ({ hidden, settings }) => {
 
   // Get all data using API
   useEffect(() => {
+    if (!searchValue || searchValue.length < 2) {
+      setOptions([])
+      return
+    }
+
     axios
-      .get('/app-bar/search', {
-        params: { q: searchValue }
+      .get('/api/v1/search', {
+        params: { q: searchValue, limit: 5 }
       })
       .then(response => {
-        if (response.data && response.data.length) {
-          setOptions(response.data)
+        const data = response.data || response
+        if (data.success && data.results) {
+          // Flatten categorized results into single array
+          const allResults = []
+          Object.keys(data.results).forEach(module => {
+            const moduleResults = data.results[module] || []
+            allResults.push(...moduleResults.map(item => ({
+              ...item,
+              category: module
+            })))
+          })
+          setOptions(allResults)
         } else {
           setOptions([])
         }
+      })
+      .catch(err => {
+        console.error('Search error:', err)
+        setOptions([])
       })
   }, [searchValue])
   useEffect(() => {
@@ -290,8 +322,9 @@ const AutocompleteComponent = ({ hidden, settings }) => {
   const handleOptionClick = obj => {
     setSearchValue('')
     setOpenDialog(false)
-    if (obj.url) {
-      router.push(obj.url)
+    // Use backend's route directly - single source of truth
+    if (obj.route) {
+      router.push(obj.route)
     }
   }
 

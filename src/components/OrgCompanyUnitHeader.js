@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography'
 import Avatar from '@mui/material/Avatar'
 import Chip from '@mui/material/Chip'
 import Divider from '@mui/material/Divider'
+import Tooltip from '@mui/material/Tooltip'
 import Icon from 'src/@core/components/icon'
 import { useSelector } from 'react-redux'
 import { selectOrganization, selectCompany, selectUnit, selectLevel, selectRoleSlug } from 'src/store/auth/authSlice'
@@ -55,9 +56,11 @@ const OrgCompanyUnitHeader = () => {
                 <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block' }}>
                   Organization
                 </Typography>
-                <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>
-                  {organization.name || '—'}
-                </Typography>
+                <Tooltip title={organization.name && organization.name.length > 20 ? organization.name : ''} arrow placement='top'>
+                  <Typography variant='subtitle2' sx={{ fontWeight: 700, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {organization.name || '—'}
+                  </Typography>
+                </Tooltip>
                 {organization.address?.city && (
                   <Typography variant='caption' sx={{ color: 'text.disabled' }}>
                     {organization.address.city}
@@ -99,9 +102,11 @@ const OrgCompanyUnitHeader = () => {
                 <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block' }}>
                   Company
                 </Typography>
-                <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>
-                  {company.company_name || '—'}
-                </Typography>
+                <Tooltip title={company.company_name && company.company_name.length > 20 ? company.company_name : ''} arrow placement='top'>
+                  <Typography variant='subtitle2' sx={{ fontWeight: 700, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {company.company_name || '—'}
+                  </Typography>
+                </Tooltip>
                 {company.company_gst && (
                   <Typography variant='caption' sx={{ color: 'text.disabled' }}>
                     GST: {company.company_gst}
@@ -133,9 +138,11 @@ const OrgCompanyUnitHeader = () => {
               <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block' }}>
                 Unit
               </Typography>
-              <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>
-                {unit.unit_name || '—'}
-              </Typography>
+              <Tooltip title={unit.unit_name && unit.unit_name.length > 20 ? unit.unit_name : ''} arrow placement='top'>
+                <Typography variant='subtitle2' sx={{ fontWeight: 700, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {unit.unit_name || '—'}
+                </Typography>
+              </Tooltip>
               {unit.unit_code && (
                 <Typography variant='caption' sx={{ color: 'text.disabled' }}>
                   Code: {unit.unit_code}

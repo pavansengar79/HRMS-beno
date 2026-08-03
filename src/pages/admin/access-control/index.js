@@ -50,6 +50,31 @@ import toast from 'react-hot-toast'
 
 const ALL_MODULES = ['hrms', 'crm', 'sales', 'bd', 'admin', 'organisation']
 
+// Module visibility constraints by level
+// These modules are NEVER shown to specific levels
+// IMPORTANT: Higher levels should NOT see lower-level modules
+// Org level manages ORG entities, Company level manages COMPANY entities, etc.
+const MODULE_LEVEL_CONSTRAINTS = {
+  org: {
+    // Org level: ONLY org-level administrative modules
+    // Org admin manages: organisation, companies, users, subscriptions, plans
+    allowed: ['organisation', 'company', 'user', 'role', 'subscription', 'plan', 'auditLog', 'notification'],
+    excluded: ['employee', 'attendance', 'leave', 'payroll', 'shift', 'roster', 'holiday', 'biometric', 'investment_declaration', 'department', 'designation', 'leavePolicy', 'attendancePolicy', 'payrollPolicy', 'delegation']
+  },
+  company: {
+    // Company level: ONLY company-level administrative modules
+    // Company admin manages: company settings, users for that company, company-level configuration
+    allowed: ['company', 'user', 'role', 'subscription', 'auditLog', 'notification'],
+    excluded: ['organisation', 'plan', 'employee', 'attendance', 'leave', 'payroll', 'shift', 'roster', 'holiday', 'biometric', 'investment_declaration', 'department', 'designation', 'leavePolicy', 'attendancePolicy', 'payrollPolicy', 'delegation']
+  },
+  unit: {
+    // Unit level: ALL unit operational modules
+    // Unit admin manages: daily HR operations, employees, attendance, leave, payroll, etc.
+    allowed: ['employee', 'attendance', 'leave', 'payroll', 'shift', 'roster', 'holiday', 'biometric', 'investment_declaration', 'department', 'designation', 'leavePolicy', 'attendancePolicy', 'payrollPolicy', 'role', 'auditLog', 'notification', 'delegation'],
+    excluded: ['organisation', 'company', 'user', 'subscription', 'plan']
+  }
+}
+
 // Permission constants
 const CAN_VIEW_ACCESS_CONTROL = ['role.read']
 const CAN_CREATE_ROLE = 'role.create'
@@ -89,7 +114,7 @@ const getAction = p => {
 
 // ─── Role Detail Modal ─────────────────────────────────────────────────────────
 
-const RoleDetailModal = ({ open, role, onClose, onEdit }) => {
+const RoleDetailModal = ({ open, role, onClose, onEdit, roleSlug }) => {
   if (!role) return null
   const permissions = role.permissions || []
   const modules     = role.modules     || []
@@ -281,17 +306,59 @@ const ModuleMatrixModal = ({ open, role, onClose, onSaved, allPermissions }) => 
   if (!role) return null
 
   // Filter permissions based on role's level
+  // IMPORTANT: System roles show ALL permissions (no filtering)
+  // Custom roles filter based on level
   const LEVEL_HIERARCHY = {
     org: ['org', 'company', 'unit'],
     company: ['company', 'unit'],
     unit: ['unit']
   }
 
-  const filteredPermissions = (allPermissions || []).filter(p => {
-    if (!p.scope || p.scope.length === 0) return true
-    const allowedScopes = LEVEL_HIERARCHY[form.level] || [form.level]
-    return p.scope.some(s => allowedScopes.includes(s))
-  })
+  const isSystemRole = role?.isSystem === true
+
+  // Get modules allowed for this level (whitelist approach)
+  const allowedModules = MODULE_LEVEL_CONSTRAINTS[form.level]?.allowed || []
+  const excludedModules = MODULE_LEVEL_CONSTRAINTS[form.level]?.excluded || []
+
+  // Debug logging
+  console.log('🔍 [ModuleMatrixModal] Level:', form.level)
+  console.log('📌 [ModuleMatrixModal] Is System Role:', isSystemRole)
+  console.log('✅ [ModuleMatrixModal] Allowed modules:', allowedModules)
+  console.log('❌ [ModuleMatrixModal] Excluded modules:', excludedModules)
+
+  let filteredPermissions
+
+  if (isSystemRole) {
+    // System roles: Show ALL permissions, no filtering
+    console.log('⭐ [ModuleMatrixModal] System role detected - showing ALL permissions')
+    filteredPermissions = allPermissions || []
+  } else {
+    // Custom roles: Apply level-based filtering
+    filteredPermissions = (allPermissions || []).filter(p => {
+      // First: Check if module is in allowed list (whitelist)
+      const moduleName = p.module || 'general'
+      const passesWhitelist = allowedModules.length === 0 || allowedModules.includes(moduleName)
+      const passesBlacklist = !excludedModules.includes(moduleName)
+      
+      if (!passesWhitelist || !passesBlacklist) {
+        console.log(`🚫 [ModuleMatrixModal] Blocking permission ${p.slug} - module: ${moduleName}, whitelist: ${passesWhitelist}, blacklist: ${passesBlacklist}`)
+        return false
+      }
+
+      // Third: Check if permission scope matches level hierarchy
+      if (!p.scope || p.scope.length === 0) return true
+      const allowedScopes = LEVEL_HIERARCHY[form.level] || [form.level]
+      const passesScope = p.scope.some(s => allowedScopes.includes(s))
+      
+      if (!passesScope) {
+        console.log(`🚫 [ModuleMatrixModal] Blocking permission ${p.slug} - scope mismatch`)
+      }
+      
+      return passesScope
+    })
+  }
+
+  console.log(`✅ [ModuleMatrixModal] Filtered permissions: ${filteredPermissions.length} of ${allPermissions?.length || 0}`)
 
   // Group permissions by MODULE — one row per module
   const permGroups = {}
@@ -491,11 +558,53 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
     unit: ['unit']
   }
 
-  const filteredPermissions = (permissions || []).filter(p => {
-    if (!p.scope || p.scope.length === 0) return true
-    const allowedScopes = LEVEL_HIERARCHY[form.level] || [form.level]
-    return p.scope.some(s => allowedScopes.includes(s))
-  })
+  // System roles show ALL permissions (no filtering)
+  // Custom roles and new roles filter based on level
+  const isSystemRole = editRole?.isSystem === true
+
+  // Get modules allowed for this level (whitelist approach)
+  const allowedModules = MODULE_LEVEL_CONSTRAINTS[form.level]?.allowed || []
+  const excludedModules = MODULE_LEVEL_CONSTRAINTS[form.level]?.excluded || []
+
+  // Debug logging
+  console.log('🔍 [RoleFormModal] Level:', form.level)
+  console.log('📌 [RoleFormModal] Is System Role:', isSystemRole)
+  console.log('✅ [RoleFormModal] Allowed modules:', allowedModules)
+  console.log('❌ [RoleFormModal] Excluded modules:', excludedModules)
+
+  let filteredPermissions
+
+  if (isSystemRole) {
+    // System roles: Show ALL permissions, no filtering
+    console.log('⭐ [RoleFormModal] System role detected - showing ALL permissions')
+    filteredPermissions = permissions || []
+  } else {
+    // Custom roles and new roles: Apply level-based filtering
+    filteredPermissions = (permissions || []).filter(p => {
+      // First: Check if module is in allowed list (whitelist)
+      const moduleName = p.module || 'general'
+      const passesWhitelist = allowedModules.length === 0 || allowedModules.includes(moduleName)
+      const passesBlacklist = !excludedModules.includes(moduleName)
+      
+      if (!passesWhitelist || !passesBlacklist) {
+        console.log(`🚫 [RoleFormModal] Blocking permission ${p.slug} - module: ${moduleName}, whitelist: ${passesWhitelist}, blacklist: ${passesBlacklist}`)
+        return false
+      }
+
+      // Third: Check if permission scope matches level hierarchy
+      if (!p.scope || p.scope.length === 0) return true
+      const allowedScopes = LEVEL_HIERARCHY[form.level] || [form.level]
+      const passesScope = p.scope.some(s => allowedScopes.includes(s))
+      
+      if (!passesScope) {
+        console.log(`🚫 [RoleFormModal] Blocking permission ${p.slug} - scope mismatch`)
+      }
+      
+      return passesScope
+    })
+  }
+
+  console.log(`✅ [RoleFormModal] Filtered permissions: ${filteredPermissions.length} of ${permissions?.length || 0}`)
 
   const findPermBySlug = slug =>
     permissions.find(p => p.slug === slug || p._id === slug || p.name === slug)
@@ -951,7 +1060,7 @@ const AccessControlPage = () => {
                               </Tooltip>
                             )}
                             {(roleSlug === 'SUPER_ADMIN' || !isSystem) && canDelete && (
-                              <Tooltip title={holders > 0 ? `Cannot delete — ${holders} users` : 'Delete Role'}>
+                              <Tooltip title={holders > 0 ? `Cannot delete: ${holders} user${holders > 1 ? 's' : ''} currently assigned to this role. Remove assignments first.` : 'Delete Role'}>
                                 <span>
                                   <IconButton size='small' color='error' disabled={holders > 0} onClick={() => handleDelete(role)}>
                                     <Icon icon='tabler:trash' fontSize={16} />
@@ -1052,7 +1161,7 @@ const AccessControlPage = () => {
 
       {/* ── Modals ── */}
       <RoleDetailModal open={detailOpen} role={selectedRole} onClose={() => setDetailOpen(false)}
-        onEdit={role => { setEditRole(role); setFormOpen(true) }} />
+        onEdit={role => { setEditRole(role); setFormOpen(true) }} roleSlug={roleSlug} />
       <RoleFormModal open={formOpen} editRole={editRole} permissions={permissions}
         onClose={() => setFormOpen(false)} onSaved={loadData} defaultLevel={contextLevel} />
       <ModuleMatrixModal open={matrixOpen} role={matrixRole}

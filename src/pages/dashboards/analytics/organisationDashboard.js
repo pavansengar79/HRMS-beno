@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchOrgDashboard } from 'src/store/dashboard/dashboardSlice'
+import { selectOrganization } from 'src/store/auth/authSlice'
 import { useTheme, alpha } from '@mui/material/styles'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
@@ -66,6 +67,7 @@ const ACTIVITY_COLORS = {
 export default function OrganisationDashboard() {
   const dispatch = useDispatch()
   const theme = useTheme(); const isDark = theme.palette.mode === 'dark'
+  const organization = useSelector(selectOrganization)
   const { data, loading, error } = useSelector(s => s.dashboard)
 
   useEffect(() => { dispatch(fetchOrgDashboard()) }, [dispatch])
@@ -97,7 +99,7 @@ export default function OrganisationDashboard() {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 5 }}>
         <Box>
-          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>Organisation Overview</Typography>
+          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>{organization?.name || 'Organisation'} Overview</Typography>
           <Typography variant='body2' color='text.secondary'>Org Admin · Multi-company consolidated view</Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>

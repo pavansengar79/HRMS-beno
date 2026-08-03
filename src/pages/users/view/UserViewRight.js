@@ -95,7 +95,10 @@ const UserViewRight = ({ tab, employee ,isPermitted}) => {
       >
         <Tab value='account'      label='Account'        icon={<Icon fontSize='1.125rem' icon='tabler:user-check' />} />
         <Tab value='security'     label='Security'       icon={<Icon fontSize='1.125rem' icon='tabler:lock' />} />
-        <Tab value='billing-plan' label='Billing & Plan' icon={<Icon fontSize='1.125rem' icon='tabler:currency-dollar' />} />
+        {/* Hide Billing & Plan tab for employees - only show for admins */}
+        {['org_admin', 'company_admin', 'super_admin', 'SUPER_ADMIN', 'hr_manager', 'product_admin'].includes(roleSlug) && (
+          <Tab value='billing-plan' label='Billing & Plan' icon={<Icon fontSize='1.125rem' icon='tabler:currency-dollar' />} />
+        )}
         <Tab value='notification' label='Notification'   icon={<Icon fontSize='1.125rem' icon='tabler:bell' />} />
         <Tab value='connection'   label='Connection'     icon={<Icon fontSize='1.125rem' icon='tabler:link' />} />
       </TabList>
@@ -117,9 +120,12 @@ const UserViewRight = ({ tab, employee ,isPermitted}) => {
             <TabPanel sx={{ p: 0 }} value='security'>
               <UserViewSecurity employee={employee} />
             </TabPanel>
-            <TabPanel sx={{ p: 0 }} value='billing-plan'>
-              <UserViewBilling employee={employee} />
-            </TabPanel>
+            {/* Hide Billing & Plan panel for employees - only show for admins */}
+            {['org_admin', 'company_admin', 'super_admin', 'SUPER_ADMIN', 'hr_manager', 'product_admin'].includes(roleSlug) && (
+              <TabPanel sx={{ p: 0 }} value='billing-plan'>
+                <UserViewBilling employee={employee} />
+              </TabPanel>
+            )}
             <TabPanel sx={{ p: 0 }} value='notification'>
               <UserViewNotification employee={employee} />
             </TabPanel>

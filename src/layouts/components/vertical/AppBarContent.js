@@ -14,6 +14,7 @@ import Icon from 'src/@core/components/icon'
 import ModeToggler from 'src/@core/layouts/components/shared-components/ModeToggler'
 import UserDropdown from 'src/@core/layouts/components/shared-components/UserDropdown'
 import NotificationDropdown from 'src/@core/layouts/components/shared-components/NotificationDropdown'
+import { GlobalSearchIcon, GlobalSearchModal } from 'src/@core/layouts/components/shared-components/GlobalSearch'
 import { useAuth } from 'src/hooks/useAuth'
 import { selectRoleSlug } from 'src/store/auth/authSlice'
 import {
@@ -188,10 +189,14 @@ const AppBarContent = props => {
       </Box>
 
       <Box className='actions-right' sx={{ display: 'flex', alignItems: 'center' }}>
+        <GlobalSearchIcon />
         <ModeToggler settings={settings} saveSettings={saveSettings} />
         {auth.user && <NotificationDropdown settings={settings} />}
         {auth.user && <UserDropdown settings={settings} />}
       </Box>
+
+      {/* ── Global Search Modal ─────────────────────────────────────────────── */}
+      <GlobalSearchModal />
     </Box>
   )
 }

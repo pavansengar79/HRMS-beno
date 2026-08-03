@@ -41,6 +41,10 @@ import Divider from '@mui/material/Divider'
 import Stepper from '@mui/material/Stepper'
 import Step from '@mui/material/Step'
 import StepButton from '@mui/material/StepButton'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import IconButton from '@mui/material/IconButton'
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import CustomChip from 'src/@core/components/mui/chip'
@@ -246,6 +250,7 @@ const SystemConfigPage = () => {
   const [saving, setSaving] = useState(false)
   const [companyId, setCompanyId] = useState(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [logoPreviewOpen, setLogoPreviewOpen] = useState(false)
   const logoInputRef = useRef(null)
   const [companyLogo, setCompanyLogo] = useState(null)
   const [availableCities, setAvailableCities] = useState([])
@@ -578,6 +583,7 @@ const SystemConfigPage = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        gap: 2,
                         opacity: 0,
                         transition: 'opacity 0.2s',
                         '&:hover': {
@@ -585,7 +591,20 @@ const SystemConfigPage = () => {
                         }
                       }}
                     >
-                      <Icon icon='tabler:camera' fontSize={32} color='white' />
+                      <IconButton
+                        size='small'
+                        sx={{ bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: 'white' } }}
+                        onClick={(e) => { e.stopPropagation(); setLogoPreviewOpen(true); }}
+                      >
+                        <Icon icon='tabler:zoom-in' fontSize={20} color='black' />
+                      </IconButton>
+                      <IconButton
+                        size='small'
+                        sx={{ bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: 'white' } }}
+                        onClick={(e) => { e.stopPropagation(); logoInputRef.current?.click(); }}
+                      >
+                        <Icon icon='tabler:camera' fontSize={20} color='black' />
+                      </IconButton>
                     </Box>
                   </>
                 ) : (
@@ -627,12 +646,61 @@ const SystemConfigPage = () => {
                 <Typography variant='body2' sx={{ mb: 1, fontWeight: 500 }}>
                   {companyLogo ? 'Company logo uploaded ✓' : 'No logo uploaded'}
                 </Typography>
-                <Typography variant='caption' color='text.secondary'>
-                  Supported: JPEG, PNG, GIF, WebP · Max: 5MB · Recommended: 512x512px
-                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography variant='body2' sx={{ color: 'text.primary', fontWeight: 500 }}>
+                    Supported formats: JPEG, PNG, GIF, WebP
+                  </Typography>
+                  <Typography variant='body2' sx={{ color: 'text.primary', fontWeight: 500 }}>
+                    Maximum file size: 5MB
+                  </Typography>
+                  <Typography variant='body2' sx={{ color: 'text.secondary' }}>
+                    Recommended: 512x512px
+                  </Typography>
+                </Box>
               </Box>
             </Box>
           </Card>
+
+          {/* ── Logo Preview Dialog ─────────────────────────────────────────────── */}
+          <Dialog
+            open={logoPreviewOpen}
+            onClose={() => setLogoPreviewOpen(false)}
+            maxWidth='sm'
+            fullWidth
+            sx={{
+              '& .MuiDialog-paper': {
+                backgroundColor: 'background.default'
+              }
+            }}
+          >
+            <DialogContent sx={{ p: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+              {companyLogo && (
+                <Box
+                  component='img'
+                  src={companyLogo}
+                  alt='Company Logo Preview'
+                  sx={{
+                    maxWidth: '100%',
+                    maxHeight: '70vh',
+                    objectFit: 'contain',
+                    borderRadius: 1
+                  }}
+                />
+              )}
+            </DialogContent>
+            <DialogActions sx={{ justifyContent: 'center', pb: 4 }}>
+              <Button variant='outlined' onClick={() => setLogoPreviewOpen(false)}>
+                Close
+              </Button>
+              <Button
+                variant='contained'
+                startIcon={<Icon icon='tabler:camera' />}
+                onClick={() => { setLogoPreviewOpen(false); logoInputRef.current?.click(); }}
+              >
+                Change Logo
+              </Button>
+            </DialogActions>
+          </Dialog>
 
           <Alert severity='info' sx={{ mb: 4 }} icon={<Icon icon='tabler:info-circle' />}>
             <strong>Optional — but needed before payroll:</strong> PF registration, ESIC registration, and PT State are required for correct payroll deductions.

@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchCompanyDashboard } from 'src/store/dashboard/dashboardSlice'
+import { selectCompany } from 'src/store/auth/authSlice'
 import { useTheme, alpha } from '@mui/material/styles'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
@@ -55,6 +56,7 @@ const ACTIVITY_COLORS = {
 
 export default function CompanyAdminDashboard({ companyId }) {
   const dispatch = useDispatch()
+  const company = useSelector(selectCompany)
   const { data, loading, error } = useSelector(s => s.dashboard)
 
   useEffect(() => { 
@@ -95,7 +97,7 @@ export default function CompanyAdminDashboard({ companyId }) {
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 5 }}>
         <Box>
-          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>Company Dashboard</Typography>
+          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>{company?.company_name || company?.name || 'Company'} Overview</Typography>
           <Typography variant='body2' color='text.secondary'>
             Company Admin · All Business Units
             {generatedAt && (

@@ -6,7 +6,7 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 import CustomAutocomplete from 'src/@core/components/mui/autocomplete'
 
 // ** Data
-import { countries } from 'src/@fake-db/autocomplete'
+import { countries } from 'src/@test-db/autocomplete'
 
 const AutocompleteCountry = () => {
   return (

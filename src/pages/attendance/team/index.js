@@ -10,7 +10,7 @@
 //   Regularize:  PATCH /api/v1/attendance/:id/regularize (HR only)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import { useRouter } from 'next/router'
 import {
@@ -38,6 +38,7 @@ import toast from 'react-hot-toast'
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import { EmployeeSelect, DepartmentSelect } from 'src/components/employee'
 
 // Store & utils
 import { selectUser, selectRoleSlug } from 'src/store/auth/authSlice'
@@ -258,9 +259,11 @@ export default function TeamAttendance() {
   const roleSlug = useSelector(selectRoleSlug)
   const router = useRouter()
 
-  // Role-based access
-  const allowedRoles = [ROLES.MANAGER, ROLES.HR_MANAGER, ROLES.COMPANY_ADMIN, ROLES.UNIT_ADMIN]
-  const isHR = roleSlug === ROLES.HR_MANAGER || roleSlug === ROLES.COMPANY_ADMIN || roleSlug === ROLES.UNIT_ADMIN
+  // Role-based access - memoized to prevent re-render issues
+  const allowedRoles = useMemo(() => [ROLES.MANAGER, ROLES.HR_MANAGER, ROLES.COMPANY_ADMIN, ROLES.UNIT_ADMIN], [])
+  const isHR = useMemo(() => 
+    roleSlug === ROLES.HR_MANAGER || roleSlug === ROLES.COMPANY_ADMIN || roleSlug === ROLES.UNIT_ADMIN,
+  [roleSlug])
 
   // State
   const [filterMonth, setFilterMonth] = useState(() => {
@@ -268,7 +271,6 @@ export default function TeamAttendance() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   const [filterStatus, setFilterStatus] = useState('')
-  const [filterSearch, setFilterSearch] = useState('')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 })
@@ -278,10 +280,9 @@ export default function TeamAttendance() {
   const [employeeSummary, setEmployeeSummary] = useState(null)
   const [employeeSummaryLoading, setEmployeeSummaryLoading] = useState(false)
 
-  // Department state (HR only)
-  const [departments, setDepartments] = useState([])
+  // Filter states
   const [filterDept, setFilterDept] = useState('')
-  const [deptsLoading, setDeptsLoading] = useState(false)
+  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState(null)
   
   // Date range state
   const [dateRangePreset, setDateRangePreset] = useState('thisMonth')
@@ -289,32 +290,13 @@ export default function TeamAttendance() {
   const [customEndDate, setCustomEndDate] = useState(null)
 
   // ── Access check ───────────────────────────────────────────────────────────
+  // ── Access check ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!allowedRoles.includes(roleSlug)) {
       toast.error('Access denied. You do not have permission to view team attendance.')
       router.push('/attendance/my')
     }
-  }, [roleSlug])
-
-  // ── Fetch departments (HR only) ────────────────────────────────────────────
-  const fetchDepartments = useCallback(async () => {
-    if (!isHR) return
-    try {
-      setDeptsLoading(true)
-      const res = await axiosRequest.get('/api/v1/departments')
-      if (res?.success && Array.isArray(res.data)) {
-        setDepartments(res.data)
-      }
-    } catch (err) {
-      console.error('Failed to fetch departments:', err)
-    } finally {
-      setDeptsLoading(false)
-    }
-  }, [isHR])
-
-  useEffect(() => { 
-    fetchDepartments()
-  }, [isHR])
+  }, [roleSlug, allowedRoles, router])
 
   // ── Helper: Calculate date range based on preset ────────────────────────────
   const getDateRange = useCallback(() => {
@@ -359,6 +341,10 @@ export default function TeamAttendance() {
     try {
       const params = new URLSearchParams()
       
+      // Add pagination params (server-side)
+      params.set('page', paginationModel.page + 1)
+      params.set('limit', paginationModel.pageSize)
+      
       // Use date range instead of month
       const dateRange = getDateRange()
       if (dateRange) {
@@ -369,8 +355,15 @@ export default function TeamAttendance() {
         params.set('month', filterMonth)
       }
       
-      if (filterSearch) params.set('search', filterSearch)
+      // Employee filter (from autosuggest)
+      if (selectedEmployeeFilter?._id) {
+        params.set('employeeId', selectedEmployeeFilter._id)
+      }
+      
+      // Department filter
       if (filterDept && isHR) params.set('departmentId', filterDept)
+      
+      // Status filter
       if (filterStatus) params.set('status', filterStatus)
 
       // Role-based endpoint selection
@@ -394,12 +387,12 @@ export default function TeamAttendance() {
     } finally {
       setLoading(false)
     }
-  }, [filterMonth, filterSearch, filterDept, filterStatus, isHR, getDateRange])
+  }, [filterMonth, selectedEmployeeFilter, filterDept, filterStatus, isHR, getDateRange, paginationModel])
 
   // Fetch on mount and when filters change
   useEffect(() => { 
     fetchAttendance()
-  }, [dateRangePreset, customStartDate, customEndDate, filterSearch, filterDept, filterStatus, isHR])
+  }, [fetchAttendance])
 
   // ── Fetch employee summary ────────────────────────────────────────────────
   const fetchEmployeeSummary = useCallback(async (row) => {
@@ -656,46 +649,20 @@ export default function TeamAttendance() {
               )}
 
               {isHR && (
-                <CustomTextField
-                  select
-                  size='small'
-                  label='Department'
+                <DepartmentSelect
                   value={filterDept}
-                  onChange={e => setFilterDept(e.target.value)}
+                  onChange={setFilterDept}
+                  size='small'
                   sx={{ minWidth: 160 }}
-                  disabled={deptsLoading}
-                  InputProps={deptsLoading ? {
-                    endAdornment: (
-                      <InputAdornment position='end'>
-                        <CircularProgress size={14} sx={{ mr: 1 }} />
-                      </InputAdornment>
-                    ),
-                  } : undefined}
-                >
-                  <MenuItem value=''>All Departments</MenuItem>
-                  {departments.map(dept => (
-                    <MenuItem key={dept._id} value={dept.id}>
-                      {dept.label}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                />
               )}
 
               {isHR && (
-                <CustomTextField
+                <EmployeeSelect
+                  value={selectedEmployeeFilter}
+                  onChange={setSelectedEmployeeFilter}
                   size='small'
-                  label='Search Employee'
-                  value={filterSearch}
-                  onChange={e => setFilterSearch(e.target.value)}
-                  placeholder='Name or ID'
-                  sx={{ minWidth: 200 }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position='start'>
-                        <Icon icon='tabler:search' fontSize={18} />
-                      </InputAdornment>
-                    )
-                  }}
+                  sx={{ minWidth: 280 }}
                 />
               )}
 
@@ -709,7 +676,7 @@ export default function TeamAttendance() {
               >
                 <MenuItem value=''>All Statuses</MenuItem>
                 {Object.entries(STATUS_LABEL).map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
+                  <MenuItem key={val} value={val}>{label}</MenuItem>
                 ))}
               </CustomTextField>
 

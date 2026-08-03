@@ -50,10 +50,12 @@ import CustomChip from 'src/@core/components/mui/chip'
 import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import { getInitials } from 'src/@core/utils/get-initials'
+import { EmployeeSelect, DepartmentSelect, DesignationSelect } from 'src/components/employee'
 
 // ** Table Components
 import TableHeader from 'src/views/apps/user/list/TableHeader'
 import AddEmployeeDrawer from 'src/views/apps/user/list/AddUserDrawer'
+import UserFilters from './UserFilters'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import ComposePopup from 'src/views/apps/email/ComposePopup'
 import UnitContextBanner from 'src/@core/components/CustomComponents/UnitContextBanner'
@@ -549,10 +551,17 @@ const EmployeeList = () => {
   // hr_manager profile, or the flat-route Redux selection. See useUnitContext.
   const { companyId, unitId } = useUnitContext()
 
-  const [search, setSearch]               = useState('')
-  const [typeFilter, setTypeFilter]       = useState('')
-  const [statusFilter, setStatusFilter]   = useState('')
+  // Filter states
+  const [search, setSearch]                   = useState('')
+  const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [selectedDept, setSelectedDept]       = useState('')
+  const [selectedDesignation, setSelectedDesignation] = useState('')
+  const [typeFilter, setTypeFilter]           = useState('')
+  const [statusFilter, setStatusFilter]       = useState('')
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
+  const [rowCount, setRowCount]               = useState(0)
+  const [rows, setRows]                       = useState([])
+  const [fetching, setFetching]               = useState(false)
 
   // Local copy of employees so status changes reflect instantly without refetch
   const [localEmployees, setLocalEmployees] = useState([])
@@ -565,14 +574,54 @@ const EmployeeList = () => {
   // activateTarget — shared by both Approve button & status dropdown → ACTIVE
   const [activateTarget, setActivateTarget] = useState(null)
 
-  // Refetch whenever the resolved company/unit scope changes (e.g. org admin
-  // navigates from one unit to another via the hierarchical URL).
-  useEffect(() => {
-    dispatch(fetchAllEmployees({ companyId, unitId }))
-  }, [dispatch, companyId, unitId])
+  // ── Fetch employees with server-side filtering ────────────────────────────
+  const fetchEmployees = useCallback(async () => {
+    if (!companyId) return
+    
+    try {
+      setFetching(true)
+      const params = new URLSearchParams()
+      
+      // Pagination
+      params.set('page', paginationModel.page + 1)
+      params.set('limit', paginationModel.pageSize)
+      
+      // Company and Unit scope
+      params.set('companyId', companyId)
+      if (unitId) params.set('unit_id', unitId)
+      
+      // Filters
+      if (search) params.set('search', search)
+      if (selectedEmployee?._id) params.set('employeeId', selectedEmployee._id)
+      if (selectedDept) params.set('departmentId', selectedDept)
+      if (selectedDesignation) params.set('designationId', selectedDesignation)
+      if (typeFilter) params.set('employmentType', typeFilter)
+      if (statusFilter) params.set('status', statusFilter)
+      
+      const res = await axiosRequest.get(`/api/v1/employees?${params.toString()}`)
+      
+      if (res?.success) {
+        // Backend returns: { success, data: [...employees], pagination: { total, page, limit, totalPages } }
+        const employees = res.data || []
+        const total = res.pagination?.total || 0
+        
+        setRows(Array.isArray(employees) ? employees : [])
+        setRowCount(total)
+        setLocalEmployees(Array.isArray(employees) ? employees : [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch employees:', err)
+      setRows([])
+      setLocalEmployees([])
+    } finally {
+      setFetching(false)
+    }
+  }, [companyId, unitId, paginationModel.page, paginationModel.pageSize, search, selectedEmployee, selectedDept, selectedDesignation, typeFilter, statusFilter])
 
-  // Keep local state in sync with redux
-  useEffect(() => { setLocalEmployees(employees) }, [employees])
+  // Fetch on mount and when filters change
+  useEffect(() => {
+    fetchEmployees()
+  }, [fetchEmployees])
 
   // Non-ACTIVE status changes update local state immediately (optimistic)
   const handleStatusChange = useCallback((employeeId, newStatus) => {
@@ -589,20 +638,19 @@ const EmployeeList = () => {
     )
   }, [])
 
-  const filteredRows = localEmployees.filter(row => {
-    const q = search.toLowerCase()
-    const matchSearch =
-      !search ||
-      row.name?.toLowerCase().includes(q) ||
-      row.email?.toLowerCase().includes(q) ||
-      row.employeeId?.toLowerCase().includes(q) ||
-      row.phone?.includes(search)
-    const matchType   = !typeFilter   || row.employmentType === typeFilter
-    const matchStatus = !statusFilter || row.status === statusFilter
-    return matchSearch && matchType && matchStatus
-  })
+  // Use server-filtered rows directly
+  const filteredRows = rows
 
-  const handleFilter      = useCallback(val => setSearch(val), [])
+  // Debounced search handler
+  const handleFilter = useCallback(val => {
+    setSearch(val)
+    setPaginationModel(prev => ({ ...prev, page: 0 })) // Reset to first page
+  }, [])
+
+  // Reset pagination when any filter changes
+  useEffect(() => {
+    setPaginationModel(prev => ({ ...prev, page: 0 }))
+  }, [search, selectedEmployee, selectedDept, selectedDesignation, typeFilter, statusFilter])
   const handleOpenAdd     = () => { setEditingEmployee(null); setDrawerOpen(true) }
   const handleOpenEdit    = useCallback(row => { setEditingEmployee(row); setDrawerOpen(true) }, [])
   const handleCloseDrawer = () => { setDrawerOpen(false); setEditingEmployee(null) }
@@ -631,73 +679,86 @@ const EmployeeList = () => {
     <Grid container spacing={6.5}>
       <Grid item xs={12}>
         <Card>
-          <CardHeader title='Search Filters' action={
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              {canCreate && (
-                <>
+          {/* Header with Action Buttons */}
+          <CardHeader 
+            title='Employee Management' 
+            action={
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                {canCreate && (
                   <Button
-                    variant='outlined'
-                    startIcon={<Icon icon='mdi:file-excel' />}
-                    onClick={() => router.push('/users/bulk-import')}
+                    variant='contained'
+                    startIcon={<Icon icon='tabler:user-plus' />}
+                    onClick={handleOpenAdd}
                   >
-                    Bulk Import
+                    Add Employee
                   </Button>
-                  <BulkImportDialog
-                    entityType='employees'
-                    onImportComplete={() => dispatch(fetchAllEmployees({ companyId, unitId }))}
-                  />
-                </>
-              )}
-              <BulkExportButton
-                entityType='employees'
-                data={filteredRows}
-                filename='employees-export'
-              />
-            </Box>
-          } />
-          <CardContent>
-            <Grid container spacing={6}>
-              <Grid item sm={4} xs={12}>
-                <CustomTextField select fullWidth
-                  SelectProps={{ value: typeFilter, displayEmpty: true, onChange: e => setTypeFilter(e.target.value) }}
-                  defaultValue=''>
-                  <MenuItem value=''>Select Employment Type</MenuItem>
-                  <MenuItem value='FULL_TIME'>Full Time</MenuItem>
-                  <MenuItem value='PART_TIME'>Part Time</MenuItem>
-                  <MenuItem value='CONTRACT'>Contract</MenuItem>
-                  <MenuItem value='INTERN'>Intern</MenuItem>
-                </CustomTextField>
-              </Grid>
-              <Grid item sm={4} xs={12}>
-                <CustomTextField select fullWidth
-                  SelectProps={{ value: statusFilter, displayEmpty: true, onChange: e => setStatusFilter(e.target.value) }}
-                  defaultValue=''>
-                  <MenuItem value=''>Select Status</MenuItem>
-                  <MenuItem value='ACTIVE'>Active</MenuItem>
-                  <MenuItem value='INACTIVE'>Inactive</MenuItem>
-                  <MenuItem value='TERMINATED'>Terminated</MenuItem>
-                  <MenuItem value='DEACTIVATED'>Deactivated</MenuItem>
-                  <MenuItem value='ON_LEAVE'>On Leave</MenuItem>
-                </CustomTextField>
-              </Grid>
-            </Grid>
-          </CardContent>
-
+                )}
+                {canCreate && (
+                  <>
+                    <Button
+                      variant='outlined'
+                      startIcon={<Icon icon='mdi:file-excel' />}
+                      onClick={() => router.push('/users/bulk-import')}
+                    >
+                      Bulk Import
+                    </Button>
+                    <BulkImportDialog
+                      entityType='employees'
+                      onImportComplete={() => fetchEmployees()}
+                    />
+                  </>
+                )}
+                <BulkExportButton
+                  entityType='employees'
+                  data={filteredRows}
+                  filename='employees-export'
+                />
+              </Box>
+            }
+          />
+          
           <Divider sx={{ m: '0 !important' }} />
-
-<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, px: 6, py: 3 }}>
-  {canCreate && <TableHeader value={search} handleFilter={handleFilter} toggle={canCreate ? handleOpenAdd : undefined} onInviteSuccess={() => dispatch(fetchAllEmployees({ companyId, unitId }))} />}
-</Box>
+          
+          {/* Filters Section */}
+          <CardContent sx={{ pt: 0 }}>
+            <UserFilters
+              search={search}
+              setSearch={setSearch}
+              selectedEmployee={selectedEmployee}
+              setSelectedEmployee={setSelectedEmployee}
+              selectedDept={selectedDept}
+              setSelectedDept={setSelectedDept}
+              selectedDesignation={selectedDesignation}
+              setSelectedDesignation={setSelectedDesignation}
+              typeFilter={typeFilter}
+              setTypeFilter={setTypeFilter}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              unitId={unitId}
+              totalRecords={rowCount}
+            />
+          </CardContent>
          
 
-          <DataGrid
-            autoHeight rowHeight={62} loading={loading}
-            rows={filteredRows} columns={columns}
-            getRowId={row => row._id} disableRowSelectionOnClick
-            pageSizeOptions={[10, 25, 50]}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-          />
+          <Divider sx={{ m: '0 !important' }} />
+          
+          {/* Data Grid */}
+          <Box sx={{ px: 6 }}>
+            <DataGrid
+              autoHeight 
+              rowHeight={62} 
+              loading={fetching}
+              rows={filteredRows} 
+              columns={columns}
+              getRowId={row => row._id} 
+              disableRowSelectionOnClick
+              pageSizeOptions={[10, 25, 50]}
+              paginationModel={paginationModel}
+              onPaginationModelChange={setPaginationModel}
+              paginationMode='server'
+              rowCount={rowCount}
+            />
+          </Box>
         </Card>
       </Grid>
 

@@ -3,7 +3,7 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 import CustomAutocomplete from 'src/@core/components/mui/autocomplete'
 
 // ** Data
-import { top100Films } from 'src/@fake-db/autocomplete'
+import { top100Films } from 'src/@test-db/autocomplete'
 
 const AutocompleteMediumSize = () => {
   return (

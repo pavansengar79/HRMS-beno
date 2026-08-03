@@ -57,6 +57,7 @@ export default function UnitAdminDashboard() {
   const theme = useTheme()
   const params = useParams()
   const { unitDashboard, loading, error } = useSelector(s => s.dashboard)
+  const unit = useSelector(s => s.auth.unit)
 
   const [month, setMonth] = useState(getCurrentMonth())
   const months = getLast12Months()
@@ -109,8 +110,10 @@ export default function UnitAdminDashboard() {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 5, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>Unit Overview</Typography>
-          <Typography variant='body2' color='text.secondary'>Unit Admin · {unitDashboard.unitName}</Typography>
+          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>
+            {unit?.unit_name || unitDashboard?.unitName || 'Unit'} Overview
+          </Typography>
+          <Typography variant='body2' color='text.secondary'>Unit Admin · {unitDashboard?.unitName || 'Unit'}</Typography>
         </Box>
         <CustomTextField
           select

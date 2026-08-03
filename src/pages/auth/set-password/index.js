@@ -81,14 +81,29 @@ const SetPasswordPage = () => {
       const res = await axiosRequest.post('/api/v1/auth/set-password', {
         newPassword: data.newPassword
       })
+      
       if (res?.success) {
         toast.success('Password set! Please log in with your new password.')
+        
         // Clear stored creds so user has to log in fresh
-        const authConfig = (await import('src/configs/auth')).default
-        const tokenKey   = authConfig.storageTokenKeyName || 'accessToken'
-        window.localStorage.removeItem(tokenKey)
-        window.localStorage.removeItem('userData')
-        router.replace('/auth/login')
+        try {
+          const authConfig = (await import('src/configs/auth')).default
+          const tokenKey = authConfig.storageTokenKeyName || 'accessToken'
+          window.localStorage.removeItem(tokenKey)
+          window.localStorage.removeItem('userData')
+          window.localStorage.removeItem('refreshToken')
+        } catch (e) {
+          // Fallback: clear common keys if import fails
+          window.localStorage.removeItem('accessToken')
+          window.localStorage.removeItem('userData')
+          window.localStorage.removeItem('refreshToken')
+        }
+        
+        // Use window.location for hard redirect instead of router
+        // This ensures full page reload and clears any stale state
+        setSubmitting(false)
+        window.location.href = '/auth/login'
+        return
       } else {
         toast.error(res?.message || 'Could not set password. Please try again.')
       }
@@ -181,12 +196,14 @@ const SetPasswordPage = () => {
                 <LinearProgress
                   variant='determinate'
                   value={(strength / 4) * 100}
-                  color={STRENGTH_COLORS[strength]}
+                  color={STRENGTH_COLORS[strength] || 'primary'}
                   sx={{ height: 4, borderRadius: 2, mb: 0.5 }}
                 />
-                <Typography variant='caption' color={`${STRENGTH_COLORS[strength]}.main`}>
-                  {STRENGTH_LABELS[strength]}
-                </Typography>
+                {STRENGTH_LABELS[strength] && (
+                  <Typography variant='caption' color={`${STRENGTH_COLORS[strength]}.main`}>
+                    {STRENGTH_LABELS[strength]}
+                  </Typography>
+                )}
               </Box>
             )}
 

@@ -157,13 +157,13 @@ const buildMyAttendanceColumns = () => [
       
       return (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {hasPhoto ? (
+          {/* {hasPhoto ? (
             <CustomAvatar src={emp.profilePhoto} alt={emp.name} sx={{ width: 34, height: 34 }} />
           ) : (
             <CustomAvatar skin='light' color='primary' sx={{ width: 34, height: 34, fontSize: '0.875rem' }}>
               {initials}
             </CustomAvatar>
-          )}
+          )} */}
           <Typography noWrap sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>{dateStr}</Typography>
         </Box>
       )

@@ -78,7 +78,7 @@ const AccountSettings = ({ tab, apiPricingPlanData }) => {
   const tabContentList = {
     account: <TabAccount />,
     security: <TabSecurity />,
-    connections: <TabConnections />,
+    // connections: <TabConnections />,
     notifications: <TabNotifications />,
     billing: <TabBilling apiPricingPlanData={apiPricingPlanData} />
   }

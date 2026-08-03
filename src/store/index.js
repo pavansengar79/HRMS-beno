@@ -22,6 +22,7 @@ import shiftSwapReducer from './shift/shiftSwapSlice'
 import regularizationReducer from './attendanceRegularization/regularizationSlice'
 import delegationReducer from './delegation/delegationSlice'
 import realTimeNotificationsReducer from './apps/realTimeNotifications'
+import searchReducer from './search/searchSlice'
 
 const store = configureStore({
   reducer: {
@@ -47,6 +48,7 @@ const store = configureStore({
     regularization: regularizationReducer,
     delegation: delegationReducer,
     realTimeNotifications: realTimeNotificationsReducer,
+    search: searchReducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({ serializableCheck: false })

@@ -137,9 +137,15 @@ const PlanModulesPopover = ({ anchorEl, plan, onClose }) => {
 }
 
 const schema = yup.object().shape({
-  business_name:  yup.string().min(2, 'At least 2 characters').required('Business name is required'),
   contact_name:   yup.string().min(2, 'At least 2 characters').required('Your name is required'),
-  contact_email:  yup.string().email('Enter a valid email').required('Email is required'),
+  contact_email:  yup.string().email('Enter a valid email').required('Contact email is required'),
+  work_email:     yup.string().email('Enter a valid work email').when('same_email', {
+    is: false,
+    then: schema => schema.required('Work email is required'),
+    otherwise: schema => schema.notRequired()
+  }),
+  same_email:     yup.boolean().default(true),
+  org_name:      yup.string().min(2, 'At least 2 characters').required('Organization name is required'),
   contact_phone:  yup.string().matches(/^[6-9]\d{9}$/, '10-digit Indian mobile number').required('Phone is required'),
   plan_id:        yup.string().required('Please select a plan'),
 })
@@ -150,27 +156,40 @@ const RegisterPage = () => {
   const [plansLoading, setPlansLoading] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState(null)
   const [infoAnchor, setInfoAnchor]     = useState(null)   // { el, plan }
+  const [sameEmail, setSameEmail]       = useState(true)  // Toggle state
 
   const theme  = useTheme()
   const router = useRouter()
   const hidden = useMediaQuery(theme.breakpoints.down('md'))
 
-  const { control, handleSubmit, setValue, formState: { errors } } = useForm({
-    defaultValues: { business_name: '', contact_name: '', contact_email: '', contact_phone: '', plan_id: '' },
+  const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
+    defaultValues: { 
+      contact_name: '', 
+      contact_email: '', 
+      work_email: '',
+      same_email: true,
+      org_name: '',
+      contact_phone: '', 
+      plan_id: '' 
+    },
     mode: 'onTouched',
     resolver: yupResolver(schema)
   })
+
+  // Watch same_email toggle
+  const sameEmailValue = watch('same_email')
 
   useEffect(() => {
     axiosRequest.get('/api/v1/plans/public')
       .then(res => {
         if (res?.success && Array.isArray(res.data)) {
-          setPlans(res.data)
-          if (res.data.length > 0) {
-            // Default: select "Teams" plan if present, else first
-            const def = res.data.find(p => p.package_type === 'teams') || res.data[0]
-            setValue('plan_id', def._id)
-            setSelectedPlan(def)
+          // Filter: only show plans where is_custom is true
+          const customPlans = res.data.filter(p => p.is_custom === false)
+          setPlans(customPlans)
+          if (customPlans.length > 0) {
+            // Default: select first custom plan
+            setValue('plan_id', customPlans[0]._id)
+            setSelectedPlan(customPlans[0])
           }
         }
       })
@@ -186,18 +205,24 @@ const RegisterPage = () => {
   const onSubmit = async data => {
     try {
       setSubmitting(true)
-      const res = await axiosRequest.post('/api/v1/tenant/register', {
+      const payload = {
         plan_id:       data.plan_id,
-        business_name: data.business_name.trim(),
-        contact_name:  data.contact_name.trim(),
+        business_name: data.contact_name.trim(),  // Your Name → Customer's business_name
+        contact_name:  data.org_name.trim(),      // Organization Name → Customer's contact_name
         contact_email: data.contact_email.trim().toLowerCase(),
         contact_phone: data.contact_phone.trim(),
-      })
+        same_email:    data.same_email,
+        work_email:    data.same_email ? undefined : data.work_email?.trim().toLowerCase(),
+        org_name:      data.org_name.trim(),  // Organization name for the Organization
+      }
+      
+      // NEW ENDPOINT: Public registration with pending approval
+      const res = await axiosRequest.post('/api/v1/super-admin/register', payload)
 
       if (res?.success) {
         toast.success(
-          res.data?.message || 'Account created! Check your email for login credentials.',
-          { duration: 8000 }
+          res.data?.message || 'Registration submitted! You will receive login credentials after approval.',
+          { duration: 10000 }
         )
         router.replace('/auth/login')
       } else {
@@ -258,7 +283,7 @@ const RegisterPage = () => {
             <form noValidate autoComplete='off' onSubmit={handleSubmit(onSubmit)}>
 
               {/* ── Plan selection ── */}
-              <Typography variant='body2' sx={{ fontWeight: 700, mb: 1.5 }}>Choose a plan</Typography>
+              <Typography variant='body2' sx={{ fontWeight: 700, mb: 1.5 }}>Choose a plan *</Typography>
 
               {plansLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 3, mb: 3 }}>
@@ -333,37 +358,26 @@ const RegisterPage = () => {
                 onClose={() => setInfoAnchor(null)}
               />
 
-              {/* Business Name */}
-              <Controller name='business_name' control={control}
-                render={({ field }) => (
-                  <CustomTextField {...field} fullWidth label='Business / Organisation Name'
-                    placeholder='Acme Technologies Pvt Ltd'
-                    sx={{ display: 'flex', mb: 4 }}
-                    error={Boolean(errors.business_name)} helperText={errors.business_name?.message}
-                    disabled={submitting} />
-                )}
-              />
-
               {/* Contact Name */}
               <Controller name='contact_name' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth autoFocus label='Your Name'
+                  <CustomTextField {...field} fullWidth autoFocus label='Your Name *'
                     placeholder='Ratan Tata'
                     sx={{ display: 'flex', mb: 4 }}
                     error={Boolean(errors.contact_name)}
-                    helperText={errors.contact_name?.message || 'You become the Org Admin'}
+                    helperText={errors.contact_name?.message || 'You will be the Org Admin'}
                     disabled={submitting} />
                 )}
               />
 
-              {/* Email */}
+              {/* Contact Email */}
               <Controller name='contact_email' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth type='email' label='Work Email'
-                    placeholder='you@company.com'
-                    sx={{ display: 'flex', mb: 4 }}
+                  <CustomTextField {...field} fullWidth type='email' label='Contact Email *'
+                    placeholder='you@personal.com'
+                    sx={{ display: 'flex', mb: 2 }}
                     error={Boolean(errors.contact_email)}
-                    helperText={errors.contact_email?.message || 'Login credentials will be emailed here'}
+                    helperText={errors.contact_email?.message || 'Your personal email for account updates'}
                     disabled={submitting}
                     InputProps={{
                       startAdornment: (
@@ -376,10 +390,112 @@ const RegisterPage = () => {
                 )}
               />
 
+              {/* Same Email Toggle */}
+              <Controller name='same_email' control={control}
+                render={({ field }) => (
+                  <Paper 
+                    elevation={0}
+                    onClick={() => field.onChange(!field.value)}
+                    sx={{ 
+                      p: 2, 
+                      mb: 3, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      cursor: 'pointer',
+                      '&:hover': { borderColor: 'primary.main' }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Icon icon={field.value ? 'tabler:link' : 'tabler:unlink'} fontSize='1.25rem' />
+                      <Box>
+                        <Typography variant='body2' sx={{ fontWeight: 600 }}>
+                          {field.value ? 'Same email for credentials' : 'Different email for credentials'}
+                        </Typography>
+                        <Typography variant='caption' sx={{ color: 'text.secondary' }}>
+                          {field.value 
+                            ? 'Login credentials will be sent to your contact email' 
+                            : 'Login credentials will be sent to organization email'
+                          }
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Box
+                      sx={{
+                        width: 44,
+                        height: 24,
+                        borderRadius: 12,
+                        bgcolor: field.value ? 'primary.main' : 'action.disabled',
+                        display: 'flex',
+                        alignItems: 'center',
+                        transition: 'all 0.2s',
+                        px: 0.5,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: '50%',
+                          bgcolor: '#fff',
+                          transform: field.value ? 'translateX(20px)' : 'translateX(0)',
+                          transition: 'transform 0.2s',
+                        }}
+                      />
+                    </Box>
+                  </Paper>
+                )}
+              />
+
+              {/* Work Email - Only shown when same_email is false */}
+              {!sameEmailValue && (
+                <Controller name='work_email' control={control}
+                  render={({ field }) => (
+                    <CustomTextField {...field} fullWidth type='email' label='Organization Email *'
+                      placeholder='you@company.com'
+                      sx={{ display: 'flex', mb: 3 }}
+                      error={Boolean(errors.work_email)}
+                      helperText={errors.work_email?.message || 'Credentials will be sent to this email after approval'}
+                      disabled={submitting}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position='start'>
+                            <Icon icon='tabler:building' fontSize='1.25rem' />
+                          </InputAdornment>
+                        )
+                      }}
+                    />
+                  )}
+                />
+              )}
+
+              {/* Organization Name */}
+              <Controller name='org_name' control={control}
+                render={({ field }) => (
+                  <CustomTextField {...field} fullWidth label='Organization Name *'
+                    placeholder='Acme Technologies Pvt Ltd'
+                    sx={{ display: 'flex', mb: 4 }}
+                    error={Boolean(errors.org_name)}
+                    helperText={errors.org_name?.message || 'Your organization name'}
+                    disabled={submitting}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position='start'>
+                          <Icon icon='tabler:building-community' fontSize='1.25rem' />
+                        </InputAdornment>
+                      )
+                    }}
+                  />
+                )}
+              />
+
               {/* Phone */}
               <Controller name='contact_phone' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth label='Phone Number'
+                  <CustomTextField {...field} fullWidth label='Phone Number *'
                     placeholder='9876543210'
                     sx={{ display: 'flex', mb: 4 }}
                     error={Boolean(errors.contact_phone)} helperText={errors.contact_phone?.message}
@@ -397,9 +513,11 @@ const RegisterPage = () => {
 
               {/* Trial notice */}
               <Alert severity='info' icon={<Icon icon='tabler:clock' />} sx={{ mb: 4, borderRadius: 2 }}>
-                <Typography variant='caption' sx={{ fontWeight: 600 }}>14-day free trial, no card needed.</Typography>
+                <Typography variant='caption' sx={{ fontWeight: 600 }}>Registration requires Super Admin approval.</Typography>
                 {' '}
-                <Typography variant='caption'>Your temp password is sent by email. After first login you&apos;ll set your own password.</Typography>
+                <Typography variant='caption'>
+                  Submit your details and our team will review your application. You&apos;ll receive login credentials within 24-48 hours.
+                </Typography>
               </Alert>
 
               {/* Submit */}
@@ -408,7 +526,7 @@ const RegisterPage = () => {
                 sx={{ mb: 4, py: 1.5 }}
                 startIcon={submitting ? <CircularProgress size={16} color='inherit' /> : null}
               >
-                {submitting ? 'Creating account…' : 'Create Account & Start Trial'}
+                {submitting ? 'Submitting…' : 'Submit Registration Request'}
               </Button>
 
               <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', mb: 4 }}>

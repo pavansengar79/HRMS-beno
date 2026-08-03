@@ -24,6 +24,10 @@ import Typography from '@mui/material/Typography'
 import Stack from '@mui/material/Stack'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import IconButton from '@mui/material/IconButton'
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import CustomChip from 'src/@core/components/mui/chip'
@@ -49,6 +53,7 @@ const EssentialsConfigPage = () => {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [logoPreviewOpen, setLogoPreviewOpen] = useState(false)
   const logoInputRef = useRef(null)
   const [availableCities, setAvailableCities] = useState([])
 
@@ -268,6 +273,7 @@ const EssentialsConfigPage = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    gap: 2,
                     opacity: 0,
                     transition: 'opacity 0.2s',
                     '&:hover': {
@@ -275,7 +281,20 @@ const EssentialsConfigPage = () => {
                     }
                   }}
                 >
-                  <Icon icon='tabler:camera' fontSize={32} color='white' />
+                  <IconButton
+                    size='small'
+                    sx={{ bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: 'white' } }}
+                    onClick={(e) => { e.stopPropagation(); setLogoPreviewOpen(true); }}
+                  >
+                    <Icon icon='tabler:zoom-in' fontSize={20} color='black' />
+                  </IconButton>
+                  <IconButton
+                    size='small'
+                    sx={{ bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: 'white' } }}
+                    onClick={(e) => { e.stopPropagation(); logoInputRef.current?.click(); }}
+                  >
+                    <Icon icon='tabler:camera' fontSize={20} color='black' />
+                  </IconButton>
                 </Box>
               </>
             ) : (
@@ -317,12 +336,61 @@ const EssentialsConfigPage = () => {
             <Typography variant='body2' sx={{ mb: 1, fontWeight: 500 }}>
               {org.logo_url ? 'Logo uploaded ✓' : 'No logo uploaded'}
             </Typography>
-            <Typography variant='caption' color='text.secondary'>
-              Supported formats: JPEG, PNG, GIF, WebP. Max size: 5MB. Recommended: Square image (512x512px)
-            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              <Typography variant='body2' sx={{ color: 'text.primary', fontWeight: 500 }}>
+                Supported formats: JPEG, PNG, GIF, WebP
+              </Typography>
+              <Typography variant='body2' sx={{ color: 'text.primary', fontWeight: 500 }}>
+                Maximum file size: 5MB
+              </Typography>
+              <Typography variant='body2' sx={{ color: 'text.secondary' }}>
+                Recommended: Square image (512x512px)
+              </Typography>
+            </Box>
           </Box>
         </Box>
       </Card>
+
+      {/* ── Logo Preview Dialog ─────────────────────────────────────────────── */}
+      <Dialog
+        open={logoPreviewOpen}
+        onClose={() => setLogoPreviewOpen(false)}
+        maxWidth='sm'
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            backgroundColor: 'background.default'
+          }
+        }}
+      >
+        <DialogContent sx={{ p: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 300 }}>
+          {org.logo_url && (
+            <Box
+              component='img'
+              src={org.logo_url}
+              alt='Organization Logo Preview'
+              sx={{
+                maxWidth: '100%',
+                maxHeight: '70vh',
+                objectFit: 'contain',
+                borderRadius: 1
+              }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 4 }}>
+          <Button variant='outlined' onClick={() => setLogoPreviewOpen(false)}>
+            Close
+          </Button>
+          <Button
+            variant='contained'
+            startIcon={<Icon icon='tabler:camera' />}
+            onClick={() => { setLogoPreviewOpen(false); logoInputRef.current?.click(); }}
+          >
+            Change Logo
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Organization Details Card ─────────────────────────────────────────────── */}
       <Card sx={{ mb: 4 }}>

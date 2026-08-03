@@ -1,3 +1,6 @@
+// ** React Imports
+import { Fragment } from 'react'
+
 // ** MUI Imports
 import Box from '@mui/material/Box'
 
@@ -8,6 +11,7 @@ import UserDropdown from 'src/@core/layouts/components/shared-components/UserDro
 import LanguageDropdown from 'src/@core/layouts/components/shared-components/LanguageDropdown'
 import NotificationDropdown from 'src/@core/layouts/components/shared-components/NotificationDropdown'
 import ShortcutsDropdown from 'src/@core/layouts/components/shared-components/ShortcutsDropdown'
+import { GlobalSearchIcon, GlobalSearchModal } from 'src/@core/layouts/components/shared-components/GlobalSearch'
 
 // ** Hook Import
 import { useAuth } from 'src/hooks/useAuth'
@@ -116,18 +120,22 @@ const AppBarContent = props => {
   const auth = useAuth()
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      {auth.user && <Autocomplete hidden={hidden} settings={settings} />}
-      <LanguageDropdown settings={settings} saveSettings={saveSettings} />
-      <ModeToggler settings={settings} saveSettings={saveSettings} />
-      {auth.user && (
-        <>
-          <ShortcutsDropdown settings={settings} shortcuts={shortcuts} />
-          <NotificationDropdown settings={settings} />
-          <UserDropdown settings={settings} />
-        </>
-      )}
-    </Box>
+    <Fragment>
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <GlobalSearchIcon />
+        {auth.user && <Autocomplete hidden={hidden} settings={settings} />}
+        <LanguageDropdown settings={settings} saveSettings={saveSettings} />
+        <ModeToggler settings={settings} saveSettings={saveSettings} />
+        {auth.user && (
+          <>
+            <ShortcutsDropdown settings={settings} shortcuts={shortcuts} />
+            <NotificationDropdown settings={settings} />
+            <UserDropdown settings={settings} />
+          </>
+        )}
+      </Box>
+      <GlobalSearchModal />
+    </Fragment>
   )
 }
 

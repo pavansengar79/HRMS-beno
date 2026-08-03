@@ -1,199 +1,239 @@
 // src/pages/organisation/index.js
-// Organisation list + Plans Tab (subscription from authSlice)
+// Organisation list for Super Admin - shows all tenant organisations
 import { useState, useEffect } from 'react'
-import { useSelector } from 'react-redux'
-import { selectSubscription } from 'src/store/auth/authSlice'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
 import Divider from '@mui/material/Divider'
 import Typography from '@mui/material/Typography'
-import Tab from '@mui/material/Tab'
-import TabContext from '@mui/lab/TabContext'
-import TabList from '@mui/lab/TabList'
-import TabPanel from '@mui/lab/TabPanel'
 import Chip from '@mui/material/Chip'
 import LinearProgress from '@mui/material/LinearProgress'
-import Table from '@mui/material/Table'
-import TableHead from '@mui/material/TableHead'
-import TableBody from '@mui/material/TableBody'
-import TableRow from '@mui/material/TableRow'
-import TableCell from '@mui/material/TableCell'
+import Avatar from '@mui/material/Avatar'
+import Tooltip from '@mui/material/Tooltip'
 import { DataGrid } from '@mui/x-data-grid'
 import { alpha } from '@mui/material/styles'
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import axiosRequest from 'src/utils/AxiosInterceptor'
+import dayjs from 'dayjs'
 
-const fmtDate = s =>
-  s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
+const fmtDate = s => s ? dayjs(s).format('DD MMM YYYY') : '—'
 
-// ─── Organisations Tab ────────────────────────────────────────────────────────
-const columns = [
-  { flex: 0.25, minWidth: 220, field: 'name', headerName: 'Organisation',
-    renderCell: ({ row }) => (
-      <Box>
-        <Typography sx={{ fontWeight: 500, color: 'text.secondary' }}>{row.name}</Typography>
-        <Typography variant='body2' sx={{ color: 'text.disabled' }}>{row.contact_email}</Typography>
-      </Box>
-    ) },
-  { flex: 0.15, minWidth: 140, field: 'contact_name', headerName: 'Contact',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.contact_name || '—'}</Typography> },
-  { flex: 0.12, minWidth: 110, field: 'industry', headerName: 'Industry',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.industry || '—'}</Typography> },
-  { flex: 0.12, minWidth: 110, field: 'country', headerName: 'Country',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.country || '—'}</Typography> },
-  { flex: 0.12, minWidth: 110, field: 'createdAt', headerName: 'Registered',
-    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{fmtDate(row.createdAt)}</Typography> },
-]
-
-// ─── Plans Tab ────────────────────────────────────────────────────────────────
 const STATUS_COLOR = {
-  Trial:     '#f59e0b',
   Active:    '#10b981',
-  PastDue:   '#ef4444',
-  Expired:   '#94a3b8',
-  Cancelled: '#94a3b8',
+  Pending:   '#f59e0b',
+  Suspended: '#ef4444',
+  Inactive:  '#94a3b8',
 }
 
-const PlansTab = ({ subscription }) => {
-  if (!subscription) {
-    return (
-      <Box sx={{ py: 6, textAlign: 'center' }}>
-        <Icon icon='tabler:credit-card-off' fontSize={40} style={{ color: '#94a3b8', display: 'block', margin: '0 auto 12px' }} />
-        <Typography variant='body2' color='text.secondary'>No active subscription found</Typography>
+// ─── Organisations Columns ────────────────────────────────────────────────────────
+const columns = [
+  { flex: 0.22, minWidth: 240, field: 'org_name', headerName: 'Organization Name',
+    renderCell: ({ row }) => (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Avatar 
+          src={row.logo_url} 
+          sx={{ width: 38, height: 38, bgcolor: alpha('#6366f1', 0.12), color: '#6366f1', fontWeight: 700, fontSize: 14 }}
+        >
+          {row.org_name?.charAt(0)?.toUpperCase() || 'O'}
+        </Avatar>
+        <Box sx={{ flex: 1 }}>
+          <Typography sx={{ fontWeight: 600, color: 'text.primary' }}>{row.org_name}</Typography>
+          <Typography variant='caption' sx={{ color: 'text.disabled' }}>{row.contact_email || row.email}</Typography>
+        </Box>
       </Box>
     )
-  }
+  },
+  { flex: 0.12, minWidth: 120, field: 'work_email', headerName: 'Work Email',
+    renderCell: ({ row }) => (
+      <Typography variant='body2' sx={{ color: 'text.secondary' }}>
+        {row.work_email || '—'}
+      </Typography>
+    )
+  },
+  { flex: 0.12, minWidth: 130, field: 'plan', headerName: 'Plan',
+    renderCell: ({ row }) => {
+      const planDetails = row.planDetails
+      if (!planDetails) {
+        return <Typography sx={{ color: 'text.disabled' }}>{row.plan}</Typography>
+      }
 
-  const sc = STATUS_COLOR[subscription.status] || '#94a3b8'
-  const daysLeft = subscription.days_left ?? 0
-  const endDate  = subscription.ends_at
-
-  return (
-    <Box sx={{ p: 4 }}>
-      <Grid container spacing={4}>
-        {/* Plan Card */}
-        <Grid item xs={12} md={6}>
-          <Card variant='outlined' sx={{ p: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-              <Typography variant='h6' sx={{ fontWeight: 700 }}>{subscription.plan_name || 'Plan'}</Typography>
-              <Chip label={subscription.status} size='small'
-                sx={{ fontWeight: 700, bgcolor: alpha(sc, 0.1), color: sc }} />
-            </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+      return (
+        <Tooltip 
+          title={
+            <Box sx={{ p: 1.5, minWidth: 250 }}>
+              <Typography variant='subtitle2' sx={{ fontWeight: 700, mb: 1.5 }}>{planDetails.name}</Typography>
               {[
-                { label: 'Plan Name',       value: subscription.plan_name || '—' },
-                { label: 'Status',          value: subscription.status || '—' },
-                { label: 'Start Date',      value: fmtDate(subscription.starts_at) },
-                { label: 'Expiry Date',     value: fmtDate(endDate) },
-                { label: 'Remaining Days',  value: `${daysLeft} days`, highlight: daysLeft < 7 },
-                { label: 'Trial',           value: subscription.is_trial ? 'Yes' : 'No' },
-                { label: 'Structure Level', value: subscription.structure_level || '—' },
-                { label: 'Billing Cycle',   value: subscription.billing_cycle || '—' },
-              ].map(r => (
-                <Box key={r.label} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant='caption' color='text.secondary' sx={{ fontWeight: 500 }}>{r.label}</Typography>
-                  <Typography variant='body2' sx={{ fontWeight: 600, color: r.highlight ? '#ef4444' : 'text.primary' }}>
-                    {r.value}
-                  </Typography>
+                { label: 'Package', value: planDetails.package_type || '—' },
+                { label: 'Billing', value: planDetails.billing_cycle || '—' },
+                { label: 'Seat Limit', value: planDetails.seat_limit || '—' },
+              ].map(item => (
+                <Box key={item.label} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant='caption' sx={{ color: 'grey.300' }}>{item.label}</Typography>
+                  <Typography variant='caption' sx={{ fontWeight: 600, color: 'common.white' }}>{item.value}</Typography>
                 </Box>
               ))}
-            </Box>
-          </Card>
-        </Grid>
-
-        {/* Modules / Features */}
-        <Grid item xs={12} md={6}>
-          <Card variant='outlined' sx={{ p: 4, height: '100%' }}>
-            <Typography variant='subtitle2' sx={{ fontWeight: 700, mb: 3 }}>Active Modules</Typography>
-            {(subscription.modules || []).length === 0 ? (
-              <Typography variant='body2' color='text.secondary'>No modules listed</Typography>
-            ) : (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-                {subscription.modules.map(m => (
-                  <Chip key={m} label={m} size='small'
-                    icon={<Icon icon='tabler:check' fontSize={12} />}
-                    sx={{ bgcolor: alpha('#10b981', 0.1), color: '#10b981', fontWeight: 600, fontSize: 11 }} />
-                ))}
-              </Box>
-            )}
-
-            {subscription.seat_limit && (
-              <Box sx={{ mt: 4 }}>
-                <Typography variant='subtitle2' sx={{ fontWeight: 700, mb: 1.5 }}>Usage Limits</Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant='caption' color='text.secondary'>Seat Limit</Typography>
-                  <Typography variant='body2' sx={{ fontWeight: 600 }}>{subscription.seat_limit}</Typography>
+              {planDetails.features && planDetails.features.length > 0 && (
+                <Box sx={{ mt: 1.5 }}>
+                  <Typography variant='caption' sx={{ fontWeight: 600, color: 'grey.300', display: 'block', mb: 0.5 }}>Features:</Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {planDetails.features.map((f, idx) => (
+                      <Chip key={idx} label={f} size='small' sx={{ fontSize: 10, height: 18, bgcolor: 'rgba(255,255,255,0.1)', color: 'common.white' }} />
+                    ))}
+                  </Box>
                 </Box>
-              </Box>
-            )}
-          </Card>
-        </Grid>
-      </Grid>
-    </Box>
-  )
-}
+              )}
+            </Box>
+          }
+          arrow
+          placement='top'
+        >
+          <Chip 
+            label={row.plan}
+            size='small'
+            icon={<Icon icon='tabler:credit-card' />}
+            sx={{ fontWeight: 600, bgcolor: alpha('#6366f1', 0.08), color: '#6366f1', cursor: 'pointer' }}
+          />
+        </Tooltip>
+      )
+    }
+  },
+  { flex: 0.1, minWidth: 110, field: 'industry', headerName: 'Industry',
+    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.industry || '—'}</Typography> },
+  { flex: 0.1, minWidth: 100, field: 'country', headerName: 'Country',
+    renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.country || '—'}</Typography> },
+  { flex: 0.1, minWidth: 100, field: 'status', headerName: 'Status',
+    renderCell: ({ row }) => {
+      const status = row.org_status || row.status
+      const color = STATUS_COLOR[status] || '#94a3b8'
+      return (
+        <Chip 
+          label={status}
+          size='small'
+          sx={{ fontWeight: 700, fontSize: 11, bgcolor: alpha(color, 0.1), color: color, border: 'none' }}
+        />
+      )
+    }
+  },
+  { flex: 0.1, minWidth: 120, field: 'joinedAt', headerName: 'Registered',
+    renderCell: ({ row }) => (
+      <Typography sx={{ color: 'text.secondary' }}>
+        {fmtDate(row.joinedAt || row.createdAt)}
+      </Typography>
+    )
+  },
+]
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+
+
+
+// ─── Main Page ────────────────────────────────────────────────────────
 const OrganisationPage = () => {
-  const subscription   = useSelector(selectSubscription)
-  const [orgs, setOrgs]     = useState([])
-  const [loading, setLoading] = useState(false)
-  const [search, setSearch]   = useState('')
-  const [activeTab, setActiveTab] = useState('orgs')
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
+  const [orgs, setOrgs]         = useState([])
+  const [loading, setLoading]   = useState(false)
+  const [search, setSearch]     = useState('')
+  const [total, setTotal]       = useState(0)
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 20 })
 
   useEffect(() => {
     setLoading(true)
-    axiosRequest.get('/api/v1/tenant')
-      .then(res => setOrgs(res?.data || res?.tenants || res || []))
-      .catch(() => setOrgs([]))
+    const { page, pageSize } = paginationModel
+    
+    axiosRequest.get(`/api/v1/super-admin/tenants?page=${page + 1}&limit=${pageSize}`)
+      .then(res => {
+        console.log('API Response:', res) // Debug log
+        
+        // Handle the nested response structure: res.data.tenants
+        const tenants = res?.data?.tenants || res?.tenants || res?.data || []
+        const pagination = res?.data?.pagination || res?.pagination || {}
+        
+        if (Array.isArray(tenants)) {
+          setOrgs(tenants)
+          setTotal(pagination.total || tenants.length)
+        } else {
+          setOrgs([])
+          setTotal(0)
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch organisations:', err)
+        setOrgs([])
+        setTotal(0)
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [paginationModel.page, paginationModel.pageSize])
 
   const filteredRows = orgs.filter(row =>
     !search ||
+    row.org_name?.toLowerCase().includes(search.toLowerCase()) ||
     row.name?.toLowerCase().includes(search.toLowerCase()) ||
-    row.contact_email?.toLowerCase().includes(search.toLowerCase())
+    row.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
+    row.contact_email?.toLowerCase().includes(search.toLowerCase()) ||
+    row.work_email?.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
     <Grid container spacing={6.5}>
       <Grid item xs={12}>
         <Card>
-          <TabContext value={activeTab}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 4 }}>
-              <TabList onChange={(_, v) => setActiveTab(v)}>
-                <Tab label='Organisations' value='orgs' icon={<Icon icon='tabler:building-skyscraper' />} iconPosition='start' />
-                <Tab label='Plan & Subscription' value='plan' icon={<Icon icon='tabler:credit-card' />} iconPosition='start' />
-              </TabList>
+          <Box sx={{ px: 5, py: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Icon icon='tabler:building-skyscraper' fontSize={24} style={{ color: '#6366f1' }} />
+              <Typography variant='h5' sx={{ fontWeight: 700 }}>Organisations</Typography>
             </Box>
+            <CustomTextField 
+              size='small'
+              value={search} 
+              placeholder='Search by organization name, contact name, or email...' 
+              sx={{ minWidth: 320 }}
+              onChange={e => setSearch(e.target.value)}
+              InputProps={{ 
+                startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} /> 
+              }} 
+            />
+          </Box>
 
-            <TabPanel value='orgs' sx={{ p: 0 }}>
-              <Box sx={{ p: 5, display: 'flex', gap: 4, alignItems: 'center' }}>
-                <CustomTextField value={search} placeholder='Search organisations...' sx={{ minWidth: 250 }}
-                  onChange={e => setSearch(e.target.value)}
-                  InputProps={{ startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} /> }} />
-              </Box>
-              <Divider sx={{ m: '0 !important' }} />
-              {loading && <LinearProgress />}
-              <DataGrid
-                autoHeight rowHeight={62} loading={loading}
-                rows={filteredRows} columns={columns}
-                getRowId={row => row._id || row.id}
-                disableRowSelectionOnClick
-                pageSizeOptions={[10, 25, 50]}
-                paginationModel={paginationModel}
-                onPaginationModelChange={setPaginationModel}
-                rowCount={filteredRows.length}
-              />
-            </TabPanel>
-
-            <TabPanel value='plan' sx={{ p: 0 }}>
-              <PlansTab subscription={subscription} />
-            </TabPanel>
-          </TabContext>
+          <Divider />
+          {loading && <LinearProgress />}
+          
+          <DataGrid
+            autoHeight 
+            rowHeight={64} 
+            loading={loading}
+            rows={filteredRows} 
+            columns={columns}
+            getRowId={row => row.id || row._id}
+            disableRowSelectionOnClick
+            pageSizeOptions={[10, 20, 50]}
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            rowCount={total}
+            paginationMode="server"
+            slots={{
+              noRowsOverlay: () => (
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  height: '100%',
+                  py: 8
+                }}>
+                  <Icon icon='tabler:building-off' fontSize='4rem' style={{ opacity: 0.3, marginBottom: 16 }} />
+                  <Typography variant='h6' sx={{ color: 'text.secondary', mb: 1 }}>
+                    No organisations found
+                  </Typography>
+                  <Typography variant='body2' sx={{ color: 'text.disabled', maxWidth: 400, textAlign: 'center' }}>
+                    {search 
+                      ? `No organisations match "${search}". Try adjusting your search criteria.`
+                      : 'No organisations have been added yet. Add your first organisation to get started.'
+                    }
+                  </Typography>
+                </Box>
+              )
+            }}
+            sx={{ px: 5, py: 2, '& .MuiDataGrid-cell:focus': { outline: 'none' } }}
+          />
         </Card>
       </Grid>
     </Grid>

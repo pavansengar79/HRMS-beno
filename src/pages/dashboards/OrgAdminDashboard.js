@@ -8,10 +8,13 @@ import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
+import Avatar from '@mui/material/Avatar'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
+import Tooltip from '@mui/material/Tooltip'
 import Icon from 'src/@core/components/icon'
 import { fetchOrgDashboard } from 'src/store/dashboard/dashboardSlice'
+import { selectOrganization } from 'src/store/auth/authSlice'
 
 const KPICard = ({ label, value, sub, icon, color, trend }) => {
   const theme = useTheme()
@@ -38,6 +41,7 @@ const KPICard = ({ label, value, sub, icon, color, trend }) => {
 export default function OrgAdminDashboard() {
   const dispatch = useDispatch()
   const theme = useTheme()
+  const organization = useSelector(selectOrganization)
   const { orgDashboard, loading, error } = useSelector(s => s.dashboard)
 
   useEffect(() => {
@@ -88,8 +92,36 @@ export default function OrgAdminDashboard() {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 5 }}>
         <Box>
-          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>Organisation Overview</Typography>
-          <Typography variant='body2' color='text.secondary'>Org Admin · All Companies</Typography>
+          <Typography variant='h5' sx={{ fontWeight: 800, mb: 0.5 }}>
+            {organization?.name || 'Organisation'} Overview
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant='body2' color='text.secondary'>Org Admin · All Companies</Typography>
+            {organization && (
+              <Tooltip 
+                title={
+                  <Card sx={{ p: 2, minWidth: 200, bgcolor: 'background.paper', boxShadow: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar src={organization?.logo_url} sx={{ width: 24, height: 24 }} />
+                      <Typography variant='body2'>
+                        {organization?.name || 'Organisation'}
+                      </Typography>
+                    </Box>
+                  </Card>
+                }
+                arrow
+                placement='right'
+              >
+                <Chip 
+                  label={organization?.name || 'Organisation'} 
+                  size='small' 
+                  color='primary' 
+                  variant='outlined'
+                  sx={{ fontSize: '11px', height: '20px', cursor: 'pointer' }}
+                />
+              </Tooltip>
+            )}
+          </Box>
         </Box>
         {subscription.status && (
           <Chip
