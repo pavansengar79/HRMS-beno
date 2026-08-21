@@ -289,6 +289,17 @@ export default function TeamAttendance() {
   const [customStartDate, setCustomStartDate] = useState(null)
   const [customEndDate, setCustomEndDate] = useState(null)
 
+  // ── Read URL query params and set filters ─────────────────────────────────
+  useEffect(() => {
+    const { filterStatus: queryStatus, dateRangePreset: queryDateRange } = router.query
+    if (queryStatus) {
+      setFilterStatus(queryStatus)
+    }
+    if (queryDateRange) {
+      setDateRangePreset(queryDateRange)
+    }
+  }, [router.query])
+
   // ── Access check ───────────────────────────────────────────────────────────
   // ── Access check ───────────────────────────────────────────────────────────
   useEffect(() => {

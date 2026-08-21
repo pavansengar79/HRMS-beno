@@ -2,6 +2,7 @@
 // REAL API — GET /api/v1/dashboard/unit?month=YYYY-MM
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { useRouter } from 'next/router'
 import { fetchUnitDashboard } from 'src/store/dashboard/dashboardSlice'
 import { updateLeaveStatus } from 'src/store/leaves/leaveSlice'
 import { selectUnit } from 'src/store/auth/authSlice'
@@ -27,10 +28,22 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 
-const KPICard = ({ label, value, sub, icon, color, trend, trendUp }) => {
+const KPICard = ({ label, value, sub, icon, color, trend, trendUp, onClick }) => {
   const theme = useTheme(); const isDark = theme.palette.mode === 'dark'
   return (
-    <Card sx={{ overflow: 'hidden', height: '100%' }}>
+    <Card 
+      sx={{ 
+        overflow: 'hidden', 
+        height: '100%', 
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'all 0.2s ease',
+        '&:hover': onClick ? {
+          transform: 'translateY(-2px)',
+          boxShadow: 4
+        } : {}
+      }}
+      onClick={onClick}
+    >
       <Box sx={{ px: 3, pt: 3, pb: 2.5, background: `linear-gradient(135deg, ${alpha(color, isDark ? 0.18 : 0.07)} 0%, transparent 70%)` }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2.5 }}>
           <Box sx={{ width: 44, height: 44, borderRadius: 2.5, bgcolor: alpha(color, 0.15), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -66,6 +79,7 @@ const MONTH_OPTIONS = (() => {
 
 export default function UnitDashboard({ companyId, unitId }) {
   const dispatch = useDispatch()
+  const router = useRouter()
   const theme = useTheme(); const isDark = theme.palette.mode === 'dark'
   const unit = useSelector(selectUnit)
   const { data, loading, error } = useSelector(s => s.dashboard)
@@ -104,13 +118,67 @@ export default function UnitDashboard({ companyId, unitId }) {
   const recentActivity = data.recentActivity  || []
   const rolesData   = data.roles         || {}
 
+  // Navigation handlers for clickable KPIs
+  const navigateTo = (path, filters = {}) => {
+    const query = new URLSearchParams(filters).toString()
+    router.push(`${path}${query ? `?${query}` : ''}`)
+  }
+
   const KPIS = [
-    { label: 'Team Size',         value: employees.total ?? users.total, sub: `${depts.total ?? 0} departments`, icon: 'tabler:users', color: '#6366f1', trend: 'Stable', trendUp: true },
-    { label: 'Present Today',     value: todayAtt.present, sub: `${todayAtt.absent ?? 0} absent`, icon: 'tabler:clock-check', color: '#10b981', trend: `${todayAtt.attendanceRate ?? 0}%`, trendUp: true },
-    { label: 'On Leave Today',    value: todayAtt.onLeave, sub: 'approved leaves', icon: 'tabler:calendar-off', color: '#f59e0b' },
-    { label: 'Pending Leaves',    value: data.pendingLeaveCount ?? pendLeaves.length, sub: 'awaiting approval', icon: 'tabler:calendar-user', color: '#ef4444', trend: 'Review now', trendUp: false },
-    { label: 'Late Today',        value: todayAtt.late, sub: 'late arrivals', icon: 'tabler:clock-minus', color: '#8b5cf6' },
-    { label: 'WFH Today',         value: todayAtt.wfh, sub: 'working from home', icon: 'tabler:home-check', color: '#0ea5e9' },
+    { 
+      label: 'Team Size',         
+      value: employees.total ?? users.total, 
+      sub: `${depts.total ?? 0} departments`, 
+      icon: 'tabler:users', 
+      color: '#6366f1', 
+      trend: 'Stable', 
+      trendUp: true,
+      onClick: () => navigateTo('/users')
+    },
+    { 
+      label: 'Present Today',     
+      value: todayAtt.present, 
+      sub: `${todayAtt.absent ?? 0} absent`, 
+      icon: 'tabler:clock-check', 
+      color: '#10b981', 
+      trend: `${todayAtt.attendanceRate ?? 0}%`, 
+      trendUp: true,
+      onClick: () => navigateTo('/attendance/team', { dateRangePreset: 'today', filterStatus: 'PRESENT' })
+    },
+    { 
+      label: 'On Leave Today',    
+      value: todayAtt.onLeave, 
+      sub: 'approved leaves', 
+      icon: 'tabler:calendar-off', 
+      color: '#f59e0b',
+      onClick: () => navigateTo('/attendance/team', { dateRangePreset: 'today', filterStatus: 'ON_LEAVE' })
+    },
+    { 
+      label: 'Pending Leaves',    
+      value: data.pendingLeaveCount ?? pendLeaves.length, 
+      sub: 'awaiting approval', 
+      icon: 'tabler:calendar-user', 
+      color: '#ef4444', 
+      trend: 'Review now', 
+      trendUp: false,
+      onClick: () => navigateTo('/leaves', { tab: 'approval' })
+    },
+    { 
+      label: 'Late Today',        
+      value: todayAtt.late, 
+      sub: 'late arrivals', 
+      icon: 'tabler:clock-minus', 
+      color: '#8b5cf6',
+      onClick: () => navigateTo('/attendance/team', { dateRangePreset: 'today', filterStatus: 'LATE' })
+    },
+    { 
+      label: 'WFH Today',         
+      value: todayAtt.wfh, 
+      sub: 'working from home', 
+      icon: 'tabler:home-check', 
+      color: '#0ea5e9',
+      onClick: () => navigateTo('/attendance/team', { dateRangePreset: 'today', filterStatus: 'WFH' })
+    },
   ]
 
   const attChartData = [
@@ -184,9 +252,10 @@ export default function UnitDashboard({ companyId, unitId }) {
         {KPIS.map(k => <Grid item xs={6} sm={4} md={2} key={k.label}><KPICard {...k} /></Grid>)}
       </Grid>
 
+      {/* Monthly Attendance Section */}
       <Grid container spacing={4} sx={{ mb: 4 }}>
         <Grid item xs={12} md={7}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={{ height: '100%', cursor: 'pointer' }} onClick={() => navigateTo('/attendance/team')}>
             <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Monthly Attendance — {month}</Typography>
             </Box>
@@ -210,7 +279,7 @@ export default function UnitDashboard({ companyId, unitId }) {
 
         <Grid item xs={12} md={5}>
           <Stack spacing={4}>
-            <Card>
+            <Card sx={{ cursor: 'pointer' }} onClick={() => navigateTo('/attendance/team')}>
               <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Today's Attendance</Typography>
                 <Typography variant='caption' color='text.secondary'>Attendance rate: <strong>{todayAtt.attendanceRate ?? 0}%</strong></Typography>
@@ -262,35 +331,36 @@ export default function UnitDashboard({ companyId, unitId }) {
         </Grid>
       </Grid>
 
-      <Card>
-        <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Pending Leave Requests</Typography>
-          <Chip label={`${data.pendingLeaveCount ?? pendLeaves.length} pending`} size='small' sx={{ bgcolor: alpha('#f59e0b', 0.1), color: '#f59e0b', fontWeight: 700 }} />
-        </Box>
-        {pendLeaves.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}><Typography variant='body2' color='text.secondary'>No pending leave requests</Typography></Box>
-        ) : pendLeaves.map((l, i) => (
-          <Box key={l.id} sx={{ px: 4, py: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < pendLeaves.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ width: 34, height: 34, bgcolor: alpha('#6366f1', 0.1), color: '#6366f1', fontSize: 13, fontWeight: 800 }}>
-                {(l.employee?.name || '?').charAt(0)}
-              </Avatar>
-              <Box>
-                <Typography variant='body2' sx={{ fontWeight: 600 }}>{l.employee?.name}</Typography>
-                <Typography variant='caption' color='text.secondary'>
-                  {l.leaveType?.name} · {new Date(l.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {new Date(l.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} ({l.totalDays}d)
-                </Typography>
-              </Box>
-            </Box>
-            <Stack direction='row' spacing={1}>
-              <Button size='small' variant='contained' color='success' sx={{ height: 26, fontSize: 10, minWidth: 56 }}
-                onClick={() => handleLeaveAction(l.id, 'APPROVED')}>Approve</Button>
-              <Button size='small' variant='outlined' color='error' sx={{ height: 26, fontSize: 10, minWidth: 56 }}
-                onClick={() => handleLeaveAction(l.id, 'REJECTED')}>Reject</Button>
-            </Stack>
+      {/* Pending Leave Requests Section */}
+      {(data.pendingLeaveCount ?? pendLeaves.length) > 0 && (
+        <Card sx={{ cursor: 'pointer' }} onClick={() => navigateTo('/leaves', { tab: 'approval' })}>
+          <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Pending Leave Requests</Typography>
+            <Chip label={`${data.pendingLeaveCount ?? pendLeaves.length} pending`} size='small' sx={{ bgcolor: alpha('#f59e0b', 0.1), color: '#f59e0b', fontWeight: 700 }} />
           </Box>
-        ))}
-      </Card>
+          {pendLeaves.slice(0, 5).map((l, i) => (
+            <Box key={l.id} sx={{ px: 4, py: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < Math.min(pendLeaves.length, 5) - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ width: 34, height: 34, bgcolor: alpha('#6366f1', 0.1), color: '#6366f1', fontSize: 13, fontWeight: 800 }}>
+                  {(l.employee?.name || '?').charAt(0)}
+                </Avatar>
+                <Box>
+                  <Typography variant='body2' sx={{ fontWeight: 600 }}>{l.employee?.name}</Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    {l.leaveType?.name} · {new Date(l.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {new Date(l.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} ({l.totalDays}d)
+                  </Typography>
+                </Box>
+              </Box>
+              <Stack direction='row' spacing={1}>
+                <Button size='small' variant='contained' color='success' sx={{ height: 26, fontSize: 10, minWidth: 56 }}
+                  onClick={(e) => { e.stopPropagation(); handleLeaveAction(l.id, 'APPROVED'); }}>Approve</Button>
+                <Button size='small' variant='outlined' color='error' sx={{ height: 26, fontSize: 10, minWidth: 56 }}
+                  onClick={(e) => { e.stopPropagation(); handleLeaveAction(l.id, 'REJECTED'); }}>Reject</Button>
+              </Stack>
+            </Box>
+          ))}
+        </Card>
+      )}
 
       {/* Recent Users Section */}
       <Grid container spacing={4} sx={{ mt: 2 }}>
@@ -332,19 +402,21 @@ export default function UnitDashboard({ companyId, unitId }) {
           <Card sx={{ height: '100%' }}>
             <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Unit Roles</Typography>
-              <Typography variant='caption' color='text.secondary'>{rolesData.total?.length || 0} total roles</Typography>
+              <Typography variant='caption' color='text.secondary'>{rolesData.total || 0} roles available</Typography>
             </Box>
-            {rolesData.total?.length > 0 ? (
+            {rolesData.list?.length > 0 ? (
               <Box sx={{ p: 2 }}>
                 <Stack spacing={1}>
-                  {rolesData.total.slice(0, 4).map(r => (
-                    <Box key={r._id} sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: 2, bgcolor: alpha('#f59e0b', 0.06) }}>
+                  {rolesData.list.slice(0, 6).map(r => (
+                    <Box key={r.id} sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: 2, bgcolor: alpha('#f59e0b', 0.06) }}>
                       <Avatar sx={{ width: 32, height: 32, bgcolor: alpha('#f59e0b', 0.15), color: '#f59e0b', fontSize: 12, fontWeight: 700 }}>
-                        {(r.name || 'U').charAt(0).toUpperCase()}
+                        {(r.name || 'R').charAt(0).toUpperCase()}
                       </Avatar>
                       <Box sx={{ flex: 1 }}>
                         <Typography variant='body2' sx={{ fontWeight: 600, fontSize: 13 }}>{r.name}</Typography>
-                        <Typography variant='caption' color='text.secondary' sx={{ fontSize: 11 }}>{r.email}</Typography>
+                        <Typography variant='caption' color='text.secondary' sx={{ fontSize: 11 }}>
+                          {r.slug} · {r.level || 'Unit'} level
+                        </Typography>
                       </Box>
                     </Box>
                   ))}
@@ -359,12 +431,58 @@ export default function UnitDashboard({ companyId, unitId }) {
 
       {/* Recent Activity Banner */}
       {recentActivity.length > 0 && (
-        <Card sx={{ mt: 3, bgcolor: alpha('#6366f1', 0.05), border: '1px solid', borderColor: alpha('#6366f1', 0.15) }}>
-          <Box sx={{ px: 4, py: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Icon icon='tabler:activity' fontSize={20} style={{ color: '#6366f1' }} />
-            <Typography variant='body2' sx={{ fontWeight: 600 }}>
-              Recent Activity: {recentActivity.map(a => a.type).join(', ')}
-            </Typography>
+        <Card sx={{ mt: 3 }}>
+          <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Recent Activity</Typography>
+            <Typography variant='caption' color='text.secondary'>Latest updates in your unit</Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={1.5}>
+              {recentActivity.slice(0, 5).map((activity, index) => {
+                const getActivityIcon = (type) => {
+                  switch (type) {
+                    case 'USER_JOINED': return 'tabler:user-plus'
+                    case 'LEAVE_APPROVED': return 'tabler:checkbox'
+                    case 'LEAVE_REJECTED': return 'tabler:xbox-x'
+                    case 'REGULARIZATION_APPROVED': return 'tabler:clock-check'
+                    case 'REGULARIZATION_REJECTED': return 'tabler:clock-x'
+                    default: return 'tabler:activity'
+                  }
+                }
+                
+                const getActivityColor = (type) => {
+                  switch (type) {
+                    case 'USER_JOINED': return '#6366f1'
+                    case 'LEAVE_APPROVED': return '#10b981'
+                    case 'LEAVE_REJECTED': return '#ef4444'
+                    case 'REGULARIZATION_APPROVED': return '#0ea5e9'
+                    case 'REGULARIZATION_REJECTED': return '#f59e0b'
+                    default: return '#6366f1'
+                  }
+                }
+
+                return (
+                  <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: 2, bgcolor: alpha(getActivityColor(activity.type), 0.04) }}>
+                    <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: alpha(getActivityColor(activity.type), 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon icon={getActivityIcon(activity.type)} fontSize={16} style={{ color: getActivityColor(activity.type) }} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant='body2' sx={{ fontWeight: 600, fontSize: 13 }}>
+                        {activity.description || activity.name}
+                      </Typography>
+                      <Typography variant='caption' color='text.secondary' sx={{ fontSize: 11 }}>
+                        {activity.timestamp ? new Date(activity.timestamp).toLocaleString('en-IN', { 
+                          day: '2-digit', 
+                          month: 'short', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        }) : 'Just now'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Stack>
           </Box>
         </Card>
       )}

@@ -70,7 +70,7 @@ const dashboardSlice = createSlice({
   },
   reducers: { clearDashboard: state => { state.data = null; state.error = null } },
   extraReducers: builder => {
-    const cases = [fetchSuperAdminDashboard, fetchOrgDashboard, fetchCompanyDashboard, fetchUnitDashboard, fetchEmployeeDashboard, fetchCustomerDashboard]
+    const cases = [fetchSuperAdminDashboard, fetchOrgDashboard, fetchCompanyDashboard, fetchUnitDashboard, fetchHRDashboard, fetchManagerDashboard, fetchEmployeeDashboard, fetchCustomerDashboard]
     cases.forEach(thunk => {
       builder
         .addCase(thunk.pending, state => { state.loading = true; state.error = null })

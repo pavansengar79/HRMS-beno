@@ -18,18 +18,34 @@ import Alert from '@mui/material/Alert'
 import MenuItem from '@mui/material/MenuItem'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import Icon from 'src/@core/components/icon'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useRouter } from 'next/router'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
 
-const KPICard = ({ label, value, sub, icon, color, trend, trendUp }) => {
+const KPICard = ({ label, value, sub, icon, color, trend, trendUp, onClick, clickable }) => {
   const theme = useTheme(); const isDark = theme.palette.mode === 'dark'
   return (
-    <Card sx={{ overflow: 'hidden', height: '100%' }}>
+    <Card 
+      sx={{ 
+        overflow: 'hidden', 
+        height: '100%',
+        cursor: clickable ? 'pointer' : 'default',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': clickable ? {
+          transform: 'translateY(-4px)',
+          boxShadow: 6
+        } : {}
+      }}
+      onClick={onClick}
+    >
       <Box sx={{ px: 3, pt: 3, pb: 2.5, background: `linear-gradient(135deg, ${alpha(color, isDark ? 0.18 : 0.07)} 0%, transparent 70%)` }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2.5 }}>
           <Box sx={{ width: 44, height: 44, borderRadius: 2.5, bgcolor: alpha(color, 0.15), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Icon icon={icon} fontSize={22} style={{ color }} />
           </Box>
-          {trend && <Chip label={trend} size='small' sx={{ fontSize: 10, height: 20, fontWeight: 700, bgcolor: alpha(trendUp !== false ? '#10b981' : '#ef4444', 0.12), color: trendUp !== false ? '#10b981' : '#ef4444' }} />}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {trend && <Chip label={trend} size='small' sx={{ fontSize: 10, height: 20, fontWeight: 700, bgcolor: alpha(trendUp !== false ? '#10b981' : '#ef4444', 0.12), color: trendUp !== false ? '#10b981' : '#ef4444' }} />}
+            {clickable && <Icon icon='tabler:chevron-right' fontSize={14} style={{ color: alpha(color, 0.5) }} />}
+          </Box>
         </Box>
         <Typography sx={{ fontSize: 28, fontWeight: 800, lineHeight: 1, letterSpacing: '-1px' }}>{value ?? '—'}</Typography>
         <Typography variant='caption' sx={{ display: 'block', mt: 0.5, fontWeight: 600, color: 'text.secondary' }}>{label}</Typography>
@@ -61,6 +77,7 @@ const MONTH_OPTIONS = (() => {
 
 export default function EmployeeDashboard() {
   const dispatch = useDispatch()
+  const router = useRouter()
   const theme = useTheme(); const isDark = theme.palette.mode === 'dark'
   const { data, loading, error } = useSelector(s => s.dashboard)
   const now = new Date()
@@ -75,7 +92,17 @@ export default function EmployeeDashboard() {
   const emp       = data.employee    || {}
   const today     = data.today       || {}
   const att       = data.attendance  || {}
-  const balances  = data.leaveBalances || []
+  // Only show leave types that are actually applicable to employee (totalAllocated > 0)
+  // Filter out unused leave types like Maternity/Paternity for male employees
+  const balances  = (data.leaveBalances || [])
+    .filter(b => b.totalAllocated > 0)
+    .sort((a, b) => {
+      // Sort by remaining days (descending) to show most relevant first
+      const remainingDiff = (b.remaining || 0) - (a.remaining || 0)
+      if (remainingDiff !== 0) return remainingDiff
+      // Then by name
+      return (a.leaveType || '').localeCompare(b.leaveType || '')
+    })
   const leaves    = data.recentLeaves  || []
   const holidays  = data.upcomingHolidays || []
 
@@ -83,20 +110,21 @@ export default function EmployeeDashboard() {
   const totalUsed      = balances.reduce((a, b) => a + (b.used      || 0), 0)
 
   const KPIS = [
-    { label: `Days Present (${month.split('-')[1]})`, value: att.present, sub: `${att.absent ?? 0} absent · ${att.late ?? 0} late`, icon: 'tabler:circle-check', color: '#10b981', trend: att.daysInMonth ? `${Math.round((att.present / att.daysInMonth) * 100)}%` : null, trendUp: true },
-    { label: 'Leave Balance',   value: `${totalRemaining}d`, sub: `${totalUsed}d used YTD`, icon: 'tabler:calendar-check', color: '#6366f1' },
-    { label: 'Working Hours',   value: `${att.totalWorkingHours ?? 0}h`, sub: `${att.totalOvertimeHours ?? 0}h overtime`, icon: 'tabler:clock', color: '#0ea5e9' },
-    { label: 'Today Status',    value: today.status || (today.hasPunchedIn ? 'Punched In' : 'Not Punched'), sub: today.isLate ? `${today.lateMinutes ?? 0} min late` : 'On time', icon: 'tabler:user-check', color: '#8b5cf6', trend: today.isWFH ? 'WFH' : null },
+    { label: `Days Present (${month.split('-')[1]})`, value: att.present, sub: `${att.absent ?? 0} absent · ${att.late ?? 0} late`, icon: 'tabler:circle-check', color: '#10b981', trend: att.daysInMonth ? `${Math.round((att.present / att.daysInMonth) * 100)}%` : null, trendUp: true, onClick: () => router.push('/attendance'), clickable: true },
+    { label: 'Leave Balance',   value: `${totalRemaining}d`, sub: `${totalUsed}d used YTD`, icon: 'tabler:calendar-check', color: '#6366f1', onClick: () => router.push('/leaves'), clickable: true },
+    { label: 'Working Hours',   value: `${att.totalWorkingHours ?? 0}h`, sub: `${att.totalOvertimeHours ?? 0}h overtime`, icon: 'tabler:clock', color: '#0ea5e9', onClick: () => router.push('/attendance'), clickable: true },
+    { label: 'Today Status',    value: today.status || (today.checkIn ? 'Punched In' : 'Not Punched'), sub: today.isLate ? `${today.lateMinutes ?? 0} min late` : (today.checkIn ? 'On time' : 'Not marked'), icon: 'tabler:user-check', color: '#8b5cf6', trend: today.isWFH ? 'WFH' : null, onClick: () => router.push('/attendance'), clickable: true },
     { label: 'Half Days',       value: att.halfDay ?? 0, sub: 'this month', icon: 'tabler:circle-half', color: '#f59e0b' },
     { label: 'WFH Days',        value: att.wfh ?? 0, sub: 'this month', icon: 'tabler:home-check', color: '#10b981' },
   ]
 
+  // Attendance bar data with better colors for clarity
   const attBarData = [
-    { name: 'Present', value: att.present ?? 0 },
-    { name: 'Absent',  value: att.absent  ?? 0 },
-    { name: 'Late',    value: att.late    ?? 0 },
-    { name: 'Leave',   value: att.onLeave ?? 0 },
-    { name: 'WFH',     value: att.wfh     ?? 0 },
+    { name: 'Present', value: att.present ?? 0, color: '#10b981' },
+    { name: 'Absent',  value: att.absent  ?? 0, color: '#ef4444' },
+    { name: 'Late',    value: att.late    ?? 0, color: '#f59e0b' },
+    { name: 'Leave',   value: att.onLeave ?? 0, color: '#6366f1' },
+    { name: 'WFH',     value: att.wfh     ?? 0, color: '#0ea5e9' },
   ]
 
   return (
@@ -128,30 +156,63 @@ export default function EmployeeDashboard() {
           <Card sx={{ height: '100%' }}>
             <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Attendance — {month}</Typography>
+              <Typography variant='caption' color='text.secondary'>Click on bars to see details</Typography>
             </Box>
             <Box sx={{ p: 3 }}>
-              <ResponsiveContainer width='100%' height={220}>
-                <BarChart data={attBarData} barCategoryGap='35%'>
+              <ResponsiveContainer width='100%' height={280}>
+                <BarChart data={attBarData} barCategoryGap='30%'>
                   <CartesianGrid strokeDasharray='3 3' stroke={isDark ? '#333' : '#f0f0f0'} vertical={false} />
-                  <XAxis dataKey='name' tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CTooltip />} />
-                  <Bar dataKey='value' name='Days' fill='#6366f1' radius={[4, 4, 0, 0]} />
+                  <XAxis dataKey='name' tick={{ fontSize: 12, fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip 
+                    content={<CTooltip />}
+                    cursor={{ fill: alpha(theme.palette.primary.main, 0.1) }}
+                  />
+                  <Legend 
+                    verticalAlign='bottom' 
+                    height={36}
+                    formatter={(value, entry) => (
+                      <span style={{ color: entry.color, fontWeight: 600, fontSize: 12 }}>{value}</span>
+                    )}
+                  />
+                  <Bar dataKey='value' name='Days' radius={[6, 6, 0, 0]}>
+                    {attBarData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
+              {/* Summary row below chart */}
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, mt: 2, flexWrap: 'wrap' }}>
+                {attBarData.map(item => (
+                  <Box key={item.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 12, height: 12, borderRadius: 1, bgcolor: item.color }} />
+                    <Typography variant='caption' sx={{ fontWeight: 600 }}>{item.name}: {item.value}</Typography>
+                  </Box>
+                ))}
+              </Box>
             </Box>
           </Card>
         </Grid>
 
         <Grid item xs={12} md={5}>
-          <Card sx={{ height: '100%' }}>
-            <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Leave Balance</Typography>
-              <Typography variant='caption' color='text.secondary'>Available vs used</Typography>
+          <Card sx={{ height: '100%', cursor: 'pointer' }} onClick={() => router.push('/leaves')}>
+            <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Leave Balance</Typography>
+                <Typography variant='caption' color='text.secondary'>Click to view details</Typography>
+              </Box>
+              <Icon icon='tabler:chevron-right' fontSize={20} style={{ color: alpha('#6366f1', 0.5) }} />
             </Box>
             <Box sx={{ px: 4, py: 3 }}>
               {balances.length === 0 ? (
-                <Typography variant='body2' color='text.secondary'>No leave balance data</Typography>
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Icon icon='tabler:calendar-off' fontSize={48} style={{ color: alpha('#6366f1', 0.3), marginBottom: 8 }} />
+                  <Typography variant='body2' color='text.secondary'>No leave types allocated</Typography>
+                  <Typography variant='caption' color='text.disabled' sx={{ display: 'block', mt: 1 }}>
+                    Contact HR for leave allocation
+                  </Typography>
+                </Box>
               ) : balances.map(lb => (
                 <Box key={lb.leaveType || lb.code} sx={{ mb: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>

@@ -183,18 +183,13 @@ const AdminUserList = () => {
     const targetLevel = targetUser?.roleId?.level || targetUser?.role?.level || 'unit';
     const targetLevelOrder = hierarchy[targetLevel] || 3;
     
-    // Cannot edit users at higher or same level (org_admin can edit org users though)
-    if (userLevel === 'org') {
-      return true; // org_admin can edit everyone
-    }
-    
-    // Cannot edit parent level users
+    // Cannot edit users at higher level (parent level)
     if (targetLevelOrder < currentUserLevelOrder) {
       return false;
     }
     
-    // Cannot edit same level users (except org_admin editing org users)
-    if (targetLevelOrder === currentUserLevelOrder && userLevel !== 'org') {
+    // Cannot edit users at lower level than visible
+    if (targetLevelOrder > currentUserLevelOrder && !visibleLevels.includes(targetLevel)) {
       return false;
     }
     

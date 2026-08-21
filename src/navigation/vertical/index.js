@@ -352,6 +352,7 @@ const buildManagerNav = (permissions = []) => {
     { sectionTitle: 'MY TEAM' },
     { title: 'Team Attendance',  icon: 'tabler:clock-check', path: '/attendance/team' },
     { title: 'Leave Approvals',  icon: 'tabler:calendar-user', path: '/leaves' },
+    { title: 'Recent Leaves',  icon: 'tabler:calendar-check', path: '/leaves' },
     { title: 'Delegation',          icon: 'tabler:users-plus',          path: '/delegation' },
     { sectionTitle: 'MY WORKSPACE' },
     // Only show attendance if user has leave.read permission
@@ -361,6 +362,8 @@ const buildManagerNav = (permissions = []) => {
     { title: 'My Payslips',         icon: 'tabler:file-invoice',        path: '/payroll/my' },
     // Only show investment declaration if user has investment_declaration.read permission
     ...(has('investment_declaration.read') ? [{ title: 'Investment Declaration', icon: 'tabler:piggy-bank', path: '/payroll/investment-declarations' }] : []),
+    { sectionTitle: 'INFORMATION' },
+    { title: 'Holidays',            icon: 'tabler:calendar-event',      path: '/holidays' },
   ])
 }
 
