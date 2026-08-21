@@ -35,8 +35,9 @@ import {
   updateLeaveStatus,
   fetchMyBalance,
 } from 'src/store/leaves/leaveSlice'
-import { selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectUser, selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
 import { getAvatarUrl, getInitials } from 'src/utils/employeeAvatar'
+import LeaveFilters from './LeaveFilters'
 
 const fmtDate = date => {
   if (!date) return '—'
@@ -274,9 +275,19 @@ const TabLeaveRequests = () => {
   const [dialogAction, setDialogAction] = useState('APPROVED')
   const [selectedId,   setSelectedId]   = useState(null)
 
+  // Filter states
+  const [selectedEmployee, setSelectedEmployee] = useState(null)
+  const [selectedDept, setSelectedDept] = useState('')
+  const [leaveTypeFilter, setLeaveTypeFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [durationPreset, setDurationPreset] = useState('thisMonth')
+  const [customStartDate, setCustomStartDate] = useState(null)
+  const [customEndDate, setCustomEndDate] = useState(null)
+
   const { leavesRows: rows, leavesTotal: total, loading, actionLoading } = useSelector(state => state.leaves)
   const leaveTypes  = useSelector(state => state.leaves.balancedLeaveTypes) || []
-
+  
+  const user = useSelector(selectUser)
   const permissions = useSelector(selectPermissions) || []
   const roleSlug    = useSelector(selectRoleSlug)    || ''
 
@@ -285,9 +296,64 @@ const TabLeaveRequests = () => {
 
   console.log("leaveTypes",leaveTypes)
 
+  // ── Date Range Calculation ─────────────────────────────────────────────────
+  const getDateRange = useCallback(() => {
+    const today = new Date()
+    const todayStr = today.toISOString().slice(0, 10)
+    
+    switch (durationPreset) {
+      case 'today': {
+        return { startDate: todayStr, endDate: todayStr }
+      }
+      case 'yesterday': {
+        const yesterday = new Date(today)
+        yesterday.setDate(yesterday.getDate() - 1)
+        const yesterdayStr = yesterday.toISOString().slice(0, 10)
+        return { startDate: yesterdayStr, endDate: yesterdayStr }
+      }
+      case 'thisMonth': {
+        const start = new Date(today.getFullYear(), today.getMonth(), 1)
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        return {
+          startDate: start.toISOString().slice(0, 10),
+          endDate: end.toISOString().slice(0, 10)
+        }
+      }
+      case 'lastMonth': {
+        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        const end = new Date(today.getFullYear(), today.getMonth(), 0)
+        return {
+          startDate: start.toISOString().slice(0, 10),
+          endDate: end.toISOString().slice(0, 10)
+        }
+      }
+      case 'custom': {
+        if (!customStartDate || !customEndDate) return null
+        const start = new Date(customStartDate)
+        const end = new Date(customEndDate)
+        return {
+          startDate: start.toISOString().slice(0, 10),
+          endDate: end.toISOString().slice(0, 10)
+        }
+      }
+      default:
+        return null
+    }
+  }, [durationPreset, customStartDate, customEndDate])
+
   const loadLeaves = useCallback(() => {
-    dispatch(fetchMyLeaves({ page: paginationModel.page + 1, limit: paginationModel.pageSize }))
-  }, [dispatch, paginationModel])
+    const dateRange = getDateRange()
+    const params = { 
+      page: paginationModel.page + 1, 
+      limit: paginationModel.pageSize,
+      ...(selectedEmployee?._id && { employeeId: selectedEmployee._id }),
+      ...(selectedDept && { departmentId: selectedDept }),
+      ...(leaveTypeFilter && { leaveTypeId: leaveTypeFilter }),
+      ...(statusFilter && { status: statusFilter }),
+      ...(dateRange && { startDate: dateRange.startDate, endDate: dateRange.endDate })
+    }
+    dispatch(fetchMyLeaves(params))
+  }, [dispatch, paginationModel, selectedEmployee, selectedDept, leaveTypeFilter, statusFilter, getDateRange])
 
   useEffect(() => { loadLeaves() }, [loadLeaves])
 
@@ -502,6 +568,26 @@ const TabLeaveRequests = () => {
 
   return (
     <>
+      <LeaveFilters
+        selectedEmployee={selectedEmployee}
+        setSelectedEmployee={setSelectedEmployee}
+        selectedDept={selectedDept}
+        setSelectedDept={setSelectedDept}
+        leaveTypeFilter={leaveTypeFilter}
+        setLeaveTypeFilter={setLeaveTypeFilter}
+        durationPreset={durationPreset}
+        setDurationPreset={setDurationPreset}
+        customStartDate={customStartDate}
+        setCustomStartDate={setCustomStartDate}
+        customEndDate={customEndDate}
+        setCustomEndDate={setCustomEndDate}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        leaveTypes={leaveTypes}
+        unitId={user?.unitId}
+        totalRecords={total}
+      />
+
       <Card>
         <CardHeader
           title='My Leave Requests'

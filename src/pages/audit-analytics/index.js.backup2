@@ -1,0 +1,757 @@
+// src/pages/audit-analytics/index.js
+// AI-Powered Enterprise Audit Analytics Dashboard
+// Natural Language Query Interface with Gemini AI
+
+import { useState, useEffect, useRef } from 'react'
+import { useSelector } from 'react-redux'
+import { useRouter } from 'next/router'
+import toast from 'react-hot-toast'
+
+// MUI Components
+import Grid from '@mui/material/Grid'
+import Card from '@mui/material/Card'
+import CardHeader from '@mui/material/CardHeader'
+import CardContent from '@mui/material/CardContent'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import TextField from '@mui/material/TextField'
+import Button from '@mui/material/Button'
+import IconButton from '@mui/material/IconButton'
+import InputAdornment from '@mui/material/InputAdornment'
+import Paper from '@mui/material/Paper'
+import Divider from '@mui/material/Divider'
+import Alert from '@mui/material/Alert'
+import CircularProgress from '@mui/material/CircularProgress'
+import MenuItem from '@mui/material/MenuItem'
+import FormControl from '@mui/material/FormControl'
+import Select from '@mui/material/Select'
+import AvatarGroup from '@mui/material/AvatarGroup'
+import LinearProgress from '@mui/material/LinearProgress'
+import Tooltip from '@mui/material/Tooltip'
+import Fade from '@mui/material/Fade'
+import Collapse from '@mui/material/Collapse'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableContainer from '@mui/material/TableContainer'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+
+// Custom Components
+import Icon from 'src/@core/components/icon'
+import CustomChip from 'src/@core/components/mui/chip'
+import CustomAvatar from 'src/@core/components/mui/avatar'
+
+// Store & Utils
+import { selectUser, selectRoleSlug } from 'src/store/auth/authSlice'
+import axiosRequest from 'src/utils/AxiosInterceptor'
+import { formatDistanceToNow } from 'date-fns'
+
+// ─── Module Icons ──────────────────────────────────────────────────────────────
+const MODULE_ICONS = {
+  auth: 'tabler:shield-lock',
+  employee: 'tabler:users',
+  leave: 'tabler:calendar-x',
+  attendance: 'tabler:clock',
+  payroll: 'tabler:currency-dollar',
+  shift: 'tabler:clock-2',
+  roster: 'tabler:calendar-check',
+  delegation: 'tabler:arrow-forward-right',
+  policy: 'tabler:file-shredder',
+  role: 'tabler:shield-check',
+  default: 'tabler:activity'
+}
+
+// ─── Module Colors ─────────────────────────────────────────────────────────────
+const MODULE_COLORS = {
+  auth: 'info',
+  employee: 'primary',
+  leave: 'warning',
+  attendance: 'success',
+  payroll: 'secondary',
+  shift: 'error',
+  roster: 'info',
+  delegation: 'warning',
+  policy: 'primary',
+  role: 'secondary',
+  default: 'default'
+}
+
+const AuditAnalytics = () => {
+  const router = useRouter()
+  const user = useSelector(selectUser)
+  const chatEndRef = useRef(null)
+
+  // State
+  const [query, setQuery] = useState('')
+  const [selectedModule, setSelectedModule] = useState('')
+  const [selectedAction, setSelectedAction] = useState('')
+  const [modules, setModules] = useState([])
+  const [actionsByModule, setActionsByModule] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [results, setResults] = useState([])
+  const [insights, setInsights] = useState('')
+  const [relatedQueries, setRelatedQueries] = useState([])
+  const [chatHistory, setChatHistory] = useState([])
+  const [stats, setStats] = useState({
+    totalLogs: 0,
+    logsByModule: [],
+    logsByAction: [],
+    recentActivity: []
+  })
+
+  // Fetch metadata on mount
+  useEffect(() => {
+    fetchMetadata()
+    fetchDashboard()
+  }, [])
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatHistory])
+
+  // Fetch modules and actions
+  const fetchMetadata = async () => {
+    try {
+      const response = await axiosRequest.get('/audit-logs/analytics/metadata')
+      if (response.data.success) {
+        setModules(response.data.data.modules || [])
+        setActionsByModule(response.data.data.actionsByModule || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch metadata:', error)
+    }
+  }
+
+  // Fetch dashboard stats
+  const fetchDashboard = async () => {
+    try {
+      const response = await axiosRequest.get('/audit-logs/analytics/dashboard')
+      if (response.data.success) {
+        setStats(response.data.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard:', error)
+    }
+  }
+
+// Execute natural language query
+  const executeQuery = async () => {
+    if (!query.trim()) {
+      toast.error('Please enter a query')
+      return
+    }
+
+    setLoading(true)
+
+    // Add user message to chat
+    setChatHistory(prev => [...prev, { type: 'user', message: query }])
+
+    try {
+      const params = new URLSearchParams()
+      params.append('query', query.trim())
+      if (selectedModule) params.append('module', selectedModule)
+      if (selectedAction) params.append('action', selectedAction)
+      
+      const response = await axiosRequest.post(
+        `/audit-logs/analytics/query?${params.toString()}`,
+        { limit: 50 }
+      )
+
+      if (response.data.success) {
+        const { results, insights, relatedQueries, explanation } = response.data.data
+
+        setResults(results)
+        setInsights(insights)
+        setRelatedQueries(relatedQueries)
+
+        // Add AI response to chat
+        setChatHistory(prev => [
+          ...prev,
+          {
+            type: 'ai',
+            message: explanation,
+            insights,
+            results: results.slice(0, 3), // Show first 3 results
+            totalResults: results.length,
+            timestamp: new Date()
+          }
+        ])
+      }
+    } catch (error) {
+      console.error('Query execution failed:', error)
+      toast.error('Failed to execute query')
+      setChatHistory(prev => [
+        ...prev,
+        {
+          type: 'error',
+          message: 'Failed to process your query. Please try again.'
+        }
+      ])
+    } finally {
+      setLoading(false)
+      setQuery('')
+    }
+  }
+
+  // Handle related query click
+  const handleRelatedQuery = (q) => {
+    setQuery(q)
+    executeQuery()
+  }
+
+  // Handle module change
+  const handleModuleChange = (event) => {
+    const selectedModuleValue = event.target.value
+    setSelectedModule(selectedModuleValue)
+    setSelectedAction('') // Reset action when module changes
+  }
+
+  // Get actions for selected module - LINKED FILTER
+  const getModuleActions = () => {
+    // If canonical action selected, return only those actions
+    if (selectedCanonicalAction && CANONICAL_ACTION_GROUPS[selectedCanonicalAction]) {
+      return CANONICAL_ACTION_GROUPS[selectedCanonicalAction].actions
+    }
+    
+    if (!selectedModule) {
+      // Return all actions if no module selected
+      return actionsByModule.flatMap(m => m.actions || [])
+    }
+    const moduleData = actionsByModule.find(m => m.module === selectedModule)
+    return moduleData?.actions || []
+  }
+  
+  // Get canonical action groups for selected module
+  const getCanonicalActionGroups = () => {
+    if (!selectedModule) {
+      return Object.entries(CANONICAL_ACTION_GROUPS)
+    }
+    
+    // Filter canonical groups that have actions in selected module
+    return Object.entries(CANONICAL_ACTION_GROUPS).filter(([_key, group]) => {
+      const moduleData = actionsByModule.find(m => m.module === selectedModule)
+      if (!moduleData) return false
+      return group.actions.some(action => moduleData.actions.includes(action))
+    })
+  }
+
+  // DataGrid columns for results
+  const columns = [
+    {
+      field: 'timestamp',
+      headerName: 'Time',
+      width: 150,
+      renderCell: (params) => (
+        <Typography variant='body2'>
+          {formatDistanceToNow(new Date(params.value), { addSuffix: true })}
+        </Typography>
+      )
+    },
+    {
+      field: 'action',
+      headerName: 'Action',
+      width: 200,
+      renderCell: (params) => (
+        <CustomChip
+          label={params.value}
+          size='small'
+          skin='light'
+          color='primary'
+        />
+      )
+    },
+    {
+      field: 'module',
+      headerName: 'Module',
+      width: 150,
+      renderCell: (params) => (
+        <CustomChip
+          icon={<Icon icon={MODULE_ICONS[params.value] || MODULE_ICONS.default} />}
+          label={params.value}
+          size='small'
+          skin='light'
+          color={MODULE_COLORS[params.value] || 'default'}
+        />
+      )
+    },
+    {
+      field: 'user',
+      headerName: 'Admin Profile',
+      width: 250,
+      renderCell: (params) => {
+        const userData = params.row.userId || params.value
+        const userName = userData?.name || `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim() || 'System'
+        const userEmail = userData?.email || 'system@hrms.com'
+        const userRole = userData?.role || params.row.role || 'N/A'
+        const userAvatar = userData?.avatar
+
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CustomAvatar
+              src={userAvatar}
+              skin='light'
+              color='primary'
+              sx={{ width: 36, height: 36 }}
+            >
+              {userName.charAt(0).toUpperCase()}
+            </CustomAvatar>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant='body2' fontWeight={600} noWrap>
+                {userName}
+              </Typography>
+              <Typography variant='caption' color='text.secondary' noWrap>
+                {userEmail}
+              </Typography>
+            </Box>
+          </Box>
+        )
+      }
+    },
+    {
+      field: 'target',
+      headerName: 'Target',
+      flex: 1,
+      renderCell: (params) => (
+        <Typography variant='body2'>
+          {params.value?.name || params.value?.type || '-'}
+        </Typography>
+      )
+    }
+  ]
+
+  return (
+    <Box sx={{ p: 4 }}>
+      {/* Header */}
+      <Grid container spacing={4}>
+        <Grid item xs={12}>
+          <Typography variant='h4' sx={{ mb: 1 }}>
+            AI-Powered Audit Analytics
+          </Typography>
+          <Typography variant='body2' color='text.secondary'>
+            Query your audit logs using natural language. Ask questions like "Show me all employee creations this week" or "Count logins by department"
+          </Typography>
+        </Grid>
+
+        {/* Dashboard Stats */}
+        <Grid item xs={12}>
+          <Grid container spacing={3}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent sx={{ textAlign: 'center' }}>
+                  <Typography variant='h3' color='primary.main'>
+                    {stats.totalLogs?.toLocaleString() || 0}
+                  </Typography>
+                  <Typography variant='body2' color='text.secondary'>
+                    Total Audit Logs
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            {stats.logsByModule?.slice(0, 3).map((item, index) => (
+              <Grid item xs={12} sm={6} md={3} key={index}>
+                <Card>
+                  <CardContent sx={{ textAlign: 'center' }}>
+                    <Typography variant='h3' color={`${MODULE_COLORS[item._id] || 'primary'}.main`}>
+                      {item.count?.toLocaleString() || 0}
+                    </Typography>
+                    <Typography variant='body2' color='text.secondary'>
+                      {item._id || 'Unknown'}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Grid>
+
+        {/* Filters */}
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Grid container spacing={3} alignItems='center'>
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <Typography variant='caption' color='text.secondary' sx={{ mb: 1 }}>
+                      Module Filter
+                    </Typography>
+                    <Select
+                      value={selectedModule}
+                      onChange={handleModuleChange}
+                      displayEmpty
+                      size='small'
+                    >
+                      <MenuItem value=''>All Modules</MenuItem>
+                      {modules.map((module) => (
+                        <MenuItem key={module} value={module}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Icon icon={MODULE_ICONS[module] || MODULE_ICONS.default} />
+                            <Typography>{module}</Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <Typography variant='caption' color='text.secondary' sx={{ mb: 1 }}>
+                      Action Filter
+                    </Typography>
+                    <Select
+                      value={selectedAction}
+                      onChange={(e) => setSelectedAction(e.target.value)}
+                      displayEmpty
+                      size='small'
+                      disabled={!selectedModule}
+                    >
+                      <MenuItem value=''>
+                        {selectedModule ? 'All Actions' : 'Select Module First'}
+                      </MenuItem>
+                      {getModuleActions().map((action) => (
+                        <MenuItem key={action} value={action}>
+                          {action}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {!selectedModule && (
+                      <Typography variant='caption' color='text.disabled' sx={{ mt: 0.5 }}>
+                        ⬆️ Select a module to filter by action
+                      </Typography>
+                    )}
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Typography variant='caption' color='text.secondary' sx={{ mb: 1 }}>
+                    Your Scope
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {user?.role && (
+                      <CustomChip
+                        label={`Role: ${user.role}`}
+                        size='small'
+                        skin='light'
+                        color='primary'
+                      />
+                    )}
+                    {user?.orgId && (
+                      <CustomChip
+                        label='Organization Scoped'
+                        size='small'
+                        skin='light'
+                        color='info'
+                      />
+                    )}
+                    {user?.companyId && (
+                      <CustomChip
+                        label='Company Scoped'
+                        size='small'
+                        skin='light'
+                        color='success'
+                      />
+                    )}
+                    {user?.unitId && (
+                      <CustomChip
+                        label='Unit Scoped'
+                        size='small'
+                        skin='light'
+                        color='warning'
+                      />
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Chat Interface */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
+            <CardHeader
+              title={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Icon icon='tabler:sparkles' fontSize={24} />
+                  <Typography variant='h6'>AI Query Assistant</Typography>
+                </Box>
+              }
+              subheader='Ask questions in natural language'
+            />
+            <Divider />
+            <CardContent sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+              {/* Welcome Message */}
+              {chatHistory.length === 0 && (
+                <Alert severity='info' sx={{ mb: 2 }}>
+                  <Typography variant='body2'>
+                    <strong>Welcome!</strong> Try queries like:
+                  </Typography>
+                  <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <CustomChip
+                      label='Show login attempts this week'
+                      size='small'
+                      skin='light'
+                      color='primary'
+                      onClick={() => handleRelatedQuery('Show login attempts this week')}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                    <CustomChip
+                      label='Count employee creations by department'
+                      size='small'
+                      skin='light'
+                      color='primary'
+                      onClick={() => handleRelatedQuery('Count employee creations by department')}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                    <CustomChip
+                      label='List failed logins today'
+                      size='small'
+                      skin='light'
+                      color='primary'
+                      onClick={() => handleRelatedQuery('List failed logins today')}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                  </Box>
+                </Alert>
+              )}
+
+              {/* Chat History */}
+              {chatHistory.map((chat, index) => (
+                <Box key={index} sx={{ mb: 3 }}>
+                  {chat.type === 'user' && (
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                      <Paper
+                        sx={{
+                          p: 2,
+                          maxWidth: '80%',
+                          bgcolor: 'primary.main',
+                          color: 'primary.contrastText',
+                          borderTopRightRadius: 0
+                        }}
+                      >
+                        <Typography variant='body2'>{chat.message}</Typography>
+                      </Paper>
+                    </Box>
+                  )}
+
+                  {chat.type === 'ai' && (
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <Paper
+                        sx={{
+                          p: 2,
+                          maxWidth: '90%',
+                          bgcolor: 'background.default',
+                          borderTopLeftRadius: 0
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                          <Icon icon='tabler:sparkles' color='primary' />
+                          <Typography variant='subtitle2' color='primary'>
+                            AI Analysis
+                          </Typography>
+                        </Box>
+                        <Typography variant='body2' sx={{ mb: 2 }}>
+                          {chat.message}
+                        </Typography>
+                        {chat.insights && (
+                          <Alert severity='success' sx={{ mb: 2 }}>
+                            <Typography variant='body2'>{chat.insights}</Typography>
+                          </Alert>
+                        )}
+                        {chat.totalResults > 0 && (
+                          <Typography variant='caption' color='text.secondary'>
+                            Found {chat.totalResults.toLocaleString()} results
+                          </Typography>
+                        )}
+                      </Paper>
+                    </Box>
+                  )}
+
+                  {chat.type === 'error' && (
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <Paper sx={{ p: 2, maxWidth: '80%', bgcolor: 'error.light', borderTopLeftRadius: 0 }}>
+                        <Typography variant='body2' color='error.contrastText'>
+                          {chat.message}
+                        </Typography>
+                      </Paper>
+                    </Box>
+                  )}
+                </Box>
+              ))}
+              <div ref={chatEndRef} />
+            </CardContent>
+            <Divider />
+            <Box sx={{ p: 2, bgcolor: 'background.paper' }}>
+              <TextField
+                fullWidth
+                size='small'
+                placeholder='Ask a question about audit logs...'
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && executeQuery()}
+                disabled={loading}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position='end'>
+                      <IconButton
+                        color='primary'
+                        onClick={executeQuery}
+                        disabled={loading || !query.trim()}
+                      >
+                        {loading ? <CircularProgress size={20} /> : <Icon icon='tabler:send' />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Box>
+          </Card>
+        </Grid>
+
+        {/* Related Queries */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardHeader
+              title='Related Queries'
+              subheader='Quick suggestions based on your activity'
+            />
+            <CardContent>
+              {relatedQueries.length > 0 ? (
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {relatedQueries.map((q, index) => (
+                    <CustomChip
+                      key={index}
+                      label={q}
+                      skin='light'
+                      color='secondary'
+                      onClick={() => handleRelatedQuery(q)}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                  ))}
+                </Box>
+              ) : (
+                <Typography variant='body2' color='text.secondary'>
+                  Execute a query to see related suggestions
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Results Table */}
+        {results.length > 0 && (
+          <Grid item xs={12}>
+            <Card>
+              <CardHeader
+                title={`Results (${results.length.toLocaleString()})`}
+                action={
+                  <Button
+                    size='small'
+                    variant='outlined'
+                    startIcon={<Icon icon='tabler:download' />}
+                    onClick={() => {
+                      const dataStr = JSON.stringify(results, null, 2)
+                      const blob = new Blob([dataStr], { type: 'application/json' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `audit-logs-${new Date().toISOString()}.json`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    }}
+                  >
+                    Export
+                  </Button>
+                }
+              />
+              <CardContent>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Time</TableCell>
+                        <TableCell>Admin Profile</TableCell>
+                        <TableCell>Module</TableCell>
+                        <TableCell>Action</TableCell>
+                        <TableCell>Target</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {results.map((row, idx) => {
+                        const userData = row.userId || row.actor || {}
+                        const userName = userData?.name || (userData?.firstName || '') + ' ' + (userData?.lastName || '') || 'System'
+                        const userEmail = userData?.email || 'system@hrms.com'
+                        const userAvatar = userData?.avatar
+
+                        return (
+                          <TableRow key={idx} hover>
+                            <TableCell>
+                              <Typography variant='body2' sx={{ whiteSpace: 'nowrap' }}>
+                                {formatDistanceToNow(new Date(row.createdAt), { addSuffix: true })}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <CustomAvatar
+                                  src={userAvatar}
+                                  skin='light'
+                                  color='primary'
+                                  sx={{ width: 36, height: 36 }}
+                                >
+                                  {userName.charAt(0).toUpperCase()}
+                                </CustomAvatar>
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <Typography variant='body2' fontWeight={600} noWrap>
+                                    {userName}
+                                  </Typography>
+                                  <Typography variant='caption' color='text.secondary' noWrap>
+                                    {userEmail}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <CustomChip
+                                icon={<Icon icon={MODULE_ICONS[row.module] || MODULE_ICONS.default} />}
+                                label={row.module}
+                                size='small'
+                                skin='light'
+                                color={MODULE_COLORS[row.module] || 'default'}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <CustomChip
+                                label={row.action}
+                                size='small'
+                                skin='light'
+                                color='primary'
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant='body2'>
+                                {row.target?.name || row.target?.employeeId || '--'}
+                              </Typography>
+                              {row.target?.type && (
+                                <Typography variant='caption' color='text.secondary'>
+                                  {row.target.type}
+                                </Typography>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+      </Grid>
+    </Box>
+  )
+}
+
+export default AuditAnalytics

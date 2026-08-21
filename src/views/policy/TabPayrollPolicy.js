@@ -504,8 +504,8 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
           effectiveFrom: editData.effectiveFrom ? editData.effectiveFrom.split('T')[0] : '',
           effectiveTo: editData.effectiveTo ? editData.effectiveTo.split('T')[0] : '',
           applicableFor: {
-            departments: editData.applicableFor?.departments || [],
-            designations: editData.applicableFor?.designations || [],
+            departments: (editData.applicableFor?.departments || []).map(d => d._id || d),
+            designations: (editData.applicableFor?.designations || []).map(d => d._id || d),
             roles: editData.applicableFor?.roles || [],
             locations: editData.applicableFor?.locations || [],
             employmentTypes: editData.applicableFor?.employmentTypes || []
@@ -928,38 +928,55 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                   )}
                 />
               </Grid>
-              <Grid item xs={6} sm={4}>
-                <Controller name='lop.roundingRule' control={control}
-                  render={({ field }) => (
-                    <CustomTextField {...field} select fullWidth label='Rounding Rule'>
-                      <MenuItem value='round2'>Round 2 decimals</MenuItem>
-                      <MenuItem value='floor'>Floor</MenuItem>
-                      <MenuItem value='ceil'>Ceil</MenuItem>
-                      <MenuItem value='none'>No rounding</MenuItem>
-                    </CustomTextField>
-                  )}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Controller name='lop.perDayFormula' control={control}
-                  render={({ field }) => (
-                    <CustomTextField {...field} fullWidth label='Per-Day Formula'
-                      placeholder='monthly_salary/working_days'
-                      helperText='Formula for per-day deduction'
+              {lopCalc === 'per_day' && (
+                <Grid item xs={6} sm={4}>
+                  <Controller name='lop.roundingRule' control={control}
+                    render={({ field }) => (
+                      <CustomTextField {...field} select fullWidth label='Rounding Rule'>
+                        <MenuItem value='round2'>Round 2 decimals</MenuItem>
+                        <MenuItem value='round'>Round to nearest</MenuItem>
+                        <MenuItem value='floor'>Floor (round down)</MenuItem>
+                        <MenuItem value='ceil'>Ceil (round up)</MenuItem>
+                      </CustomTextField>
+                    )}
+                  />
+                </Grid>
+              )}
+              {lopCalc === 'per_day' && (
+                <Grid item xs={12} sm={6}>
+                  <Controller name='lop.perDayFormula' control={control}
+                    render={({ field }) => (
+                      <CustomTextField {...field} select fullWidth label='Per-Day Formula'
+                        helperText='Formula for daily LOP deduction'
+                      >
+                        <MenuItem value='monthly_salary/calendar_days'>Gross ÷ Calendar Days (31 for July)</MenuItem>
+                        <MenuItem value='monthly_salary/working_days'>Gross ÷ Working Days (23 for July)</MenuItem>
+                        <MenuItem value='monthly_salary/30'>Gross ÷ 30 (Fixed)</MenuItem>
+                        <MenuItem value='monthly_salary/26'>Gross ÷ 26 (Industry Standard)</MenuItem>
+                      </CustomTextField>
+                    )}
+                  />
+                </Grid>
+              )}
+              {lopCalc === 'per_hour' && (
+                <>
+                  <Grid item xs={12} sm={6}>
+                    <Controller name='lop.perHourFormula' control={control}
+                      render={({ field }) => (
+                        <CustomTextField {...field} select fullWidth label='Per-Hour Formula'
+                          helperText='Formula for hourly LOP deduction'
+                        >
+                          <MenuItem value='daily_rate/standard_hours'>Daily Rate ÷ Standard Hours</MenuItem>
+                          <MenuItem value='monthly_salary/(working_days*standard_hours)'>Monthly ÷ (Working Days × Standard Hours)</MenuItem>
+                        </CustomTextField>
+                      )}
                     />
-                  )}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Controller name='lop.perHourFormula' control={control}
-                  render={({ field }) => (
-                    <CustomTextField {...field} fullWidth label='Per-Hour Formula'
-                      placeholder='daily_rate/standard_hours'
-                      helperText='Formula for per-hour deduction'
-                    />
-                  )}
-                />
-              </Grid>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Alert severity='info' sx={{ mt: 1 }}>Per-hour calculation uses company config standard hours (typically 8 hours/day)</Alert>
+                  </Grid>
+                </>
+              )}
               <Grid item xs={6} sm={4}>
                 <SwitchRow name='lop.includeHolidaysInLOP' label='Include Holidays in LOP' />
               </Grid>

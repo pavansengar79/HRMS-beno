@@ -1,6 +1,6 @@
 // src/pages/organisation/index.js
 // Organisation list for Super Admin - shows all tenant organisations
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
@@ -28,7 +28,7 @@ const STATUS_COLOR = {
 
 // ─── Organisations Columns ────────────────────────────────────────────────────────
 const columns = [
-  { flex: 0.22, minWidth: 240, field: 'org_name', headerName: 'Organization Name',
+  { flex: 0.18, minWidth: 220, field: 'org_name', headerName: 'Organization Name',
     renderCell: ({ row }) => (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <Avatar 
@@ -44,10 +44,10 @@ const columns = [
       </Box>
     )
   },
-  { flex: 0.12, minWidth: 120, field: 'work_email', headerName: 'Work Email',
+  { flex: 0.12, minWidth: 140, field: 'name', headerName: 'Business Name',
     renderCell: ({ row }) => (
       <Typography variant='body2' sx={{ color: 'text.secondary' }}>
-        {row.work_email || '—'}
+        {row.name || '—'}
       </Typography>
     )
   },
@@ -98,9 +98,9 @@ const columns = [
       )
     }
   },
-  { flex: 0.1, minWidth: 110, field: 'industry', headerName: 'Industry',
+  { flex: 0.09, minWidth: 110, field: 'industry', headerName: 'Industry',
     renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.industry || '—'}</Typography> },
-  { flex: 0.1, minWidth: 100, field: 'country', headerName: 'Country',
+  { flex: 0.09, minWidth: 100, field: 'country', headerName: 'Country',
     renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.country || '—'}</Typography> },
   { flex: 0.1, minWidth: 100, field: 'status', headerName: 'Status',
     renderCell: ({ row }) => {
@@ -135,11 +135,19 @@ const OrganisationPage = () => {
   const [total, setTotal]       = useState(0)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 20 })
 
-  useEffect(() => {
+  // ── Fetch organisations (with backend search) ──
+  const fetchOrgs = useCallback((page, pageSize, searchTerm = '') => {
     setLoading(true)
-    const { page, pageSize } = paginationModel
     
-    axiosRequest.get(`/api/v1/super-admin/tenants?page=${page + 1}&limit=${pageSize}`)
+    // Build query params
+    const params = new URLSearchParams()
+    params.append('page', page + 1)
+    params.append('limit', pageSize)
+    if (searchTerm.trim()) {
+      params.append('search', searchTerm.trim())
+    }
+    
+    axiosRequest.get(`/api/v1/super-admin/tenants?${params.toString()}`)
       .then(res => {
         console.log('API Response:', res) // Debug log
         
@@ -161,16 +169,32 @@ const OrganisationPage = () => {
         setTotal(0)
       })
       .finally(() => setLoading(false))
-  }, [paginationModel.page, paginationModel.pageSize])
+  }, [])
 
-  const filteredRows = orgs.filter(row =>
-    !search ||
-    row.org_name?.toLowerCase().includes(search.toLowerCase()) ||
-    row.name?.toLowerCase().includes(search.toLowerCase()) ||
-    row.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
-    row.contact_email?.toLowerCase().includes(search.toLowerCase()) ||
-    row.work_email?.toLowerCase().includes(search.toLowerCase())
-  )
+  // ── Fetch on mount and pagination change ──
+  useEffect(() => {
+    fetchOrgs(paginationModel.page, paginationModel.pageSize, search)
+  }, [paginationModel.page, paginationModel.pageSize, fetchOrgs, search])
+
+  // ── Debounced search effect ──
+  useEffect(() => {
+    // Debounce search - wait 300ms after user stops typing
+    const timeoutId = setTimeout(() => {
+      if (search !== undefined) {
+        setPaginationModel(prev => ({ ...prev, page: 0 })) // Reset to first page
+      }
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [search])
+
+  // ── Clear search ──
+  const handleClearSearch = () => {
+    setSearch('')
+    setPaginationModel(prev => ({ ...prev, page: 0 }))
+  }
+
+  const filteredRows = orgs
 
   return (
     <Grid container spacing={6.5}>
@@ -184,11 +208,18 @@ const OrganisationPage = () => {
             <CustomTextField 
               size='small'
               value={search} 
-              placeholder='Search by organization name, contact name, or email...' 
-              sx={{ minWidth: 320 }}
+              placeholder='Search by org name, business name, email...' 
+              sx={{ minWidth: 350 }}
               onChange={e => setSearch(e.target.value)}
               InputProps={{ 
-                startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} /> 
+                startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} />,
+                endAdornment: search ? (
+                  <Icon 
+                    icon='tabler:x' 
+                    style={{ cursor: 'pointer', opacity: 0.5 }} 
+                    onClick={handleClearSearch}
+                  />
+                ) : null
               }} 
             />
           </Box>

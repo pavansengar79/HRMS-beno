@@ -23,8 +23,9 @@ import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 // ** Redux
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import { selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
+import { fetchEmployeeById } from 'src/store/employee/employeeSlice'
 
 // ** Axios + Toast
 import axiosRequest from 'src/utils/AxiosInterceptor'
@@ -130,10 +131,13 @@ const AboutSection = ({ employee, canEdit, onUpdated }) => {
 
 // ─── Bank Details ─────────────────────────────────────────────────────────────
 // Schema field: bankDetails (not bankInfo)
-const BankSection = ({ employee, canEdit, onUpdated }) => {
+const BankSection = ({ employee, canEdit, onUpdated, isOwnProfile }) => {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({})
+
+  // Bank details are SENSITIVE - only admin/HR can edit (NOT employees for own profile)
+  const allowEdit = canEdit && !isOwnProfile
 
   const startEdit = () => {
     const b = employee.bankDetails || {}
@@ -163,7 +167,7 @@ const BankSection = ({ employee, canEdit, onUpdated }) => {
   const b = employee.bankDetails || {}
 
   return (
-    <Section title='Bank Details' editing={editing} canEdit={canEdit}
+    <Section title='Bank Details' editing={editing} canEdit={allowEdit}
       onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)} saving={saving}>
       {editing ? (
         <Grid container spacing={2}>
@@ -200,27 +204,52 @@ const BankSection = ({ employee, canEdit, onUpdated }) => {
 }
 
 // ─── Family Information ───────────────────────────────────────────────────────
-// Schema field: familyInfo { name, relation, dateOfBirth, phone }
-const FamilySection = ({ employee, canEdit, onUpdated }) => {
+// Schema field: familyDetails [{ name, relation, dateOfBirth, phone }]
+// Employees can ALWAYS update their own family details (non-sensitive)
+const FamilySection = ({ employee, canEdit, onUpdated, isOwnProfile }) => {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({})
+  const [members, setMembers] = useState([])
+  
+  // Allow edit if: has permission OR viewing own profile
+  const allowEdit = canEdit || isOwnProfile
 
   const startEdit = () => {
-    const f = employee.familyInfo || {}
-    setForm({
-      name: f.name || '',
-      relation: f.relation || '',
-      dateOfBirth: f.dateOfBirth || '',
-      phone: f.phone || '',
-    })
+    // Initialize with existing family members or one empty member
+    const existing = employee.familyDetails || []
+    setMembers(existing.length > 0 ? [...existing] : [{ name: '', relation: '', dateOfBirth: '', phone: '' }])
     setEditing(true)
   }
 
+  const handleAddMember = () => {
+    setMembers([...members, { name: '', relation: '', dateOfBirth: '', phone: '' }])
+  }
+
+  const handleRemoveMember = (index) => {
+    if (members.length === 1) {
+      toast.error('At least one family member is required')
+      return
+    }
+    setMembers(members.filter((_, i) => i !== index))
+  }
+
+  const handleMemberChange = (index, field, value) => {
+    const updated = [...members]
+    updated[index] = { ...updated[index], [field]: value }
+    setMembers(updated)
+  }
+
   const handleSave = async () => {
+    // Validate - at least one field must be filled per member
+    const validMembers = members.filter(m => m.name || m.relation || m.phone)
+    if (validMembers.length === 0) {
+      toast.error('Please add at least one family member')
+      return
+    }
+
     setSaving(true)
     try {
-      const updated = await callUpdate(employee._id, { familyDetails: [form] })
+      const updated = await callUpdate(employee._id, { familyDetails: validMembers })
       onUpdated(updated)
       setEditing(false)
       toast.success('Family info updated')
@@ -229,67 +258,85 @@ const FamilySection = ({ employee, canEdit, onUpdated }) => {
     } finally { setSaving(false) }
   }
 
-  const onChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }))
-  const f = employee.familyDetails || {}
-
   return (
     <Section
       title='Family Information'
       editing={editing}
-      canEdit={canEdit}
+      canEdit={allowEdit}
       onEdit={startEdit}
       onSave={handleSave}
       onCancel={() => setEditing(false)}
       saving={saving}
     >
       {editing ? (
-        <Grid container spacing={2}>
-          <Grid item xs={6}>
-            <CustomTextField
-              fullWidth
-              size='small'
-              label='Name'
-              name='name'
-              value={form.name || ""}
-              onChange={onChange}
-            />
-          </Grid>
+        <>
+          {members.map((member, index) => (
+            <Grid container spacing={2} key={index} sx={{ mb: 2, pb: 2, borderBottom: index < members.length - 1 ? '1px solid #eee' : 'none' }}>
+              <Grid item xs={6}>
+                <CustomTextField
+                  fullWidth
+                  size='small'
+                  label='Name'
+                  value={member.name || ''}
+                  onChange={(e) => handleMemberChange(index, 'name', e.target.value)}
+                />
+              </Grid>
 
-          <Grid item xs={6}>
-            <CustomTextField
-              fullWidth
-              size='small'
-              label='Relation'
-              name='relation'
-              value={form.relation || ""}
-              onChange={onChange}
-            />
-          </Grid>
+              <Grid item xs={6}>
+                <CustomTextField
+                  fullWidth
+                  size='small'
+                  label='Relation'
+                  value={member.relation || ''}
+                  onChange={(e) => handleMemberChange(index, 'relation', e.target.value)}
+                />
+              </Grid>
 
-          <Grid item xs={6}>
-            <CustomTextField
-              fullWidth
-              size='small'
-              label='Date of Birth'
-              name='dateOfBirth'
-              type='date'
-              InputLabelProps={{ shrink: true }}
-              value={form.dateOfBirth?.slice(0, 10) || ""}
-              onChange={onChange}
-            />
-          </Grid>
+              <Grid item xs={6}>
+                <CustomTextField
+                  fullWidth
+                  size='small'
+                  label='Date of Birth'
+                  type='date'
+                  InputLabelProps={{ shrink: true }}
+                  value={member.dateOfBirth?.slice(0, 10) || ''}
+                  onChange={(e) => handleMemberChange(index, 'dateOfBirth', e.target.value)}
+                />
+              </Grid>
 
-          <Grid item xs={6}>
-            <CustomTextField
-              fullWidth
-              size='small'
-              label='Phone'
-              name='phone'
-              value={form.phone || ""}
-              onChange={onChange}
-            />
-          </Grid>
-        </Grid>
+              <Grid item xs={5}>
+                <CustomTextField
+                  fullWidth
+                  size='small'
+                  label='Phone'
+                  value={member.phone || ''}
+                  onChange={(e) => handleMemberChange(index, 'phone', e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={1} sx={{ display: 'flex', alignItems: 'center' }}>
+                <IconButton 
+                  size='small' 
+                  color='error' 
+                  onClick={() => handleRemoveMember(index)}
+                  disabled={members.length === 1}
+                >
+                  <Icon icon='tabler:trash' fontSize={18} />
+                </IconButton>
+              </Grid>
+            </Grid>
+          ))}
+          
+          <Button
+            size='small'
+            variant='outlined'
+            startIcon={<Icon icon='tabler:plus' />}
+            onClick={handleAddMember}
+            sx={{ mt: 1 }}
+          >
+            Add Family Member
+          </Button>
+        </>
       ) : (
         <Grid container spacing={2}>
           {employee.familyDetails?.length > 0 ? (
@@ -341,12 +388,15 @@ const FamilySection = ({ employee, canEdit, onUpdated }) => {
 
 // ─── Education Details ────────────────────────────────────────────────────────
 // Schema field: education [ { institution, degree, from, to } ]
-const EducationSection = ({ employee, canEdit, onUpdated }) => {
+const EducationSection = ({ employee, canEdit, onUpdated, isOwnProfile }) => {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [entries, setEntries] = useState([])
 
   const education = employee.education || []
+
+  // Employees can edit their own education
+  const allowEdit = canEdit || isOwnProfile
 
   const startEdit = () => { setEntries(education.map(e => ({ ...e }))); setEditing(true) }
 
@@ -369,7 +419,7 @@ const EducationSection = ({ employee, canEdit, onUpdated }) => {
   }
 
   return (
-    <Section title='Education Details' editing={editing} canEdit={canEdit}
+    <Section title='Education Details' editing={editing} canEdit={allowEdit}
       onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)} saving={saving}>
       {editing ? (
         <Box>
@@ -426,12 +476,15 @@ const EducationSection = ({ employee, canEdit, onUpdated }) => {
 
 // ─── Experience ───────────────────────────────────────────────────────────────
 // Schema field: experience [ { company, role, from, to, current } ]
-const ExperienceSection = ({ employee, canEdit, onUpdated }) => {
+const ExperienceSection = ({ employee, canEdit, onUpdated, isOwnProfile }) => {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [entries, setEntries] = useState([])
 
   const experience = employee.experience || []
+
+  // Employees can edit their own experience
+  const allowEdit = canEdit || isOwnProfile
 
   const startEdit = () => { setEntries(experience.map(e => ({ ...e }))); setEditing(true) }
 
@@ -454,7 +507,7 @@ const ExperienceSection = ({ employee, canEdit, onUpdated }) => {
   }
 
   return (
-    <Section title='Experience' editing={editing} canEdit={canEdit}
+    <Section title='Experience' editing={editing} canEdit={allowEdit}
       onEdit={startEdit} onSave={handleSave} onCancel={() => setEditing(false)} saving={saving}>
       {editing ? (
         <Box>
@@ -515,20 +568,29 @@ const ExperienceSection = ({ employee, canEdit, onUpdated }) => {
 }
 
 // ─── Main UserViewAccount ─────────────────────────────────────────────────────
-const UserViewAccount = ({ employee: initialEmployee, isPermitted }) => {
+const UserViewAccount = ({ employee: initialEmployee, isPermitted, isOwnProfile }) => {
   const permissions = useSelector(selectPermissions)
   const roleSlug = useSelector(selectRoleSlug)
+  const dispatch = useDispatch()
 
   const canEdit = isPermitted
   const isTenantAdmin = roleSlug === 'company_admin'
 
   // ── Local employee state — each section updates this after save ────────────
   const [employee, setEmployee] = useState(initialEmployee)
-  const onUpdated = updated => setEmployee(updated)
+  
+  // Sync local state with Redux + fetch fresh data after update
+  const onUpdated = (updated) => {
+    setEmployee(updated)
+    // Refresh Redux store to ensure list pages see the update
+    if (employee?._id) {
+      dispatch(fetchEmployeeById(employee._id))
+    }
+  }
 
   if (!employee) return null
 
-  const sharedProps = { employee, canEdit, onUpdated }
+  const sharedProps = { employee, canEdit, onUpdated, isOwnProfile }
 
   return (
     <Grid container spacing={3} alignItems='stretch'>

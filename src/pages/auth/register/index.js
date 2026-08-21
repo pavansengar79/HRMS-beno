@@ -283,7 +283,9 @@ const RegisterPage = () => {
             <form noValidate autoComplete='off' onSubmit={handleSubmit(onSubmit)}>
 
               {/* ── Plan selection ── */}
-              <Typography variant='body2' sx={{ fontWeight: 700, mb: 1.5 }}>Choose a plan *</Typography>
+              <Typography variant='body2' sx={{ fontWeight: 700, mb: 1.5 }}>
+                Choose a plan <span style={{ color: 'red' }}>*</span>
+              </Typography>
 
               {plansLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 3, mb: 3 }}>
@@ -361,7 +363,8 @@ const RegisterPage = () => {
               {/* Contact Name */}
               <Controller name='contact_name' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth autoFocus label='Your Name *'
+                  <CustomTextField {...field} fullWidth autoFocus
+                    label={<span>Your Name <span style={{ color: 'red' }}>*</span></span>}
                     placeholder='Ratan Tata'
                     sx={{ display: 'flex', mb: 4 }}
                     error={Boolean(errors.contact_name)}
@@ -373,7 +376,8 @@ const RegisterPage = () => {
               {/* Contact Email */}
               <Controller name='contact_email' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth type='email' label='Contact Email *'
+                  <CustomTextField {...field} fullWidth type='email'
+                    label={<span>Contact Email <span style={{ color: 'red' }}>*</span></span>}
                     placeholder='you@personal.com'
                     sx={{ display: 'flex', mb: 2 }}
                     error={Boolean(errors.contact_email)}
@@ -454,7 +458,8 @@ const RegisterPage = () => {
               {!sameEmailValue && (
                 <Controller name='work_email' control={control}
                   render={({ field }) => (
-                    <CustomTextField {...field} fullWidth type='email' label='Organization Email *'
+                    <CustomTextField {...field} fullWidth type='email'
+                      label={<span>Organization Email <span style={{ color: 'red' }}>*</span></span>}
                       placeholder='you@company.com'
                       sx={{ display: 'flex', mb: 3 }}
                       error={Boolean(errors.work_email)}
@@ -475,7 +480,8 @@ const RegisterPage = () => {
               {/* Organization Name */}
               <Controller name='org_name' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth label='Organization Name *'
+                  <CustomTextField {...field} fullWidth
+                    label={<span>Organization Name <span style={{ color: 'red' }}>*</span></span>}
                     placeholder='Acme Technologies Pvt Ltd'
                     sx={{ display: 'flex', mb: 4 }}
                     error={Boolean(errors.org_name)}
@@ -495,7 +501,8 @@ const RegisterPage = () => {
               {/* Phone */}
               <Controller name='contact_phone' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth label='Phone Number *'
+                  <CustomTextField {...field} fullWidth
+                    label={<span>Phone Number <span style={{ color: 'red' }}>*</span></span>}
                     placeholder='9876543210'
                     sx={{ display: 'flex', mb: 4 }}
                     error={Boolean(errors.contact_phone)} helperText={errors.contact_phone?.message}

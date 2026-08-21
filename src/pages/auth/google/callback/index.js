@@ -190,7 +190,8 @@ import BlankLayout from 'src/@core/layouts/BlankLayout'
 import authConfig from 'src/configs/auth'
 import { setCredentials } from 'src/store/auth/authSlice'
 
-const BACKEND_BASE_URL = 'https://pulmonary-leggings-hurt.ngrok-free.dev/'
+// Use environment variable with fallback to localhost backend
+const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/'
 
 const GoogleCallbackPage = () => {
 const router = useRouter()

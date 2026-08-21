@@ -27,3 +27,21 @@ code[class*='language-'] {
 .filter .MuiFilledInput-root{
   width: 100% !important;
 }
+
+/*  */
+
+.leavereq .MuiTextField-root {
+  min-width: auto !important;
+
+}
+
+
+.leavereq .css-27qytk  ,  .css-yfkcl7-MuiFormControl-root-MuiTextField-root{
+  min-width: auto !important;
+
+}
+
+
+.css-rlj55u-MuiAutocomplete-root {
+   /* margin-top: 17px !important; */
+}

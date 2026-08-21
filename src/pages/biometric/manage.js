@@ -681,6 +681,7 @@ const BiometricManagePage = () => {
               ))}
             </Select>
             <Button
+              type='button'
               variant='outlined'
               size='small'
               onClick={() => testConnection(selectedDevice)}

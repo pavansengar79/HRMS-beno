@@ -63,10 +63,11 @@ const DesignationSelect = ({
       onChange={e => onChange(e.target.value)}
       sx={{ minWidth, ...sx }}
       disabled={disabled || loading}
+      displayEmpty
       InputProps={loading ? {
         endAdornment: (
           <InputAdornment position='end'>
-            <CircularProgress size={14} sx={{ mr: 1 }} />
+            <CircularProgress size={14} sx={{ mr: 14 }} />
           </InputAdornment>
         ),
       } : undefined}

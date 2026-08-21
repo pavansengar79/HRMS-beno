@@ -71,19 +71,34 @@ const LoginPage = () => {
   const router = useRouter()
   const hidden = useMediaQuery(theme.breakpoints.down('md'))
 
-  const { control, handleSubmit, formState: { errors } } = useForm({
+  const { control, handleSubmit, reset, formState: { errors } } = useForm({
     defaultValues: { email: '', password: '' },
     mode: 'onTouched',
     resolver: yupResolver(schema)
   })
 
   const onSubmit = async data => {
+    // Prevent page refresh - use event.preventDefault
+    setSubmitting(true)
+    
     try {
-      setSubmitting(true)
       const res = await axiosRequest.post('/api/v1/auth/login', {
         email:    data.email.trim().toLowerCase(),
         password: data.password,
       })
+
+      // ✅ MFA required - redirect to MFA challenge
+      if (res?.mfaRequired) {
+        toast('Two-factor authentication required', { 
+          icon: '🔐',
+          id: 'mfa-required' 
+        })
+        router.replace({
+          pathname: '/auth/mfa-challenge',
+          query: { mfaToken: res.mfaToken, email: data.email.trim().toLowerCase() }
+        })
+        return
+      }
 
       if (res?.success) {
         const { token, is_first_login, user, subscription } = res.data
@@ -97,7 +112,7 @@ const LoginPage = () => {
         // ✅ CRITICAL FIX: Update Redux state immediately
         dispatch(rehydrateAuth({ user, token }))
 
-        toast.success('Welcome back!')
+        toast.success('Welcome back!', { id: 'login-success' })
 
         if (is_first_login) {
           // Must set their own password before accessing the app
@@ -106,11 +121,16 @@ const LoginPage = () => {
           router.replace('/')
         }
       } else {
-        // Clear password field on failed login
-        const errorMsg = res?.message || 'Login failed. Check your credentials.'
-        toast.error(errorMsg, { duration: 5000 })
+        // Clear fields on failed login
+        reset({ email: '', password: '' })
+        // Show custom error message (axios interceptor might also show one)
+        const errorMsg = res?.message || 'Login failed. Please check your credentials.'
+        toast.error(errorMsg, { duration: 5000, id: 'login-error' })
       }
     } catch (err) {
+      // Clear fields on error
+      reset({ email: '', password: '' })
+      
       // Handle different error response formats
       let errorMsg = 'Invalid credentials. Please try again.'
       
@@ -122,7 +142,8 @@ const LoginPage = () => {
         errorMsg = err.message
       }
       
-      toast.error(errorMsg, { duration: 5000 })
+      // Show error toast (axios interceptor will also show one, but we ensure visibility)
+      toast.error(errorMsg, { duration: 5000, id: 'login-error' })
     } finally {
       setSubmitting(false)
     }
@@ -130,9 +151,106 @@ const LoginPage = () => {
 
   const handleGoogleLogin = () => {
     if (typeof window === 'undefined') return
-    const oauthUrl = new URL(`https://pulmonary-leggings-hurt.ngrok-free.dev/api/v1/auth/google`)
+    // Use environment variable for backend URL (works in both dev and prod)
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/'
+    const apiBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+    const oauthUrl = new URL(`${apiBaseUrl}/api/v1/auth/google`)
     oauthUrl.searchParams.set('returnUrl', `${window.location.origin}/auth/google/callback`)
     window.location.href = oauthUrl.toString()
+  }
+
+  const handleSSOLogin = async () => {
+    const email = prompt('Enter your company email address')
+    if (!email) return
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/'
+      const apiBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+      
+      const response = await fetch(`${apiBaseUrl}/api/v1/auth/sso/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      
+      const data = await response.json()
+      
+      if (data?.success && data?.authorizationUrl) {
+        // Save state for CSRF verification
+        if (data?.state) {
+          sessionStorage.setItem('sso_state', data.state)
+          localStorage.setItem('sso_email', email)
+        }
+        
+        // Open in popup (embedded flow) - stays in app
+        const width = 600
+        const height = 700
+        const left = window.screen.width / 2 - width / 2
+        const top = window.screen.height / 2 - height / 2
+        
+        const popup = window.open(
+          data.authorizationUrl,
+          'SSOSignIn',
+          `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,location=no,status=no`
+        )
+        
+        // Check if popup was blocked
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+          // Popup blocked - fallback to redirect
+          toast.error('Popup blocked! Please allow popups or redirecting...')
+          setTimeout(() => {
+            window.location.href = data.authorizationUrl
+          }, 2000)
+          return
+        }
+        
+        // Focus the popup
+        if (popup.focus) {
+          popup.focus()
+        }
+        
+        // Listen for popup close
+        const checkClosed = setInterval(() => {
+          try {
+            if (!popup || popup.closed) {
+              clearInterval(checkClosed)
+              
+              // Check if authentication was successful
+              const token = localStorage.getItem('sso_token') || localStorage.getItem('token')
+              if (token) {
+                toast.success('SSO login successful!')
+                // Trigger auth update
+                window.dispatchEvent(new Event('storage'))
+                // Redirect to dashboard
+                setTimeout(() => {
+                  router.push('/')
+                }, 500)
+              }
+            }
+          } catch (e) {
+            // Popup might be in different domain, just clear interval
+            clearInterval(checkClosed)
+          }
+        }, 500)
+        
+        // Listen for postMessage from popup
+        const handleMessage = (event) => {
+          if (event.data?.type === 'SSO_SUCCESS') {
+            localStorage.setItem('token', event.data.token)
+            localStorage.setItem('userEmail', event.data.email)
+            toast.success('SSO login successful!')
+            router.push('/')
+            window.removeEventListener('message', handleMessage)
+          }
+        }
+        window.addEventListener('message', handleMessage)
+      } else {
+        toast.error(data?.message || 'SSO login failed')
+      }
+    } catch (error) {
+      console.error('SSO login error:', error)
+      toast.error('Failed to initiate SSO login')
+    }
   }
 
   return (
@@ -205,6 +323,12 @@ const LoginPage = () => {
               />
 
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1.5, mb: 4 }}>
+
+              {/* <Button fullWidth variant='outlined' onClick={handleSSOLogin}
+                startIcon={<Icon icon='mdi:domain' />} disabled={submitting}
+                sx={{ mt: 2 }}>
+                Sign in with SSO (Enterprise)
+              </Button> */}
                 <Typography component={LinkStyled} href='/auth/forgot-password' sx={{ fontSize: '0.875rem' }}>
                   Forgot password?
                 </Typography>

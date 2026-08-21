@@ -118,7 +118,7 @@ const UserDropdown = props => {
   const isSuperAdmin = roleSlug === 'super_admin'
   
   // ── Role-based visibility ────────────────────────────────────────────────────
-  const canSeeSettings      = isAdminRole(roleSlug)
+  const canSeeSettings      = isAdminRole(roleSlug) && roleSlug !== 'super_admin' // Hide Settings for SUPER_ADMIN
   const canSeeProfile       = level === 'unit'  // Unit-level roles only
   const canMarkAttendance   = level === 'unit'  // All unit-level employees
   

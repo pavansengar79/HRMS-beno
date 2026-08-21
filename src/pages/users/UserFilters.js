@@ -1,5 +1,5 @@
 // ** React Imports
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 // ** MUI Imports
 import Box from '@mui/material/Box'
@@ -17,6 +17,7 @@ import Icon from 'src/@core/components/icon'
 // ** Custom Components
 import CustomTextField from 'src/@core/components/mui/text-field'
 import { EmployeeSelect, DepartmentSelect, DesignationSelect } from 'src/components/employee'
+import axiosRequest from 'src/utils/AxiosInterceptor'
 
 const STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
@@ -51,6 +52,10 @@ const UserFilters = ({
 }) => {
   // Track anchor element for popper
   const [anchorEl, setAnchorEl] = useState(null)
+  
+  // Store department/designation objects for proper display
+  const [deptOptions, setDeptOptions] = useState([])
+  const [desigOptions, setDesigOptions] = useState([])
 
   // Check if any filters are active
   const hasActiveFilters = search || selectedEmployee || selectedDept || selectedDesignation || typeFilter || statusFilter
@@ -66,11 +71,15 @@ const UserFilters = ({
       chips.push({ key: 'employee', label: `Employee: ${selectedEmployee.name || selectedEmployee._id}`, value: selectedEmployee })
     }
     if (selectedDept) {
-      const deptName = selectedDept.name || selectedDept
+      // Look up department name from options
+      const deptObj = deptOptions.find(d => d._id === selectedDept)
+      const deptName = deptObj?.name || selectedDept
       chips.push({ key: 'department', label: `Department: ${deptName}`, value: selectedDept })
     }
     if (selectedDesignation) {
-      const desigName = selectedDesignation.name || selectedDesignation
+      // Look up designation name from options
+      const desigObj = desigOptions.find(d => d._id === selectedDesignation)
+      const desigName = desigObj?.name || selectedDesignation
       chips.push({ key: 'designation', label: `Designation: ${desigName}`, value: selectedDesignation })
     }
     if (typeFilter) {
@@ -117,10 +126,27 @@ const UserFilters = ({
     setStatusFilter('')
   }
 
+  // Fetch department and designation options for display
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [deptRes, desigRes] = await Promise.all([
+          axiosRequest.get('/api/v1/departments'),
+          axiosRequest.get('/api/v1/designations')
+        ])
+        if (deptRes?.success) setDeptOptions(deptRes.data || [])
+        if (desigRes?.success) setDesigOptions(desigRes.data || [])
+      } catch (err) {
+        console.error('Failed to fetch filter options:', err)
+      }
+    }
+    fetchOptions()
+  }, [])
+
   const activeChips = getActiveFilterChips()
 
   return (
-    <Paper elevation={0} sx={{ p: 3, backgroundColor: 'background.default', borderRadius: 1 }} className='filter'>
+    <Paper elevation={0} sx={{ p: 3, borderRadius: 1 }} className='filter'>
       {/* Filter Section Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -225,20 +251,22 @@ const UserFilters = ({
         </Box>
 
         {/* Department Filter */}
-        <Box sx={{ minWidth: 160, flex: '0 0 auto' }}>
+        <Box sx={{ minWidth: 160, flex: '0 0 auto', mt: 5 }}>
           <DepartmentSelect
             value={selectedDept}
             onChange={(deptId) => setSelectedDept(deptId)}
             size='small'
+            label='Department'
           />
         </Box>
 
         {/* Designation Filter */}
-        <Box >
+        <Box sx={{ mt: 5 }}>
           <DesignationSelect
             value={selectedDesignation}
             onChange={(desigId) => setSelectedDesignation(desigId)}
             size='small'
+            label='Designation'
           />
         </Box>
 

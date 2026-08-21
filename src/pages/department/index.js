@@ -10,6 +10,12 @@ import UnitContextBanner from 'src/@core/components/CustomComponents/UnitContext
 // ** Auth selectors — import directly from authSlice so the path is always correct
 import { selectPermissions } from 'src/store/auth/authSlice'
 
+// ** Context
+import useUnitContext from 'src/hooks/useUnitContext'
+
+// ** Toast
+import toast from 'react-hot-toast'
+
 // ** MUI Imports
 import Tab from '@mui/material/Tab'
 import Box from '@mui/material/Box'
@@ -41,7 +47,7 @@ import CustomAvatar from 'src/@core/components/mui/avatar'
 // ** Drawer (shared for Add + Edit)
 import AddDepartmentDrawer from './departmentDrawer'
 import TreeView from '../components/tree-view'
-import TreeViewCustomized from 'src/views/components/tree-view/TreeViewCustomized'
+import DepartmentDetailView from 'src/views/components/department/DepartmentDetailView'
 
 // ---------------------------------------------------------------------------
 // DataGrid columns
@@ -250,24 +256,91 @@ const ConfirmDeleteDialog = ({ open, deptName, onConfirm, onCancel, deleting }) 
 const DepartmentPage = () => {
   const permissions = useSelector(selectPermissions)
   const canCreate   = permissions.includes('department.create')
+  
+  // ✅ Get unit context for proper data isolation
+  const { companyId, unitId } = useUnitContext()
 
   const [drawerOpen,  setDrawerOpen]  = useState(false)
   const [refreshKey,  setRefreshKey]  = useState(0)
+  const [editingDept, setEditingDept] = useState(null)
+  const [departments, setDepartments] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  // Fetch departments
+  const fetchDepartments = useCallback(async () => {
+    setLoading(true)
+    try {
+      // ✅ Build params with unit context for data isolation
+      const params = {}
+      if (companyId) params.companyId = companyId
+      if (unitId) params.unit_id = unitId
+      
+      const res = await axiosRequest.get('/api/v1/departments/tree/list', { params })
+      console.log('=== DEPARTMENTS FETCH ===')
+      console.log('Response:', res)
+      console.log('Response data:', res.data)
+      
+      // Handle nested response structure
+      const deptData = res.data?.data || res.data || []
+      console.log('Department data extracted:', deptData)
+      console.log('Is array:', Array.isArray(deptData))
+      console.log('First dept:', deptData[0])
+      
+      setDepartments(Array.isArray(deptData) ? deptData : [])
+    } catch (err) {
+      console.error('Failed to fetch departments:', err)
+      toast.error('Failed to load departments')
+    } finally {
+      setLoading(false)
+    }
+  }, [companyId, unitId])
+
+  useEffect(() => { fetchDepartments() }, [fetchDepartments, refreshKey])
 
   return (
     <>
       <UnitContextBanner />
-      <TreeViewCustomized
-        onAddRoot={canCreate ? () => setDrawerOpen(true) : undefined}
-        refreshKey={refreshKey}
+      
+      {/* New Card-based Detail View */}
+      <DepartmentDetailView
+        departments={departments}
+        onAddSub={(parentId) => {
+          // parentId = null means create root department
+          // parentId = id means create sub-department under that parent
+          if (parentId === null || parentId === undefined) {
+            setEditingDept(null)
+          } else {
+            setEditingDept({ parentId: parentId })
+          }
+          setDrawerOpen(true)
+        }}
+        onEdit={id => {
+          axiosRequest.get(`/api/v1/departments/${id}`)
+            .then(res => {
+              const deptData = res.data?.data || res.data
+              console.log('Editing department:', deptData)
+              setEditingDept(deptData)
+              setDrawerOpen(true)
+            })
+            .catch(err => {
+              console.error('Failed to load department:', err)
+              toast.error('Failed to load department details')
+            })
+        }}
       />
 
-      {/* Drawer — opens when "Add Department" button is clicked from the tree view */}
+      {/* Drawer — opens for both Add and Edit */}
       <AddDepartmentDrawer
         open={drawerOpen}
-        toggle={() => setDrawerOpen(false)}
-        onSuccess={() => setRefreshKey(k => k + 1)}
-        editingDept={null}
+        toggle={() => {
+          setDrawerOpen(false)
+          setEditingDept(null)
+        }}
+        onSuccess={() => {
+          setRefreshKey(k => k + 1)
+          setEditingDept(null)
+        }}
+        editingDept={editingDept}
       />
     </>
   )

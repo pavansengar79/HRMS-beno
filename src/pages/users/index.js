@@ -33,7 +33,8 @@ import Icon from 'src/@core/components/icon'
 
 // ** Bulk Operations
 import BulkImportDialog from 'src/components/bulk/BulkImportDialog'
-import BulkExportButton from 'src/components/bulk/BulkExportButton'
+import BulkExportButton, { EMPLOYEE_EXPORT_COLUMNS } from 'src/components/bulk/BulkExportButton'
+import InviteDrawer from 'src/views/apps/user/list/inviteDrawer'
 
 // ** Redux
 import { useDispatch, useSelector } from 'react-redux'
@@ -570,6 +571,8 @@ const EmployeeList = () => {
   const [editingEmployee, setEditingEmployee] = useState(null)
   const [deleteTarget, setDeleteTarget]       = useState(null)
   const [deleting, setDeleting]               = useState(false)
+  const [bulkImportOpen, setBulkImportOpen]   = useState(false)
+  const [inviteOpen, setInviteOpen]           = useState(false)
 
   // activateTarget — shared by both Approve button & status dropdown → ACTIVE
   const [activateTarget, setActivateTarget] = useState(null)
@@ -625,7 +628,11 @@ const EmployeeList = () => {
 
   // Non-ACTIVE status changes update local state immediately (optimistic)
   const handleStatusChange = useCallback((employeeId, newStatus) => {
+    // Update BOTH states so DataGrid reflects change immediately
     setLocalEmployees(prev =>
+      prev.map(emp => emp._id === employeeId ? { ...emp, status: newStatus } : emp)
+    )
+    setRows(prev =>
       prev.map(emp => emp._id === employeeId ? { ...emp, status: newStatus } : emp)
     )
   }, [])
@@ -633,7 +640,11 @@ const EmployeeList = () => {
   // Called by RolePickerDialog on success — mark row ACTIVE locally + close dialog
   const handleActivateSuccess = useCallback(employeeId => {
     setActivateTarget(null)
+    // Update BOTH states so DataGrid reflects change immediately without page refresh
     setLocalEmployees(prev =>
+      prev.map(emp => emp._id === employeeId ? { ...emp, status: 'ACTIVE' } : emp)
+    )
+    setRows(prev =>
       prev.map(emp => emp._id === employeeId ? { ...emp, status: 'ACTIVE' } : emp)
     )
   }, [])
@@ -683,7 +694,17 @@ const EmployeeList = () => {
           <CardHeader 
             title='Employee Management' 
             action={
-              <Box sx={{ display: 'flex', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {canCreate && (
+                  <Button
+                    variant='tonal'
+                    color='primary'
+                    startIcon={<Icon icon='tabler:mail-forward' />}
+                    onClick={() => setInviteOpen(true)}
+                  >
+                    Invite User
+                  </Button>
+                )}
                 {canCreate && (
                   <Button
                     variant='contained'
@@ -694,23 +715,18 @@ const EmployeeList = () => {
                   </Button>
                 )}
                 {canCreate && (
-                  <>
-                    <Button
-                      variant='outlined'
-                      startIcon={<Icon icon='mdi:file-excel' />}
-                      onClick={() => router.push('/users/bulk-import')}
-                    >
-                      Bulk Import
-                    </Button>
-                    <BulkImportDialog
-                      entityType='employees'
-                      onImportComplete={() => fetchEmployees()}
-                    />
-                  </>
+                  <Button
+                    variant='outlined'
+                    startIcon={<Icon icon='mdi:file-excel' />}
+                    onClick={() => router.push('/users/bulk-import')}
+                  >
+                    Bulk Import
+                  </Button>
                 )}
                 <BulkExportButton
                   entityType='employees'
                   data={filteredRows}
+                  columns={EMPLOYEE_EXPORT_COLUMNS}
                   filename='employees-export'
                 />
               </Box>
@@ -727,7 +743,7 @@ const EmployeeList = () => {
               selectedEmployee={selectedEmployee}
               setSelectedEmployee={setSelectedEmployee}
               selectedDept={selectedDept}
-              setSelectedDept={setSelectedDept}
+              setSelectedDept={(val) => setSelectedDept(val)}
               selectedDesignation={selectedDesignation}
               setSelectedDesignation={setSelectedDesignation}
               typeFilter={typeFilter}
@@ -766,7 +782,7 @@ const EmployeeList = () => {
         <AddEmployeeDrawer
           open={drawerOpen} toggle={handleCloseDrawer}
           editingEmployee={editingEmployee}
-          onSuccess={() => { handleCloseDrawer(); dispatch(fetchAllEmployees({ companyId, unitId })) }}
+          onSuccess={() => { handleCloseDrawer(); fetchEmployees() }}
         />
       )}
 
@@ -790,6 +806,18 @@ const EmployeeList = () => {
           employee={activateTarget}
           onClose={() => setActivateTarget(null)}
           onSuccess={handleActivateSuccess}
+        />
+      )}
+
+      {/* Invite Drawer */}
+      {canCreate && (
+        <InviteDrawer
+          open={inviteOpen}
+          onClose={() => setInviteOpen(false)}
+          onSuccess={() => {
+            setInviteOpen(false)
+            fetchEmployees()
+          }}
         />
       )}
     </Grid>

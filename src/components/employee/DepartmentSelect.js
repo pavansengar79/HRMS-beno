@@ -64,6 +64,7 @@ const DepartmentSelect = ({
       onChange={e => onChange(e.target.value)}
       sx={{ minWidth, ...sx }}
       disabled={disabled || loading}
+      displayEmpty
       InputProps={loading ? {
         endAdornment: (
           <InputAdornment position='end'>

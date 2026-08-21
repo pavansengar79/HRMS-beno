@@ -103,7 +103,16 @@ const VerticalNavHeader = props => {
               d='M7.77295 16.3566L23.6563 0H32V6.88383C32 6.88383 31.8262 9.17836 30.6591 10.4057L19.7824 22H13.6938L7.77295 16.3566Z'
             />
           </svg> */}
-          <img src='/OneBLogo.svg' alt='logo' width={100} height={56.375} />
+          <img 
+            src='/OneBLogo.svg' 
+            alt='logo'
+            style={{ 
+              width: navCollapsed && !navHover ? 40 : 100,
+              height: 'auto',
+              transition: 'width 0.25s ease-in-out',
+              maxWidth: '100%'
+            }}
+          />
           {/* <h2>1B</h2> */}
           {/* <HeaderTitle variant='h4' sx={{ ...menuCollapsedStyles, ...(navCollapsed && !navHover ? {} : { ml: 2.5 }) }}>
             {themeConfig.templateName}

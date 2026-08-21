@@ -186,14 +186,18 @@ axiosRequest.interceptors.response.use(
     const status  = error?.response?.status
     const data    = error?.response?.data
     const message = data?.message
+    const url     = error?.config?.url || ''
 
     // ── Show error toast for all API errors ───────────────────────────────────
-    if (message && typeof window !== 'undefined') {
+    // Don't show duplicate toast for login endpoint - it handles its own toast
+    const isLoginEndpoint = url.includes('/auth/login')
+    if (message && typeof window !== 'undefined' && !isLoginEndpoint) {
       toast.error(message)
     }
 
     // ── 401 / token expired ──────────────────────────────────────────────────
-    if (status === 401 || message === 'Token invalid or expired') {
+    // Don't redirect on login endpoint - 401 means "invalid credentials" not "session expired"
+    if ((status === 401 || message === 'Token invalid or expired') && !isLoginEndpoint) {
       if (typeof window !== 'undefined') {
         const key = authConfig.storageTokenKeyName || 'accessToken'
         window.localStorage.removeItem('userData')

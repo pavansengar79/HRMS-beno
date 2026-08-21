@@ -8,7 +8,7 @@ const CompanyDetailsRedirect = () => {
 
   useEffect(() => {
     if (id) {
-      router.replace(`/company/${id}/details/account`)
+      router.replace(`/company/${id}/details/overview`)
     }
   }, [id, router])
 

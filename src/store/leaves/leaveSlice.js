@@ -7,13 +7,30 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 // Requests - Accept scope params for org_admin/company_admin navigation
 export const fetchMyLeaves = createAsyncThunk(
   'leaves/fetchMyLeaves',
-  async ({ page = 1, limit = 10, companyId, unitId } = {}, { rejectWithValue }) => {
+  async ({ 
+    page = 1, 
+    limit = 10, 
+    companyId, 
+    unitId,
+    employeeId,
+    departmentId,
+    leaveTypeId,
+    status,
+    startDate,
+    endDate
+  } = {}, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams()
       params.append('page', page)
       params.append('limit', limit)
       if (companyId) params.append('companyId', companyId)
       if (unitId) params.append('unitId', unitId)
+      if (employeeId) params.append('employeeId', employeeId)
+      if (departmentId) params.append('departmentId', departmentId)
+      if (leaveTypeId) params.append('leaveTypeId', leaveTypeId)
+      if (status) params.append('status', status)
+      if (startDate) params.append('startDate', startDate)
+      if (endDate) params.append('endDate', endDate)
       const res = await axiosRequest.get(`/api/v1/leave?${params.toString()}`)
       return res
     } catch (err) {

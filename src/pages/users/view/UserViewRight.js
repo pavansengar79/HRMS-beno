@@ -24,6 +24,7 @@ import UserViewBilling      from './UserViewBilling'
 import UserViewNotification from './UserViewNotification'
 import UserViewConnection   from './UserViewConnection'
 import UserProgressionTimeline from './Userprogressiontimeline'
+import EmployeeTimeline from './EmployeeTimeline'
 import { useSelector } from 'react-redux'
 import { selectRoleSlug } from 'src/store/auth/authSlice'
 
@@ -58,7 +59,7 @@ const TabList = styled(MuiTabList)(({ theme }) => ({
 // ─────────────────────────────────────────────────────────────────────────────
 // UserViewRight
 // ─────────────────────────────────────────────────────────────────────────────
-const UserViewRight = ({ tab, employee ,isPermitted}) => {
+const UserViewRight = ({ tab, employee ,isPermitted, isOwnProfile}) => {
   const [activeTab, setActiveTab] = useState(tab || 'account')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -94,6 +95,7 @@ const UserViewRight = ({ tab, employee ,isPermitted}) => {
         sx={{ borderBottom: theme => `1px solid ${theme.palette.divider}` }}
       >
         <Tab value='account'      label='Account'        icon={<Icon fontSize='1.125rem' icon='tabler:user-check' />} />
+        <Tab value='timeline'     label='Timeline'       icon={<Icon fontSize='1.125rem' icon='tabler:timeline' />} />
         <Tab value='security'     label='Security'       icon={<Icon fontSize='1.125rem' icon='tabler:lock' />} />
         {/* Hide Billing & Plan tab for employees - only show for admins */}
         {['org_admin', 'company_admin', 'super_admin', 'SUPER_ADMIN', 'hr_manager', 'product_admin'].includes(roleSlug) && (
@@ -113,9 +115,12 @@ const UserViewRight = ({ tab, employee ,isPermitted}) => {
           <>
             <TabPanel sx={{ p: 0 }} value='account'>
               {roleSlug ==="company_admin" ?
-               <UserProgressionTimeline userId={employee.userId} /> 
+               <UserProgressionTimeline userId={employee} /> 
                : 
-               <UserViewAccount employee={employee} isPermitted={isPermitted} />}
+               <UserViewAccount employee={employee} isPermitted={isPermitted} isOwnProfile={isOwnProfile} />}
+            </TabPanel>
+            <TabPanel sx={{ p: 0 }} value='timeline'>
+              <EmployeeTimeline userId={employee.userId} employee={employee} />
             </TabPanel>
             <TabPanel sx={{ p: 0 }} value='security'>
               <UserViewSecurity employee={employee} />

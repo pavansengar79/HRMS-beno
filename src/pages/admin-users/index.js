@@ -168,12 +168,43 @@ const AdminUserList = () => {
   // Determine visible levels based on current user
   const getVisibleLevels = (level) => {
     if (level === 'org') {
-      return ['org', 'company']; // org_admin sees org + company
+      return ['org', 'company', 'unit']; // org_admin sees ALL admins (org + company + unit)
     }
-    return [level]; // others see only their level
+    if (level === 'company') {
+      return ['company', 'unit']; // company_admin sees company + unit admins (NOT org)
+    }
+    return [level]; // unit sees only unit level
   };
   
   const visibleLevels = getVisibleLevels(userLevel);
+
+  // ── Parent hierarchy check - can't edit/delete users at higher level ──
+  const canEditUser = (targetUser) => {
+    const targetLevel = targetUser?.roleId?.level || targetUser?.role?.level || 'unit';
+    const targetLevelOrder = hierarchy[targetLevel] || 3;
+    
+    // Cannot edit users at higher or same level (org_admin can edit org users though)
+    if (userLevel === 'org') {
+      return true; // org_admin can edit everyone
+    }
+    
+    // Cannot edit parent level users
+    if (targetLevelOrder < currentUserLevelOrder) {
+      return false;
+    }
+    
+    // Cannot edit same level users (except org_admin editing org users)
+    if (targetLevelOrder === currentUserLevelOrder && userLevel !== 'org') {
+      return false;
+    }
+    
+    return true;
+  };
+  
+  const canDeleteUser = (targetUser) => {
+    // Same logic as edit
+    return canEditUser(targetUser);
+  };
 
   // ── Filtered rows - role level filtering ──
   const filteredRows = localUsers.filter(u => {
@@ -207,7 +238,20 @@ const AdminUserList = () => {
 
   const handleEditSuccess = updatedData => {
     if (updatedData) {
-      setLocalUsers(prev => prev.map(u => u._id === updatedData._id ? { ...u, ...updatedData } : u))
+      setLocalUsers(prev => prev.map(u => {
+        if (u._id === updatedData._id) {
+          // Merge: Keep existing populated fields, update top-level fields
+          return {
+            ...u,              // Keep existing populated roleId, company, unit
+            ...updatedData,    // Overwrite with updated data
+            // Ensure populated fields are preserved from backend response
+            roleId: updatedData.roleId || u.roleId,
+            company: updatedData.company_id || u.company,
+            unit: updatedData.unit_id || u.unit,
+          };
+        }
+        return u;
+      }));
     } else {
       load()
     }
@@ -342,9 +386,8 @@ const AdminUserList = () => {
     {
       flex: 0.1, minWidth: 80, field: 'actions', headerName: 'Actions', sortable: false,
       renderCell: ({ row }) => {
-        const rowLevel = row.roleId?.level || row.role?.level || 'unit';
-        const canEditThisRow = canEdit && visibleLevels.includes(rowLevel);
-        const canDeleteThisRow = canDelete && visibleLevels.includes(rowLevel) && row.roleId?.isSystem !== true;
+        const canEditThisRow = canEdit && canEditUser(row);
+        const canDeleteThisRow = canDelete && canDeleteUser(row) && row.roleId?.isSystem !== true;
         
         return (
           <RowOptions

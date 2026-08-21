@@ -25,7 +25,7 @@ import toast from 'react-hot-toast'
 
 const statusColorMap = { Active: 'success', Inactive: 'secondary', ACTIVE: 'success', INACTIVE: 'secondary' }
 
-const RowOptions = ({ id, companyName, onAssignResponsible, canDelete }) => {
+const RowOptions = ({ id, companyName, hasAdmin, onAssignResponsible, canDelete }) => {
   const dispatch = useDispatch()
   const [anchorEl, setAnchorEl] = useState(null)
   const handleDelete = async () => {
@@ -39,12 +39,14 @@ const RowOptions = ({ id, companyName, onAssignResponsible, canDelete }) => {
       <Menu keepMounted anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         PaperProps={{ style: { minWidth: '8rem' } }}>
-        <MenuItem component={Link} href={`/company/${id}/details/account`} onClick={() => setAnchorEl(null)} sx={{ '& svg': { mr: 2 } }}>
+        <MenuItem component={Link} href={`/company/${id}/details/overview`} onClick={() => setAnchorEl(null)} sx={{ '& svg': { mr: 2 } }}>
           <Icon icon='tabler:eye' fontSize={20} />View
         </MenuItem>
-        <MenuItem onClick={() => { onAssignResponsible(id, companyName); setAnchorEl(null) }} sx={{ '& svg': { mr: 2 } }}>
-          <Icon icon='tabler:user-plus' fontSize={20} />Assign Responsible
-        </MenuItem>
+        {!hasAdmin && (
+          <MenuItem onClick={() => { onAssignResponsible(id, companyName); setAnchorEl(null) }} sx={{ '& svg': { mr: 2 } }}>
+            <Icon icon='tabler:user-plus' fontSize={20} />Assign Responsible
+          </MenuItem>
+        )}
         {canDelete && (
           <MenuItem onClick={handleDelete} sx={{ '& svg': { mr: 2 } }}>
             <Icon icon='tabler:trash' fontSize={20} />Delete
@@ -82,7 +84,7 @@ const Company = () => {
             {getInitials(row.company_name || 'NA')}
           </CustomAvatar>
           <Box>
-            <Typography noWrap component={Link} href={`/company/${row._id}/details/account`}
+            <Typography noWrap component={Link} href={`/company/${row._id}/details/overview`}
               sx={{ fontWeight: 500, textDecoration: 'none', color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
               {row.company_name || 'Unnamed'}
             </Typography>
@@ -132,7 +134,7 @@ const Company = () => {
         {row.createdAt ? new Date(row.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
       </Typography> },
     { flex: 0.08, minWidth: 80, sortable: false, field: 'actions', headerName: 'Actions', renderCell: ({ row }) => (
-      <RowOptions id={row._id} companyName={row.company_name} onAssignResponsible={onAssignResponsible} canDelete={canDelete} />
+      <RowOptions id={row._id} companyName={row.company_name} hasAdmin={!!row.admin} onAssignResponsible={onAssignResponsible} canDelete={canDelete} />
     ) }
   ]
 

@@ -194,15 +194,27 @@ const DocCard = ({ doc, onDelete, canEdit, onPreview }) => {
         )}
       </Box>
 
-      {/* View button */}
-      <Button
-        size='small' variant='tonal' color='primary' fullWidth
-        startIcon={<Icon icon='tabler:eye' fontSize={15} />}
-        onClick={() => onPreview(doc)}
-        sx={{ mt: 'auto' }}
-      >
-        View
-      </Button>
+      {/* View and Download buttons */}
+      <Box sx={{ display: 'flex', gap: 1, mt: 'auto' }}>
+        <Button
+          size='small' variant='tonal' color='primary'
+          startIcon={<Icon icon='tabler:eye' fontSize={15} />}
+          onClick={() => onPreview(doc)}
+          sx={{ flex: 1 }}
+        >
+          View
+        </Button>
+        <Button
+          size='small' variant='tonal' color='secondary'
+          startIcon={<Icon icon='tabler:download' fontSize={15} />}
+          href={doc.url}
+          target='_blank'
+          download
+          sx={{ flex: 1 }}
+        >
+          Download
+        </Button>
+      </Box>
     </Box>
   )
 }

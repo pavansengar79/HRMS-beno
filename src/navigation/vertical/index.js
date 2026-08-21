@@ -76,13 +76,15 @@ const buildOrgNav = (companies, permissions = [], roleSlug) => {
         }))
       : []
     ),
-    { sectionTitle: 'INSIGHTS' },
-    { title: 'Reports & Analytics', icon: 'tabler:chart-bar',        path: '/charts/recharts' },
+    // { sectionTitle: 'INSIGHTS' },
+    // { title: 'Reports & Analytics', icon: 'tabler:chart-bar',        path: '/charts/recharts' },
     { sectionTitle: 'ADMINISTRATION' },
     // Admin Users - visible if user has user.read permission (admin users management)
     ...(has('user.read') ? [{ title: 'Admin Users', icon: 'tabler:user-shield', path: '/admin-users' }] : []),
     // Access Control - ONLY for admins
     ...(isAdmin ? [{ title: 'Access Control', icon: 'tabler:lock', path: '/admin/access-control' }] : []),
+    // Audit Logs - ONLY for admins
+    ...(isAdmin ? [{ title: 'Audit Logs', icon: 'tabler:file-text', path: '/audit-logs' }] : []),
     // Essentials - ONLY for org_admin (organization-wide PAN, timezone, currency)
     ...(roleSlug === 'org_admin' ? [{ title: 'Essentials', icon: 'tabler:settings-2', path: '/admin/system-config/essentials' }] : []),
     { title: 'General Features', icon: 'tabler:adjustments',         path: '/admin/general-features' },
@@ -135,13 +137,13 @@ const buildCompanyNav = (company, units, orgId, showBack = true, roleSlug) => {
     { sectionTitle: 'STRUCTURE' },
     { title: 'Business Units',     icon: 'tabler:building-community',
       path: `/units?company=${companyId}` },
-    { title: 'Sites & Locations',  icon: 'tabler:map-pin',
-      path: `/sites?company=${companyId}` },
+    // { title: 'Sites & Locations',  icon: 'tabler:map-pin',
+    //   path: `/sites?company=${companyId}` },
 
 
     // ── INSIGHTS ──────────────────────────────────────────────────────────
-    { sectionTitle: 'INSIGHTS' },
-    { title: 'Reports & Analytics',icon: 'tabler:chart-bar', path: '/charts/recharts' },
+    // { sectionTitle: 'INSIGHTS' },
+    // { title: 'Reports & Analytics',icon: 'tabler:chart-bar', path: '/charts/recharts' },
 
     // ── ADMINISTRATION ────────────────────────────────────────────────────
     { sectionTitle: 'ADMINISTRATION' },
@@ -149,6 +151,8 @@ const buildCompanyNav = (company, units, orgId, showBack = true, roleSlug) => {
       path: `/admin-users?company=${companyId}` },
     // Access Control - ONLY for admins
     ...(isAdmin ? [{ title: 'Access Control', icon: 'tabler:lock', path: '/admin/access-control' }] : []),
+    // Audit Logs - ONLY for admins
+    ...(isAdmin ? [{ title: 'Audit Logs', icon: 'tabler:file-text', path: '/audit-logs' }] : []),
     // System Config - ONLY for company_admin (company-specific settings)
     ...(roleSlug === 'company_admin' ? [{ title: 'System Config', icon: 'tabler:settings', path: '/admin/system-config' }] : []),
     { title: 'General Features',   icon: 'tabler:adjustments',  path: '/admin/general-features' },
@@ -227,13 +231,15 @@ const buildUnitNav = (unit, company, orgId, showBack = true, permissions = [], r
       : []),
 
     // ── INSIGHTS ──────────────────────────────────────────────────────────
-    { sectionTitle: 'INSIGHTS' },
-    { title: 'Reports & Analytics',icon: 'tabler:chart-bar',        path: '/charts/recharts' },
+    // { sectionTitle: 'INSIGHTS' },
+    // { title: 'Reports & Analytics',icon: 'tabler:chart-bar',        path: '/charts/recharts' },
 
     // ── ADMINISTRATION ────────────────────────────────────────────────────
     { sectionTitle: 'ADMINISTRATION' },
     // Access Control - ONLY for admins
     ...(isAdmin ? [{ title: 'Access Control', icon: 'tabler:lock', path: '/admin/access-control' }] : []),
+    // Audit Logs - ONLY for admins
+    ...(isAdmin ? [{ title: 'Audit Logs', icon: 'tabler:file-text', path: '/audit-logs' }] : []),
     { title: 'Admin Users',        icon: 'tabler:user-shield',      path: '/admin-users' },
   ])
 }
@@ -281,12 +287,14 @@ const buildDynamicNav = (roleSlug, user, units, permissions = []) => {
         ]
       : []),
 
-    { sectionTitle: 'INSIGHTS' },
-    { title: 'Reports & Analytics',icon: 'tabler:chart-bar',        path: '/charts/recharts' },
+    // { sectionTitle: 'INSIGHTS' },
+    // { title: 'Reports & Analytics',icon: 'tabler:chart-bar',        path: '/charts/recharts' },
 
     { sectionTitle: 'ADMINISTRATION' },
     // Access Control - ONLY for admins
     ...(isAdmin ? [{ title: 'Access Control', icon: 'tabler:lock', path: '/admin/access-control' }] : []),
+    // Audit Logs - ONLY for admins
+    ...(isAdmin ? [{ title: 'Audit Logs', icon: 'tabler:file-text', path: '/audit-logs' }] : []),
     { title: 'Admin Users',        icon: 'tabler:user-shield',      path: '/admin-users' },
   ])
 }
@@ -302,6 +310,7 @@ const SUPER_ADMIN_NAV = stamp([
   { title: 'Plans & Billing',     icon: 'tabler:credit-card',         path: '/pages/plan' },
   { sectionTitle: 'ADMINISTRATION' },
   { title: 'Access Control',      icon: 'tabler:lock',                path: '/admin/access-control' },
+  { title: 'Audit Logs',          icon: 'tabler:file-text',           path: '/audit-logs' },
 ])
 
 // Employee navigation is now built dynamically with permission checks

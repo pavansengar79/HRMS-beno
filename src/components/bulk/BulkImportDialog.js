@@ -23,6 +23,7 @@ import {
 } from '@mui/material'
 import Icon from 'src/@core/components/icon'
 import toast from 'react-hot-toast'
+import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ─── CSV Template Generator ────────────────────────────────────────────────────
 const generateCsvTemplate = () => {
@@ -117,7 +118,7 @@ const validateRow = (row, index) => {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const BulkImportDialog = ({ open, onClose, onImport, entityType = 'employees' }) => {
+const BulkImportDialog = ({ open, onClose, onImport, onImportComplete, entityType = 'employees' }) => {
   const [file, setFile] = useState(null)
   const [parsedData, setParsedData] = useState([])
   const [uploading, setUploading] = useState(false)
@@ -172,16 +173,22 @@ const BulkImportDialog = ({ open, onClose, onImport, entityType = 'employees' })
 
     const importResults = []
     
+    // Use onImport if provided (custom handler), otherwise use default API
+    const importHandler = onImport || (async (rowData) => {
+      const response = await axiosRequest.post(`/api/v1/${entityType}`, rowData)
+      return response
+    })
+    
     for (let i = 0; i < validRows.length; i++) {
       try {
-        await onImport(validRows[i].data)
+        await importHandler(validRows[i].data)
         importResults.push({ rowNum: validRows[i].rowNum, success: true, name: validRows[i].data.name })
       } catch (err) {
         importResults.push({ 
           rowNum: validRows[i].rowNum, 
           success: false, 
           name: validRows[i].data.name,
-          error: err.message || 'Import failed'
+          error: err?.response?.data?.message || err.message || 'Import failed'
         })
       }
       setUploadProgress(Math.round(((i + 1) / validRows.length) * 100))
@@ -193,8 +200,16 @@ const BulkImportDialog = ({ open, onClose, onImport, entityType = 'employees' })
     const successCount = importResults.filter(r => r.success).length
     if (successCount === validRows.length) {
       toast.success(`Successfully imported ${successCount} records`)
+      // Call onImportComplete callback if provided
+      if (onImportComplete) {
+        onImportComplete()
+      }
     } else {
       toast(`Imported ${successCount}/${validRows.length} records`, { icon: '⚠️' })
+      // Still call onImportComplete even if partially successful
+      if (onImportComplete) {
+        onImportComplete()
+      }
     }
   }
 

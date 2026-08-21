@@ -570,14 +570,6 @@ Jane Smith,jane@example.com,+919876543211,HR,2026-02-01,45000,HR Manager,FULL_TI
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Button
                   variant='outlined'
-                  startIcon={<Icon icon='mdi:plus' />}
-                  onClick={handleAddRow}
-                  disabled={uploading}
-                >
-                  Add Row
-                </Button>
-                <Button
-                  variant='outlined'
                   onClick={handleReset}
                   disabled={uploading}
                 >

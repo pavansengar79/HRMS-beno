@@ -30,6 +30,7 @@ import Skeleton from '@mui/material/Skeleton'
 import Chip from '@mui/material/Chip'
 import InputAdornment from '@mui/material/InputAdornment'
 import MenuItem from '@mui/material/MenuItem'
+import Avatar from '@mui/material/Avatar'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
@@ -89,75 +90,7 @@ const StatusChip = ({ status }) => (
   />
 )
 
-// ─── Add / Edit Dialog — no color picker ─────────────────────────────────────
-const DeptDialog = ({ open, onClose, onConfirm, parentLabel, initial, loading }) => {
-  const [name, setName] = useState('')
-  const [description, setDesc] = useState('')
-  const [status, setStatus] = useState('active')
-
-  useEffect(() => {
-    if (open) {
-      setName(initial?.label || initial?.name || '')
-      setDesc(initial?.description || '')
-      setStatus(initial?.status || 'active')
-    }
-  }, [open, initial?.label, initial?.name, initial?.description, initial?.status])
-
-  const isEdit = Boolean(initial?.id)
-  const canSubmit = name.trim().length > 0
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth='xs' fullWidth>
-      <DialogTitle sx={{ pb: 1, fontSize: '1rem', fontWeight: 600 }}>
-        {isEdit
-          ? `Edit "${initial?.label || initial?.name}"`
-          : parentLabel
-            ? `Add sub-department under "${parentLabel}"`
-            : 'Add department'}
-      </DialogTitle>
-
-      <DialogContent sx={{ pt: '12px !important', display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-        <TextField
-          autoFocus fullWidth label='Department name *'
-          value={name} onChange={e => setName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && canSubmit && onConfirm({ name: name.trim(), description, status })}
-          size='small'
-          inputProps={{ maxLength: 120 }}
-        />
-        <TextField
-          fullWidth multiline rows={2}
-          label='Description (optional)'
-          value={description} onChange={e => setDesc(e.target.value)}
-          size='small'
-        />
-        {isEdit && (
-          <TextField
-            select fullWidth label='Status'
-            value={status} onChange={e => setStatus(e.target.value)}
-            size='small'
-          >
-            <MenuItem value='active'>Active</MenuItem>
-            <MenuItem value='inactive'>Inactive</MenuItem>
-          </TextField>
-        )}
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button onClick={onClose} color='secondary' variant='tonal' size='small' disabled={loading}>
-          Cancel
-        </Button>
-        <Button
-          onClick={() => onConfirm({ name: name.trim(), description, status })}
-          variant='contained' size='small'
-          disabled={!canSubmit || loading}
-          startIcon={loading ? <CircularProgress size={14} color='inherit' /> : null}
-        >
-          {loading ? 'Saving…' : isEdit ? 'Update' : 'Add'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  )
-}
+// Removed simple DeptDialog - now using full departmentDrawer for Add/Edit
 
 // ─── Delete Dialog ────────────────────────────────────────────────────────────
 const DeleteDialog = ({ open, onClose, onConfirm, label, childCount, loading }) => (
@@ -272,6 +205,27 @@ const DeptRow = ({
           </Box>
         </TableCell>
 
+        {/* ── Department Head ───────────────────────────────────── */}
+        <TableCell align='center'>
+          {node.departmentHeadId ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+              <Avatar sx={{ width: 28, height: 28, fontSize: '0.7rem', mb: 0.25 }}>
+                {node.departmentHeadId.name?.split(' ').map(n => n[0]).join('')}
+              </Avatar>
+              <Typography variant='caption' sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                {node.departmentHeadId.name}
+              </Typography>
+              <Typography variant='caption' sx={{ color: 'text.disabled', fontSize: '0.65rem', lineHeight: 1 }}>
+                {node.departmentHeadId.designation || node.departmentHeadId.employeeId}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography variant='body2' sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+              —
+            </Typography>
+          )}
+        </TableCell>
+
         {/* ── Employee count ─────────────────────────────────────── */}
         <TableCell align='center'>
           <Typography variant='body2' sx={{ fontWeight: 500 }}>
@@ -335,8 +289,9 @@ const DeptRow = ({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 // onAddRoot  — optional: called instead of opening internal dialog for root-level creation
+// onEdit     — optional: called when editing a department (receives departmentId)
 // refreshKey — optional: increment this from the parent to trigger a re-fetch
-const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
+const DepartmentTreePage = ({ onAddRoot, onEdit, refreshKey = 0 }) => {
   const permissions = useSelector(selectPermissions)
   const canCreate = permissions.includes('department.create')
   const canEdit = permissions.includes('department.update')
@@ -361,9 +316,7 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
   const [search, setSearch] = useState('')
   const [expandedIds, setExpandedIds] = useState(new Set())
 
-  const [deptDialog, setDeptDialog] = useState({
-    open: false, parentId: null, parentLabel: '', editNode: null, loading: false,
-  })
+  // Department dialog removed - now using full drawer from parent
   const [delDialog, setDelDialog] = useState({
     open: false, id: null, label: '', childCount: 0, loading: false,
   })
@@ -372,7 +325,8 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
   const fetchTree = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await axiosRequest.get('/api/v1/departments', { params: scopeParams() })
+      // Use hierarchical tree endpoint (returns nested children array)
+      const res = await axiosRequest.get('/api/v1/departments/tree/list', { params: scopeParams() })
       const data = res.data ?? []
       setTree(data)
       // Auto-expand all root nodes on first load
@@ -408,54 +362,29 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
   const collapseAll = () => setExpandedIds(new Set())
 
   // ── Dialog handlers ────────────────────────────────────────────────────────
-  const handleOpenAdd = (parentId, parentLabel) =>
-    setDeptDialog({ open: true, parentId, parentLabel: parentLabel || '', editNode: null, loading: false })
+  // Add: call parent's onAddRoot with parentId if adding sub-department
+  const handleOpenAdd = (parentId, parentLabel) => {
+    // For now, call onAddRoot - the parent drawer will handle it
+    // TODO: Pass parentId to drawer for sub-department creation
+    onAddRoot?.()
+  }
 
+  // Edit: call parent's onEdit with department ID
   const handleOpenEdit = id => {
-    const node = findInTree(tree, id)
-    setDeptDialog({ open: true, parentId: null, parentLabel: '', editNode: node, loading: false })
+    onEdit?.(id)
   }
 
   const handleOpenDelete = (id, label, childCount) =>
     setDelDialog({ open: true, id, label, childCount, loading: false })
 
-  // ── API: Create / Update ───────────────────────────────────────────────────
-  const handleDeptConfirm = async ({ name, description, status }) => {
-    // Capture BEFORE any setState — avoids stale closure bug
-    const editNode = deptDialog.editNode
-    const parentId = deptDialog.parentId   // null = root dept, string = sub-dept
-
-    setDeptDialog(d => ({ ...d, loading: true }))
-    try {
-      if (editNode) {
-        await axiosRequest.put(
-          `/api/v1/departments/${editNode.id}`,
-          { name, description, status, ...scopeParams() }
-        )
-        toast.success('Department updated')
-      } else {
-        // Only include parentId key when it is a real value — never send null/undefined
-        const payload = { name, description: description || undefined, ...scopeParams() }
-        if (parentId) payload.parentId = parentId
-
-        await axiosRequest.post('/api/v1/departments/create', payload)
-        toast.success(`"${name}" created`)
-        if (parentId)
-          setExpandedIds(prev => { const n = new Set(prev); n.add(parentId); return n })
-      }
-      setDeptDialog(d => ({ ...d, open: false, loading: false }))
-      fetchTree()
-    } catch (e) {
-      toast.error(e.response?.data?.message || 'Operation failed')
-      setDeptDialog(d => ({ ...d, loading: false }))
-    }
-  }
+  // API Create/Update removed - now handled by parent's departmentDrawer
 
   // ── API: Delete ────────────────────────────────────────────────────────────
   const handleDeleteConfirm = async () => {
     setDelDialog(d => ({ ...d, loading: true }))
     try {
-      await axiosRequest.delete(`/api/v1/departments/${delDialog.id}`, { params: scopeParams() })
+      // Use tree endpoint for delete (cascade checks)
+      await axiosRequest.delete(`/api/v1/departments/tree/${delDialog.id}`, { params: scopeParams() })
       toast.success(`"${delDialog.label}" deleted`)
       setDelDialog({ open: false, id: null, label: '', childCount: 0, loading: false })
       fetchTree()
@@ -580,13 +509,16 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
           <Table size='small' sx={{ tableLayout: 'fixed' }}>
             <TableHead>
               <TableRow sx={{ bgcolor: 'action.hover' }}>
-                <TableCell sx={{ fontWeight: 600, width: '48%', pl: 4, py: 1.5 }}>
+                <TableCell sx={{ fontWeight: 600, width: '35%', pl: 4, py: 1.5 }}>
                   Department
                 </TableCell>
-                <TableCell align='center' sx={{ fontWeight: 600, width: '16%', py: 1.5 }}>
-                  No of Employees
+                <TableCell align='center' sx={{ fontWeight: 600, width: '15%', py: 1.5 }}>
+                  Department Head
                 </TableCell>
-                <TableCell align='center' sx={{ fontWeight: 600, width: '16%', py: 1.5 }}>
+                <TableCell align='center' sx={{ fontWeight: 600, width: '15%', py: 1.5 }}>
+                  Employees
+                </TableCell>
+                <TableCell align='center' sx={{ fontWeight: 600, width: '15%', py: 1.5 }}>
                   Status
                 </TableCell>
                 <TableCell align='right' sx={{ fontWeight: 600, width: '20%', pr: 3, py: 1.5 }}>
@@ -604,12 +536,13 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
                     </TableCell>
                     <TableCell align='center'><Skeleton height={22} width={32} sx={{ mx: 'auto' }} /></TableCell>
                     <TableCell align='center'><Skeleton height={22} width={64} sx={{ mx: 'auto' }} /></TableCell>
+                    <TableCell align='center'><Skeleton height={22} width={64} sx={{ mx: 'auto' }} /></TableCell>
                     <TableCell align='right' sx={{ pr: 3 }}><Skeleton height={22} width={80} sx={{ ml: 'auto' }} /></TableCell>
                   </TableRow>
                 ))
               ) : displayTree.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4}>
+                  <TableCell colSpan={5}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8, gap: 2 }}>
                       <Icon icon='tabler:building-off' fontSize={40} />
                       <Typography variant='body2' sx={{ color: 'text.disabled' }}>
@@ -641,15 +574,8 @@ const DepartmentTreePage = ({ onAddRoot, refreshKey = 0 }) => {
       </Card>
 
       {/* ── Dialogs ───────────────────────────────────────────────── */}
-      <DeptDialog
-        open={deptDialog.open}
-        onClose={() => setDeptDialog(d => ({ ...d, open: false }))}
-        onConfirm={handleDeptConfirm}
-        parentLabel={deptDialog.parentLabel}
-        initial={deptDialog.editNode}
-        loading={deptDialog.loading}
-      />
-
+      {/* Department dialog removed - using full drawer from parent instead */}
+      
       <DeleteDialog
         open={delDialog.open}
         onClose={() => setDelDialog(d => ({ ...d, open: false }))}

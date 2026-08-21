@@ -85,10 +85,10 @@ const UserDetails = () => {
         {/* {current_user?.id}
         <br/>
         {id} */}
-        <UserViewLeft employee={employee}  role={userRole} isPermitted={ isPermitted} />
+        <UserViewLeft employee={employee}  role={userRole} isPermitted={ isPermitted} isOwnProfile={isOwnProfile} />
       </Grid>
       <Grid item xs={12} md={7} lg={8}>
-        <UserViewRight tab={activeTab} employee={employee}  isPermitted={ isPermitted}/>
+        <UserViewRight tab={activeTab} employee={employee}  isPermitted={ isPermitted} isOwnProfile={isOwnProfile}/>
       </Grid>
     </Grid>
   )

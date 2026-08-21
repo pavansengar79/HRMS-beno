@@ -38,52 +38,55 @@ const Timeline = styled(MuiTimeline)({
 })
 
 // ─── Change type config ───────────────────────────────────────────────────────
-// Add more changeType values here as the API grows
+// Maps backend event types to display configuration
 const CHANGE_TYPE_CONFIG = {
-  role: {
-    color:     'primary',
-    icon:      'tabler:briefcase',
-    label:     'Role Change',
-    fromLabel: 'From Role',
-    toLabel:   'To Role',
-    fromKey:   'fromRoleId',
-    toKey:     'toRoleId',
+  EMPLOYEE_JOINED: {
+    color: 'success',
+    icon: 'tabler:user-plus',
+    label: 'Employee Joined',
+    showFromTo: false,
   },
-  department: {
-    color:     'warning',
-    icon:      'tabler:building-community',
-    label:     'Department Transfer',
-    fromLabel: 'From Dept',
-    toLabel:   'To Dept',
-    fromKey:   'fromDeptId',
-    toKey:     'toDeptId',
+  POSITION_UPDATED: {
+    color: 'primary',
+    icon: 'tabler:briefcase',
+    label: 'Position Updated',
+    showFromTo: true,
   },
-  promotion: {
-    color:     'success',
-    icon:      'tabler:trending-up',
-    label:     'Promotion',
-    fromLabel: 'From Role',
-    toLabel:   'To Role',
-    fromKey:   'fromRoleId',
-    toKey:     'toRoleId',
+  REPORTING_MANAGER_CHANGED: {
+    color: 'info',
+    icon: 'tabler-users',
+    label: 'Reporting Manager Changed',
+    showFromTo: true,
   },
-  demotion: {
-    color:     'error',
-    icon:      'tabler:trending-down',
-    label:     'Demotion',
-    fromLabel: 'From Role',
-    toLabel:   'To Role',
-    fromKey:   'fromRoleId',
-    toKey:     'toRoleId',
+  DEPARTMENT_CHANGED: {
+    color: 'warning',
+    icon: 'tabler:building-community',
+    label: 'Department Transfer',
+    showFromTo: true,
+  },
+  DESIGNATION_CHANGED: {
+    color: 'primary',
+    icon: 'tabler:badge',
+    label: 'Designation Changed',
+    showFromTo: true,
+  },
+  STATUS_CHANGED: {
+    color: 'secondary',
+    icon: 'tabler:toggle-left',
+    label: 'Status Changed',
+    showFromTo: true,
+  },
+  SALARY_UPDATED: {
+    color: 'success',
+    icon: 'tabler:currency-dollar',
+    label: 'Salary Updated',
+    showFromTo: true,
   },
   _default: {
-    color:     'secondary',
-    icon:      'tabler:activity',
-    label:     'Change',
-    fromLabel: 'From',
-    toLabel:   'To',
-    fromKey:   'fromRoleId',
-    toKey:     'toRoleId',
+    color: 'secondary',
+    icon: 'tabler:activity',
+    label: 'Change',
+    showFromTo: false,
   },
 }
 
@@ -114,10 +117,17 @@ const getName = obj => obj?.name || obj?.label || obj?.email || '—'
 
 // ─── Single timeline item ─────────────────────────────────────────────────────
 const ProgressionItem = ({ log, isLast }) => {
-  const config   = getConfig(log.changeType)
-  const fromObj  = log[config.fromKey]
-  const toObj    = log[config.toKey]
-  const changedBy = log.changedBy?.email || log.changedBy?.name || 'System'
+  const config = getConfig(log.eventType || log.changeType)
+  const changedBy = log.changedBy?.email || log.changedBy?.name || log.createdBy?.name || 'System'
+  
+  // Format the "From → To" values based on event type
+  const formatValue = (value, field) => {
+    if (!value) return 'None'
+    if (typeof value === 'object') {
+      return value.name || value.designation_name || value.department_name || value.email || value._id
+    }
+    return value
+  }
 
   return (
     <TimelineItem>
@@ -137,7 +147,7 @@ const ProgressionItem = ({ log, isLast }) => {
               {config.label}
             </Typography>
             <Chip
-              label={log.changeType}
+              label={log.eventType || log.changeType}
               size='small'
               sx={{
                 height: 18, fontSize: '0.65rem',
@@ -148,55 +158,61 @@ const ProgressionItem = ({ log, isLast }) => {
               }}
             />
           </Box>
-          <Tooltip title={formatDate(log.createdAt)} placement='top'>
+          <Tooltip title={formatDate(log.effectiveDate || log.createdAt)} placement='top'>
             <Typography variant='caption' sx={{ color: 'text.disabled', flexShrink: 0, cursor: 'default' }}>
-              {relativeTime(log.createdAt)}
+              {relativeTime(log.effectiveDate || log.createdAt)}
             </Typography>
           </Tooltip>
         </Box>
 
         {/* From → To row */}
-        {(fromObj || toObj) && (
+        {config.showFromTo && log.changes && (
           <Box sx={{
             display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap',
             mb: 1.5, p: 1.5, borderRadius: 1.5,
             bgcolor: 'action.hover', border: '0.5px solid', borderColor: 'divider',
           }}>
             {/* From */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 80 }}>
-              <Typography variant='caption' sx={{ color: 'text.disabled', mb: 0.25 }}>
-                {config.fromLabel}
-              </Typography>
-              <Typography variant='body2' sx={{ fontWeight: 500, color: fromObj ? 'text.primary' : 'text.disabled' }}>
-                {fromObj ? getName(fromObj) : 'None'}
-              </Typography>
-            </Box>
-
+            {log.changes.from && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 80 }}>
+                <Typography variant='caption' sx={{ color: 'text.disabled', mb: 0.25 }}>
+                  Previous
+                </Typography>
+                <Typography variant='body2' sx={{ fontWeight: 500, color: 'text.primary' }}>
+                  {formatValue(log.changes.from)}
+                </Typography>
+              </Box>
+            )}
+            
             {/* Arrow */}
-            <Box sx={{ color: 'text.disabled', display: 'flex', alignItems: 'center' }}>
-              <Icon icon='tabler:arrow-right' fontSize={16} />
-            </Box>
-
+            {log.changes.from && log.changes.to && (
+              <Box sx={{ color: 'text.disabled', display: 'flex', alignItems: 'center' }}>
+                <Icon icon='tabler:arrow-right' fontSize={16} />
+              </Box>
+            )}
+            
             {/* To */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 80 }}>
-              <Typography variant='caption' sx={{ color: 'text.disabled', mb: 0.25 }}>
-                {config.toLabel}
-              </Typography>
-              <Typography variant='body2' sx={{ fontWeight: 600, color: `${config.color}.main` }}>
-                {toObj ? getName(toObj) : 'None'}
-              </Typography>
-            </Box>
+            {log.changes.to && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 80 }}>
+                <Typography variant='caption' sx={{ color: 'text.disabled', mb: 0.25 }}>
+                  New
+                </Typography>
+                <Typography variant='body2' sx={{ fontWeight: 600, color: `${config.color}.main` }}>
+                  {formatValue(log.changes.to)}
+                </Typography>
+              </Box>
+            )}
           </Box>
         )}
 
-        {/* Note */}
-        {log.note && (
+        {/* Note/Description */}
+        {(log.note || log.description) && (
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 1.25 }}>
             <Box sx={{ color: 'text.disabled', mt: 0.25, flexShrink: 0 }}>
               <Icon icon='tabler:notes' fontSize={14} />
             </Box>
             <Typography variant='body2' sx={{ color: 'text.secondary', fontStyle: 'italic', lineHeight: 1.5 }}>
-              "{log.note}"
+              "{log.note || log.description}"
             </Typography>
           </Box>
         )}
@@ -225,16 +241,18 @@ const UserProgressionTimeline = ({ userId }) => {
     setLoading(true)
     setError(null)
     try {
-      const res = await axiosRequest.get(`/api/v1/users/${userId._id}/progression`)
-      console.log('Progression API response:', res) // Debug log
+      // Determine the employee ID from userId
+      // userId might be a user object or employee object
+      const employeeId = userId.employeeId || userId._id
+      const res = await axiosRequest.get(`/api/v1/employees/${employeeId}/timeline`)
+      console.log('Timeline API response:', res) // Debug log
       if (res?.success) {
-
         setLogs(res.data ?? [])
       } else {
-        setError(res?.message || 'Failed to load progression history')
+        setError(res?.message || 'Failed to load timeline')
       }
     } catch (e) {
-      setError(e.response?.data?.message || 'Failed to load progression history')
+      setError(e.response?.data?.message || 'Failed to load timeline')
     } finally {
       setLoading(false)
     }

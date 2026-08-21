@@ -101,12 +101,6 @@ const UserNotificationsList = ({ userId }) => {
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
 
-  useEffect(() => {
-    if (userId) {
-      fetchNotifications()
-    }
-  }, [userId, page, rowsPerPage, fetchNotifications])
-
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true)
@@ -129,6 +123,12 @@ const UserNotificationsList = ({ userId }) => {
       setLoading(false)
     }
   }, [userId, page, rowsPerPage])
+
+  useEffect(() => {
+    if (userId) {
+      fetchNotifications()
+    }
+  }, [userId, page, rowsPerPage, fetchNotifications])
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage)

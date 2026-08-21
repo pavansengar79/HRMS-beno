@@ -108,6 +108,7 @@ const LoginPage = () => {
     control,
     setError,
     handleSubmit,
+    reset,
     formState: { errors }
   } = useForm({
     mode: 'onBlur',
@@ -118,6 +119,8 @@ const LoginPage = () => {
   const onSubmit = data => {
     // Bypass login with hardcoded credentials
     auth.login({ email: 'admin@admin.com', password: 'admin', rememberMe }, () => {
+      // Clear fields on failed login
+      reset({ email: '', password: '' })
       setError('email', {
         type: 'manual',
         message: 'Login failed'

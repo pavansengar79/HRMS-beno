@@ -613,7 +613,14 @@ const SalaryRegister = () => {
                   <DetailRow label='Travel Allowance' value={fmt(payslipDetail.earnings?.travelAllowance)} />
                   <DetailRow label='Medical Allowance' value={fmt(payslipDetail.earnings?.medicalAllowance)} />
                   <DetailRow label='Special Allowance' value={fmt(payslipDetail.earnings?.specialAllowance)} />
-                  {payslipDetail.earnings?.overtime > 0 && <DetailRow label='Overtime' value={fmt(payslipDetail.earnings.overtime)} />}
+                  {payslipDetail.earnings?.overtime > 0 && (
+                    <>
+                      <DetailRow label='Overtime' value={fmt(payslipDetail.earnings.overtime)} />
+                      <Typography variant='caption' color='text.secondary' sx={{ display: 'block', ml: 2, mb: 1 }}>
+                        OT Hours: {payslipDetail.overtimeHours || 0}h @ Rate: ₹{(payslipDetail.overtimeRate || 0).toFixed(2)}/h ({payslipDetail.overtimeMultiplier || 1.5}x)
+                      </Typography>
+                    </>
+                  )}
                   {payslipDetail.earnings?.bonus > 0 && <DetailRow label='Bonus' value={fmt(payslipDetail.earnings.bonus)} />}
                   {payslipDetail.earnings?.arrears > 0 && <DetailRow label='Arrears' value={fmt(payslipDetail.earnings.arrears)} />}
                   <DetailRow label='Gross Salary' value={fmt(payslipDetail.grossSalary)} bold />
@@ -628,7 +635,13 @@ const SalaryRegister = () => {
                   <DetailRow label='TDS' value={fmt(payslipDetail.deductions?.tds)} valueColor='error.main' />
                   <DetailRow label='Professional Tax' value={fmt(payslipDetail.deductions?.professionalTax)} valueColor='error.main' />
                   {(payslipDetail.lopDays || 0) > 0 && (
-                    <DetailRow label={`LOP (${payslipDetail.lopDays} days)`} value={fmt(payslipDetail.deductions?.lop)} valueColor='error.main' />
+                    <>
+                      <DetailRow label={`LOP (${payslipDetail.lopDays} days)`} value={fmt(payslipDetail.deductions?.lop)} valueColor='error.main' />
+                      <Typography variant='caption' color='text.secondary' sx={{ display: 'block', ml: 2, mb: 1 }}>
+                        LOP Rate: ₹{(payslipDetail.lopPerDayRate || 0).toFixed(2)}/day
+                        {payslipDetail.lopFormulaUsed && ` (${payslipDetail.lopFormulaDays || 0} days)`}
+                      </Typography>
+                    </>
                   )}
                   {payslipDetail.deductions?.advance > 0 && <DetailRow label='Advance' value={fmt(payslipDetail.deductions.advance)} valueColor='error.main' />}
                   {payslipDetail.deductions?.other > 0 && <DetailRow label='Other' value={fmt(payslipDetail.deductions.other)} valueColor='error.main' />}
