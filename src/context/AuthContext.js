@@ -25,12 +25,22 @@ const AuthProvider = ({ children }) => {
   const isAuthenticated = useSelector(selectIsAuthenticated)
 
   useEffect(() => {
-    const initAuth = () => {
+    const initAuth = async () => {
       const storedToken = window.localStorage.getItem(STORAGE.TOKEN)
       const storedUser  = window.localStorage.getItem(STORAGE.USER)
       if (storedToken && storedUser) {
-        try { dispatch(rehydrateAuth({ user: JSON.parse(storedUser), token: storedToken })) }
-        catch { _clear() }
+        try {
+          const response = await axiosRequest.get('/api/v1/auth/me')
+          const profile = response?.data || response
+          const currentUser = { ...profile.user, subscription: profile.subscription }
+          window.localStorage.setItem(STORAGE.USER, JSON.stringify(currentUser))
+          dispatch(setCredentials({ user: currentUser, token: storedToken, subscription: profile.subscription }))
+        } catch {
+          if (window.localStorage.getItem(STORAGE.TOKEN)) {
+            try { dispatch(rehydrateAuth({ user: JSON.parse(storedUser), token: storedToken })) }
+            catch { _clear() }
+          }
+        }
       }
       setLoadingState(false)
     }

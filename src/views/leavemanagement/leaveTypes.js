@@ -30,6 +30,7 @@ import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 import { fetchLeaveTypes, createLeaveType, updateLeaveType, deleteLeaveType } from 'src/store/leaves/leaveSlice'
+import { selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,17 @@ const GENDER_OPTIONS = [
 ]
 
 const EMPLOYMENT_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']
+
+const LEAVE_TYPE_MANAGER_ROLES = [
+  'super_admin',
+  'org_admin',
+  'company_admin',
+  'unit_admin',
+  'hr_manager',
+  'company_hr_manager',
+  'admin',
+  'hr',
+]
 
 const COLOR_PRESETS = [
   '#10B981', '#4F46E5', '#F59E0B', '#EF4444',
@@ -355,10 +367,12 @@ const TabLeaveTypes = () => {
   const [deleting, setDeleting] = useState(false)
 
   const { leaveTypes, leaveTypesLoading } = useSelector(state => state.leaves)
-  const permissions = useSelector(state => state.auth.permissions) || []
-  const hasCreatePermission = permissions.includes('leaveType.create')
-  const hasUpdatePermission = permissions.includes('leaveType.update')
-  const hasDeletePermission = permissions.includes('leaveType.delete')
+  const permissions = useSelector(selectPermissions) || []
+  const roleSlug = (useSelector(selectRoleSlug) || '').toLowerCase()
+  const canManageLeaveTypes = LEAVE_TYPE_MANAGER_ROLES.includes(roleSlug)
+  const hasCreatePermission = canManageLeaveTypes || permissions.includes('leaveType.create')
+  const hasUpdatePermission = canManageLeaveTypes || permissions.includes('leaveType.update')
+  const hasDeletePermission = canManageLeaveTypes || permissions.includes('leaveType.delete')
 
   const fetchTypes = useCallback(() => { dispatch(fetchLeaveTypes()) }, [dispatch])
   useEffect(() => { fetchTypes() }, [fetchTypes])

@@ -41,7 +41,7 @@ import {
   selectAdminUserList,
   selectAdminUserLoading,
 } from 'src/store/adminUsers/adminUsersSlice'
-import { selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectPermissions, selectRoleSlug, selectUserId } from 'src/store/auth/authSlice'
 
 // ** Drawers
 import AdminInviteDrawer from 'src/views/apps/adminUsers/AdminInviteDrawer'
@@ -57,8 +57,7 @@ const STATUS_COLOR = {
   BLOCKED:  'error',
 }
 
-// ── ACTION PERMISSIONS: Edit/Delete restricted to unit_admin only ──
-// hr_manager and other roles can VIEW but not edit/delete admin users
+// Administrative roles can manage users at their own level and below.
 const ROLES_THAT_CAN_MANAGE = ['org_admin', 'company_admin', 'unit_admin']
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,10 +122,17 @@ const AdminUserList = () => {
   const loading     = useSelector(selectAdminUserLoading)
   const permissions = useSelector(selectPermissions)
   const userRole    = useSelector(selectRoleSlug) ?? ''
+  const currentUserId = useSelector(selectUserId)
 
   const canCreate = permissions.includes('admin_user.create') || ROLES_THAT_CAN_MANAGE.includes(userRole)
-  const canEdit   = permissions.includes('admin_user.update') || userRole === 'unit_admin' // ✅ Unit admin only
-  const canDelete = permissions.includes('admin_user.delete') || userRole === 'unit_admin' // ✅ Unit admin only
+  const canEdit =
+    permissions.includes('employee.update') ||
+    permissions.includes('admin_user.update') ||
+    ROLES_THAT_CAN_MANAGE.includes(userRole)
+  const canDelete =
+    permissions.includes('employee.delete') ||
+    permissions.includes('admin_user.delete') ||
+    ROLES_THAT_CAN_MANAGE.includes(userRole)
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const [search,          setSearch]          = useState('')
@@ -384,7 +390,8 @@ const AdminUserList = () => {
       flex: 0.1, minWidth: 80, field: 'actions', headerName: 'Actions', sortable: false,
       renderCell: ({ row }) => {
         const canEditThisRow = canEdit && canEditUser(row);
-        const canDeleteThisRow = canDelete && canDeleteUser(row) && row.roleId?.isSystem !== true;
+        const isCurrentUser = String(row._id) === String(currentUserId);
+        const canDeleteThisRow = canDelete && canDeleteUser(row) && !isCurrentUser && row.roleId?.isSystem !== true;
         
         return (
           <RowOptions

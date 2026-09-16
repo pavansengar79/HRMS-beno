@@ -151,7 +151,7 @@ const RoleDetailModal = ({ open, role, onClose, onEdit, roleSlug }) => {
       </DialogContent>
       <DialogActions>
         <Button variant='outlined' onClick={onClose}>Close</Button>
-        {(roleSlug === 'SUPER_ADMIN' || !role.isSystem) && <Button variant='contained' onClick={() => { onClose(); onEdit(role) }}>Edit Role</Button>}
+        {(roleSlug?.toLowerCase() === 'super_admin' || !role.isSystem) && <Button variant='contained' onClick={() => { onClose(); onEdit(role) }}>Edit Role</Button>}
       </DialogActions>
     </Dialog>
   )
@@ -883,6 +883,7 @@ const AccessControlPage = () => {
   const canCreate = userPermissions.includes(CAN_CREATE_ROLE)
   const canUpdate = userPermissions.includes(CAN_UPDATE_ROLE)
   const canDelete = userPermissions.includes(CAN_DELETE_ROLE)
+  const isSuperAdmin = roleSlug?.toLowerCase() === 'super_admin'
 
   const contextLevel = selectedUnitId
     ? 'unit'
@@ -1048,19 +1049,25 @@ const AccessControlPage = () => {
                                 <Icon icon='tabler:eye' fontSize={16} />
                               </IconButton>
                             </Tooltip>
-                            {canUpdate && <Tooltip title='Edit Permissions'>
-                              <IconButton size='small' onClick={() => { setMatrixRole(role); setMatrixOpen(true) }}>
-                                <Icon icon='tabler:layout-grid' fontSize={16} />
-                              </IconButton>
-                            </Tooltip>}
-                            {(roleSlug === 'SUPER_ADMIN' || !isSystem) && canUpdate && (
+                            {canUpdate && (isSuperAdmin || !isSystem ? (
+                              <Tooltip title='Edit Permissions'>
+                                <IconButton size='small' onClick={() => { setMatrixRole(role); setMatrixOpen(true) }}>
+                                  <Icon icon='tabler:layout-grid' fontSize={16} />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title='System role permissions are managed by Super Admin'>
+                                <span><IconButton size='small' disabled><Icon icon='tabler:lock' fontSize={16} /></IconButton></span>
+                              </Tooltip>
+                            ))}
+                            {(isSuperAdmin || !isSystem) && canUpdate && (
                               <Tooltip title='Edit Role'>
                                 <IconButton size='small' onClick={() => { setEditRole(role); setFormOpen(true) }}>
                                   <Icon icon='tabler:pencil' fontSize={16} />
                                 </IconButton>
                               </Tooltip>
                             )}
-                            {(roleSlug === 'SUPER_ADMIN' || !isSystem) && canDelete && (
+                            {(isSuperAdmin || !isSystem) && canDelete && (
                               <Tooltip title={holders > 0 ? `Cannot delete: ${holders} user${holders > 1 ? 's' : ''} currently assigned to this role. Remove assignments first.` : 'Delete Role'}>
                                 <span>
                                   <IconButton size='small' color='error' disabled={holders > 0} onClick={() => handleDelete(role)}>
