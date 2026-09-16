@@ -86,6 +86,18 @@ export const fetchReceivedDelegations = createAsyncThunk(
   }
 )
 
+export const fetchEligibleDelegatees = createAsyncThunk(
+  'delegation/fetchEligibleDelegatees',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await axiosRequest.get('/api/v1/delegations/eligible-delegatees')
+      return res?.data || []
+    } catch (err) {
+      return rejectWithValue(err?.message || err || 'Failed to fetch eligible delegatees')
+    }
+  }
+)
+
 // ─── Initial State ────────────────────────────────────────────────────────────
 const initialState = {
   // Delegations created by user (delegator)
@@ -102,6 +114,13 @@ const initialState = {
   asDelegatee: [],
   asDelegateeTotal: 0,
   asDelegateeLoading: false,
+
+  receivedDelegations: [],
+  receivedDelegationsTotal: 0,
+  receivedLoading: false,
+
+  eligibleDelegatees: [],
+  eligibleDelegateesLoading: false,
   
   // Operation states
   creating: false,
@@ -176,7 +195,7 @@ const delegationSlice = createSlice({
       })
       .addCase(revokeDelegation.fulfilled, (state, action) => {
         state.revoking = false
-        const revokedId = action.payload?.data?._id || action.payload?._id
+        const revokedId = action.payload?.data?.delegation?._id || action.payload?.data?._id || action.payload?._id
         const idx = state.myDelegations.findIndex(d => d._id === revokedId)
         if (idx !== -1) {
           state.myDelegations[idx].status = 'REVOKED'
@@ -206,17 +225,31 @@ const delegationSlice = createSlice({
     // ── Fetch Received Delegations ──────────────────────────────────────────────
     builder
       .addCase(fetchReceivedDelegations.pending, (state) => {
-        state.asDelegateeLoading = true
+        state.receivedLoading = true
         state.error = null
       })
       .addCase(fetchReceivedDelegations.fulfilled, (state, action) => {
-        state.asDelegateeLoading = false
-        state.asDelegatee = action.payload?.data?.delegations || action.payload?.delegations || []
-        state.asDelegateeTotal = action.payload?.data?.total || action.payload?.total || 0
+        state.receivedLoading = false
+        state.receivedDelegations = action.payload?.data?.delegations || action.payload?.delegations || []
+        state.receivedDelegationsTotal = action.payload?.data?.total || action.payload?.total || 0
       })
       .addCase(fetchReceivedDelegations.rejected, (state, action) => {
-        state.asDelegateeLoading = false
+        state.receivedLoading = false
         state.error = action.payload?.message || 'Failed to fetch received delegations'
+      })
+
+    builder
+      .addCase(fetchEligibleDelegatees.pending, state => {
+        state.eligibleDelegateesLoading = true
+        state.error = null
+      })
+      .addCase(fetchEligibleDelegatees.fulfilled, (state, action) => {
+        state.eligibleDelegateesLoading = false
+        state.eligibleDelegatees = action.payload
+      })
+      .addCase(fetchEligibleDelegatees.rejected, (state, action) => {
+        state.eligibleDelegateesLoading = false
+        state.error = action.payload?.message || action.payload || 'Failed to fetch eligible delegatees'
       })
   }
 })

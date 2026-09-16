@@ -6,7 +6,7 @@ const BASE = '/api/v1/lobs'
 export const fetchLOBs = createAsyncThunk('lob/fetchAll', async (companyId, { rejectWithValue }) => {
   try {
     const params = new URLSearchParams()
-    if (companyId) params.append('companyId', companyId)
+    if (companyId) params.append('company_id', companyId)
     const query = params.toString() ? `?${params.toString()}` : ''
     const res = await axiosRequest.get(`${BASE}${query}`)
     return res.lobs || res.data || []

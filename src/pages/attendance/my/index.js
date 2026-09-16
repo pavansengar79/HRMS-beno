@@ -41,7 +41,7 @@ import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 // Store & utils
-import { selectUser } from 'src/store/auth/authSlice'
+import { selectLevel, selectUser } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import AttendanceDrawer from 'src/pages/attendance/attendanceDrawer'
 import AttendanceTabs from 'src/pages/attendance/AttendanceTabs'
@@ -228,7 +228,14 @@ const buildMyAttendanceColumns = () => [
 
 export default function MyAttendance() {
   const user = useSelector(selectUser)
+  const level = useSelector(selectLevel)
   const router = useRouter()
+
+  useEffect(() => {
+    if (router.isReady && level && level !== 'unit') {
+      router.replace('/attendance/team')
+    }
+  }, [level, router])
 
   // State
   const [filterMonth, setFilterMonth] = useState(() => {
@@ -305,6 +312,8 @@ export default function MyAttendance() {
     if (!r.date) return false
     return new Date(r.date).toDateString() === new Date().toDateString()
   })
+
+  if (level && level !== 'unit') return null
 
   return (
     <AttendanceTabs activeTab='my-attendance'>

@@ -70,7 +70,7 @@ const MODULE_LEVEL_CONSTRAINTS = {
   unit: {
     // Unit level: ALL unit operational modules
     // Unit admin manages: daily HR operations, employees, attendance, leave, payroll, etc.
-    allowed: ['employee', 'attendance', 'leave', 'payroll', 'shift', 'roster', 'holiday', 'biometric', 'investment_declaration', 'department', 'designation', 'leavePolicy', 'attendancePolicy', 'payrollPolicy', 'role', 'auditLog', 'notification', 'delegation'],
+    allowed: ['employee', 'attendance', 'leave', 'payroll', 'shift', 'roster', 'holiday', 'biometric', 'investment_declaration', 'department', 'designation', 'leavePolicy', 'attendancePolicy', 'regularisationPolicy', 'payrollPolicy', 'role', 'auditLog', 'notification', 'delegation'],
     excluded: ['organisation', 'company', 'user', 'subscription', 'plan']
   }
 }
@@ -84,6 +84,7 @@ const CAN_DELETE_ROLE = 'role.delete'
 const MODULE_LABELS = {
   hrms: 'HRMS', crm: 'CRM', sales: 'Sales', bd: 'BD',
   admin: 'System Admin', organisation: 'Organisation',
+  designation: 'Job Roles',
 }
 
 const PRIV_CATEGORY_COLOR = {
@@ -473,7 +474,7 @@ const ModuleMatrixModal = ({ open, role, onClose, onSaved, allPermissions }) => 
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Icon icon={MODULE_ICONS[moduleName] || MODULE_ICONS[moduleName.toLowerCase()] || 'tabler:folder'} fontSize={16} />
                             <Typography variant="body2" fontWeight={600}>
-                              {moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}
+                              {MODULE_LABELS[moduleName] || moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}
                             </Typography>
                           </Box>
                         </TableCell>
@@ -802,7 +803,7 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Icon icon={MODULE_ICONS[moduleName] || MODULE_ICONS[moduleName.toLowerCase()] || 'tabler:folder'} fontSize={16} />
                             <Typography variant="body2" fontWeight={600}>
-                              {moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}
+                              {MODULE_LABELS[moduleName] || moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}
                             </Typography>
                           </Box>
                         </TableCell>

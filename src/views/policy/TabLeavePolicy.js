@@ -56,6 +56,18 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 
 const EMPLOYMENT_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']
 
+const toDateInputValue = value => {
+  if (!value) return ''
+
+  if (typeof value === 'string') {
+    const datePart = value.match(/^\d{4}-\d{2}-\d{2}/)?.[0]
+    if (datePart) return datePart
+  }
+
+  const parsedDate = new Date(value)
+  return Number.isNaN(parsedDate.getTime()) ? '' : parsedDate.toISOString().slice(0, 10)
+}
+
 // ─── Hook to fetch dropdown options with permission checks ────────────────────
 const useApplicabilityOptions = () => {
   const permissions = useSelector(selectPermissions) || []
@@ -981,6 +993,8 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
         reset({
           ...defaultPolicyValues,
           ...editData,
+          effectiveFrom: toDateInputValue(editData.effectiveFrom),
+          effectiveTo: editData.effectiveTo ? toDateInputValue(editData.effectiveTo) : null,
           applicableFor: convertedApplicableFor,
           leaveTypes: (editData.leaveTypes || []).map(lt => ({
             ...defaultPolicyLeaveEntry,
@@ -1132,13 +1146,19 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             </Grid>
             <Grid item xs={12} sm={3}>
               <Controller name='effectiveTo' control={control}
+                rules={{
+                  validate: value => !value || !watch('effectiveFrom') || value >= watch('effectiveFrom') || 'Effective to date cannot be before effective from date'
+                }}
                 render={({ field }) => (
                   <CustomTextField
                     fullWidth type='date' label='Effective To'
                     InputLabelProps={{ shrink: true }}
+                    inputProps={{ min: watch('effectiveFrom') || undefined }}
                     placeholder='Leave blank for no end date'
                     value={field.value ?? ''}
                     onChange={e => field.onChange(e.target.value || null)}
+                    error={!!errors.effectiveTo}
+                    helperText={errors.effectiveTo?.message || 'Leave blank for no end date'}
                   />
                 )}
               />
@@ -1310,7 +1330,7 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
 
             {/* Designations — Autocomplete multi-select */}
             <Grid item xs={12} sm={6}>
-              <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Designations</Typography>
+              <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Job Roles</Typography>
               <Controller name='applicableFor.designations' control={control}
                 render={({ field }) => (
                   <Autocomplete
@@ -1330,7 +1350,7 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                     value={field.value || []}
                     onChange={(_, newValue) => field.onChange(newValue)}
                     renderInput={params => (
-                      <TextField {...params} placeholder='Select designations' />
+                      <TextField {...params} placeholder='Select job roles' />
                     )}
                     renderTags={(value, getTagProps) =>
                       value.map((option, index) => {

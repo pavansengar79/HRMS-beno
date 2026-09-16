@@ -40,7 +40,10 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 // ** Toast
 import toast from 'react-hot-toast'
 
-// ─── Styled ──────────────────────────────────────────────────────────────────
+// ** Trial Extension Components
+import TrialExtensionSection from './TrialExtensionSection'
+
+// ─── Styled ──────────────────────────────────────────────────────────────────────────
 const CardContent = styled(MuiCardContent)(({ theme }) => ({
   padding: `${theme.spacing(10, 12)} !important`,
   [theme.breakpoints.down('md')]: { padding: `${theme.spacing(8, 4)} !important` },
@@ -54,12 +57,14 @@ const PlanCard = styled(Card)(({ theme, selected, current }) => ({
   transition: 'all 0.2s ease',
   border: `2px solid ${
     current
-      ? theme.palette.success.main
+      ? theme.palette.error.main
       : selected
       ? theme.palette.primary.main
       : theme.palette.divider
   }`,
-  boxShadow: selected && !current
+  boxShadow: current
+    ? `0 4px 20px ${alpha(theme.palette.error.main, 0.25)}`
+    : selected
     ? `0 8px 32px ${alpha(theme.palette.primary.main, 0.18)}`
     : theme.shadows[1],
   '&:hover': !current ? {
@@ -206,7 +211,7 @@ const PlanCardItem = ({ plan, billing, isCurrentPlan, onSelect, selected }) => {
         <Box sx={{ position: 'absolute', top: 12, right: 12 }}>
           <Chip
             label='Current Plan'
-            color='success'
+            color='error'
             size='small'
             icon={<Icon icon='tabler:check' />}
             sx={{ fontWeight: 700, fontSize: '0.65rem' }}
@@ -220,9 +225,9 @@ const PlanCardItem = ({ plan, billing, isCurrentPlan, onSelect, selected }) => {
           <Box sx={{
             p: 2, borderRadius: 1,
             bgcolor: isCurrentPlan
-              ? alpha(theme.palette.success.main, 0.12)
+              ? alpha(theme.palette.error.main, 0.12)
               : alpha(theme.palette.primary.main, 0.10),
-            color: isCurrentPlan ? 'success.main' : 'primary.main',
+            color: isCurrentPlan ? 'error.main' : 'primary.main',
             display: 'flex',
           }}>
             <Icon icon={
@@ -240,7 +245,7 @@ const PlanCardItem = ({ plan, billing, isCurrentPlan, onSelect, selected }) => {
             <Typography variant='h4' fontWeight={800} color='primary.main'>Custom</Typography>
           ) : (
             <>
-              <Typography variant='h4' fontWeight={800} color={isCurrentPlan ? 'success.main' : 'primary.main'}>
+              <Typography variant='h4' fontWeight={800} color={isCurrentPlan ? 'error.main' : 'primary.main'}>
                 ₹{price?.toLocaleString('en-IN')}
               </Typography>
               <Typography variant='caption' color='text.secondary'>
@@ -277,7 +282,7 @@ const PlanCardItem = ({ plan, billing, isCurrentPlan, onSelect, selected }) => {
         {/* CTA */}
         <Box sx={{ mt: 4 }}>
           {isCurrentPlan ? (
-            <Button fullWidth variant='outlined' color='success' disabled
+            <Button fullWidth variant='outlined' color='error' disabled
               startIcon={<Icon icon='tabler:check' />}>
               Active plan
             </Button>
@@ -382,8 +387,31 @@ const PricingPage = () => {
     setError('')
     try {
       const res   = await axiosRequest.get('/api/v1/plans/public')
-      const data  = Array.isArray(res) ? res : res?.data || []
-      setPlans(data.map(formatPlan))
+      const data  = res?.data || res
+      
+      // New format: { plans: [], currentSubscription: {...} }
+      if (data.plans) {
+        setPlans(data.plans.map(formatPlan))
+        // Set current plan from response if available
+        if (data.currentSubscription) {
+          setCurrentPlan({
+            planId:       data.currentSubscription.planId,
+            planName:     data.currentSubscription.planName,
+            status:       data.currentSubscription.status,
+            billingCycle: data.currentSubscription.billing_cycle,
+            trialEnd:     data.currentSubscription.trial_end,
+            nextBilling:  data.currentSubscription.next_billing,
+            seatsUsed:    data.currentSubscription.seats_used,
+            seatLimit:    data.currentSubscription.seat_limit,
+            packageType:  data.currentSubscription.package_type,
+          })
+          setPlanLoading(false) // Plan loaded from plans API
+        }
+      } else {
+        // Fallback: old format (just array)
+        const plansArray = Array.isArray(data) ? data : data?.data || []
+        setPlans(plansArray.map(formatPlan))
+      }
     } catch (err) {
       console.error('Failed to load plans:', err)
       setError('Failed to load plans. Please refresh.')
@@ -460,15 +488,15 @@ const PricingPage = () => {
         // Enterprise — just send a contact request
         await axiosRequest.post('/api/v1/plans/contact-sales', {
           planId:      selectedPlan._id,
-          billingCycle: billing,
+          billingCycle: billing === 'annually' ? 'annual' : 'monthly',
           userId:      authUser?._id,
         })
         toast.success('Our team will contact you within 24 hours!')
       } else {
-        // Upgrade via billing API
-        await axiosRequest.post('/api/v1/organisation/upgrade-plan', {
+        // Upgrade via subscription API
+        await axiosRequest.post('/api/v1/subscriptions/upgrade', {
           planId:       selectedPlan._id,
-          billingCycle: billing,
+          billingCycle: billing === 'annually' ? 'annual' : 'monthly',
         })
         toast.success(`Successfully upgraded to ${selectedPlan.title}!`)
 
@@ -491,7 +519,7 @@ const PricingPage = () => {
   }
 
   const isCurrentPlan = (plan) =>
-    currentPlan?.planId && plan._id && currentPlan.planId === plan._id
+    plan.is_current_plan || (currentPlan?.planId && plan._id && currentPlan.planId === plan._id)
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
@@ -510,6 +538,11 @@ const PricingPage = () => {
 
       {/* ── Current plan banner ── */}
       <CurrentPlanBanner planInfo={currentPlan} loading={planLoading} />
+
+      {/* ── Trial Extension Section (Org Admin Only) ── */}
+      {roleSlug === 'org_admin' && (
+        <TrialExtensionSection currentPlan={currentPlan} orgAdmin={true} />
+      )}
 
       {/* ── Error state ── */}
       {error && (

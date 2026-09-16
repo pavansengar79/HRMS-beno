@@ -67,7 +67,7 @@ const CHANGE_TYPE_CONFIG = {
   DESIGNATION_CHANGED: {
     color: 'primary',
     icon: 'tabler:badge',
-    label: 'Designation Changed',
+    label: 'Job Role Changed',
     showFromTo: true,
   },
   STATUS_CHANGED: {

@@ -152,6 +152,18 @@ export const updateLeaveType = createAsyncThunk(
   }
 )
 
+export const deleteLeaveType = createAsyncThunk(
+  'leaves/deleteLeaveType',
+  async (id, { rejectWithValue }) => {
+    try {
+      await axiosRequest.delete(`/api/v1/leave/types/${id}`)
+      return id
+    } catch (err) {
+      return rejectWithValue(err?.response?.data?.message || 'Failed to delete leave type')
+    }
+  }
+)
+
 // Balance
 export const fetchMyBalance = createAsyncThunk(
   'leaves/fetchMyBalance',
@@ -309,6 +321,9 @@ const leaveSlice = createSlice({
         if (record?._id) {
           state.leaveTypes = state.leaveTypes.map(lt => lt._id === record._id ? record : lt)
         }
+      })
+      .addCase(deleteLeaveType.fulfilled, (state, { payload }) => {
+        state.leaveTypes = state.leaveTypes.filter(leaveType => leaveType._id !== payload)
       })
 
     // ── Balance ───────────────────────────────

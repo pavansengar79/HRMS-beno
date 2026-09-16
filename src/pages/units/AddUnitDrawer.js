@@ -28,7 +28,7 @@ const schema = yup.object().shape({
   admin_email: yup.string().email('Enter valid email').required('Admin email is required'),
 })
 
-const AddUnitDrawer = ({ open, toggle }) => {
+const AddUnitDrawer = ({ open, toggle, companyId }) => {
   const [loading, setLoading] = useState(false)
   const [geolocation, setGeolocation] = useState({})
   const [locationSettings, setLocationSettings] = useState({
@@ -39,7 +39,7 @@ const AddUnitDrawer = ({ open, toggle }) => {
   
   const dispatch = useDispatch()
   const lobs = useSelector(selectAllLOBs)
-  useEffect(() => { if (open) dispatch(fetchLOBs()) }, [open, dispatch])
+  useEffect(() => { if (open) dispatch(fetchLOBs(companyId)) }, [open, companyId, dispatch])
   
   const { reset, control, handleSubmit, formState: { errors } } = useForm({
     defaultValues: { lob_id: '', name: '', location: '', admin_name: '', admin_email: '', admin_phone: '' },
@@ -57,7 +57,7 @@ const AddUnitDrawer = ({ open, toggle }) => {
       
       await dispatch(createUnit(payload)).unwrap()
       toast.success('Unit created! Admin credentials sent via email.')
-      dispatch(fetchUnits())
+      dispatch(fetchUnits(companyId))
       toggle()
       reset()
       setGeolocation({})

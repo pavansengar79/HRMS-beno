@@ -892,7 +892,7 @@ const BiometricManagePage = () => {
                               <TableCell>Employee</TableCell>
                               <TableCell>Code</TableCell>
                               <TableCell>Department</TableCell>
-                              <TableCell>Designation</TableCell>
+                              <TableCell>Job Role</TableCell>
                               <TableCell>Check In (IST)</TableCell>
                               <TableCell>Check Out (IST)</TableCell>
                               <TableCell>Total Punches</TableCell>

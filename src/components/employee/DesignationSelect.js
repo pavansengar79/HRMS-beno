@@ -11,8 +11,8 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
  * 
  * @param {string} value - Selected designation ID
  * @param {Function} onChange - Callback when designation selected (designationId) => void
- * @param {string} label - Label for the input (default: "Designation")
- * @param {boolean} showAll - Show "All Designations" option (default: true)
+ * @param {string} label - Label for the input (default: "Job Role")
+ * @param {boolean} showAll - Show "All Job Roles" option (default: true)
  * @param {boolean} disabled - Disable the component
  * @param {Object} sx - Additional styles
  * @param {string} size - Size of the component ('small' | 'medium')
@@ -24,7 +24,7 @@ import axiosRequest from 'src/utils/AxiosInterceptor'
 const DesignationSelect = ({
   value,
   onChange,
-  label = 'Designation',
+  label = 'Job Role',
   showAll = true,
   disabled = false,
   sx = {},
@@ -73,7 +73,7 @@ const DesignationSelect = ({
       } : undefined}
       {...props}
     >
-      {showAll && <MenuItem value=''>All Designations</MenuItem>}
+      {showAll && <MenuItem value=''>All Job Roles</MenuItem>}
       {designations.map(desig => (
         <MenuItem key={desig._id} value={desig._id}>
           {desig.name}

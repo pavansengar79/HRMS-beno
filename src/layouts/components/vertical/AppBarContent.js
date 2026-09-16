@@ -32,7 +32,7 @@ const ROUTE_LABELS = {
   'units':           'Units',
   'lob':             'LOBs',
   'department':      'Departments',
-  'designation':     'Designations',
+  'designation':     'Job Roles',
   'users':           'Employees',
   'employees':       'Employees',
   'attendance':      'Attendance',

@@ -1,6 +1,7 @@
 // src/views/leavemanagement/TabLeaveRequests.jsx
 import { useEffect, useState, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { useRouter } from 'next/router'
 import toast from 'react-hot-toast'
 
 import Card from '@mui/material/Card'
@@ -267,6 +268,7 @@ const ApplyLeaveDrawer = ({ open, toggle, onSuccess, leaveTypes }) => {
 
 const TabLeaveRequests = () => {
   const dispatch = useDispatch()
+  const router = useRouter()
   const [drawerOpen, setDrawerOpen]           = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
 
@@ -275,11 +277,14 @@ const TabLeaveRequests = () => {
   const [dialogAction, setDialogAction] = useState('APPROVED')
   const [selectedId,   setSelectedId]   = useState(null)
 
+  // Read URL query params for initial filter states
+  const { status: queryStatus } = router.query
+  
   // Filter states
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [selectedDept, setSelectedDept] = useState('')
   const [leaveTypeFilter, setLeaveTypeFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState(queryStatus || '')
   const [durationPreset, setDurationPreset] = useState('thisMonth')
   const [customStartDate, setCustomStartDate] = useState(null)
   const [customEndDate, setCustomEndDate] = useState(null)

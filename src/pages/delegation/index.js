@@ -2,7 +2,6 @@
 // Delegation Management Dashboard - Complete Implementation
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useRouter } from 'next/router'
 import {
   Box,
   Card,
@@ -35,6 +34,7 @@ import Icon from 'src/@core/components/icon'
 import toast from 'react-hot-toast'
 
 import CreateDelegationDialog from './create'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 import { 
   fetchMyDelegations, 
   fetchReceivedDelegations,
@@ -63,10 +63,10 @@ const statusLabels = {
 // ---------------------------------------------------------------------------
 const DelegationPage = () => {
   const dispatch = useDispatch()
-  const router = useRouter()
-  const { user } = useSelector(state => state.auth)
-
+  const roleSlug = useSelector(selectRoleSlug)
+  const isEmployee = roleSlug === 'employee'
   const [activeTab, setActiveTab] = useState(0) // 0 = My Delegations, 1 = Received
+  const visibleTab = isEmployee ? 1 : activeTab
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false)
   const [selectedDelegation, setSelectedDelegation] = useState(null)
@@ -84,9 +84,13 @@ const DelegationPage = () => {
 
   // ── Fetch delegations on mount ──────────────────────────────────────────────
   useEffect(() => {
-    dispatch(fetchMyDelegations({ page: 1, limit: 20 }))
+    if (!roleSlug) return
+
+    if (!isEmployee) {
+      dispatch(fetchMyDelegations({ page: 1, limit: 20 }))
+    }
     dispatch(fetchReceivedDelegations({ page: 1, limit: 20 }))
-  }, [dispatch])
+  }, [dispatch, isEmployee, roleSlug])
 
   // ── Format date ─────────────────────────────────────────────────────────────
   const fmtDate = (d) => {
@@ -99,8 +103,27 @@ const DelegationPage = () => {
   }
 
   // ── Current list based on tab ────────────────────────────────────────────────
-  const currentList = activeTab === 0 ? myDelegations : receivedDelegations
-  const loading = activeTab === 0 ? myDelegationsLoading : receivedLoading
+  const currentList = visibleTab === 0 ? myDelegations : receivedDelegations
+  const loading = visibleTab === 0 ? myDelegationsLoading : receivedLoading
+
+  const handleRevoke = async () => {
+    if (!selectedDelegation) return
+
+    try {
+      await dispatch(revokeDelegation({ id: selectedDelegation._id, reason: revokeReason })).unwrap()
+      toast.success('Delegation revoked successfully')
+      setRevokeDialogOpen(false)
+      setSelectedDelegation(null)
+      setRevokeReason('')
+    } catch (revokeError) {
+      toast.error(revokeError?.message || revokeError || 'Failed to revoke delegation')
+    }
+  }
+
+  const handleCreateSuccess = () => {
+    setCreateDialogOpen(false)
+    dispatch(fetchMyDelegations({ page: 1, limit: 20 }))
+  }
 
   return (
     <Grid container spacing={6}>
@@ -118,41 +141,47 @@ const DelegationPage = () => {
                 Delegation Management
               </Typography>
               <Typography variant='body2' sx={{ color: 'text.secondary', mt: 1 }}>
-                Manage your delegated permissions or view received delegations
+                {isEmployee
+                  ? 'View permissions delegated to you'
+                  : 'Manage your delegated permissions or view received delegations'}
               </Typography>
             </Box>
-            <Button
-              variant='contained'
-              startIcon={<Icon icon='tabler:plus' />}
-              onClick={() => setCreateDialogOpen(true)}
-            >
-              Create Delegation
-            </Button>
+            {!isEmployee && (
+              <Button
+                variant='contained'
+                startIcon={<Icon icon='tabler:plus' />}
+                onClick={() => setCreateDialogOpen(true)}
+              >
+                Create Delegation
+              </Button>
+            )}
           </Box>
 
           <Divider sx={{ mt: 3 }} />
 
           {/* Tabs */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 4, pt: 3 }}>
-            <Tabs value={activeTab} onChange={(e, v) => setActiveTab(v)}>
-              <Tab
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Icon icon='tabler:user-share' />
-                    My Delegations
-                  </Box>
-                }
-              />
-              <Tab
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Icon icon='tabler:user-check' />
-                    Received Delegations
-                  </Box>
-                }
-              />
-            </Tabs>
-          </Box>
+          {!isEmployee && (
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 4, pt: 3 }}>
+              <Tabs value={visibleTab} onChange={(e, v) => setActiveTab(v)}>
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Icon icon='tabler:user-share' />
+                      My Delegations
+                    </Box>
+                  }
+                />
+                <Tab
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Icon icon='tabler:user-check' />
+                      Received Delegations
+                    </Box>
+                  }
+                />
+              </Tabs>
+            </Box>
+          )}
 
           {/* Content */}
           <Box sx={{ p: 4 }}>
@@ -169,7 +198,7 @@ const DelegationPage = () => {
                   No delegations found
                 </Typography>
                 <Typography variant='body2'>
-                  {activeTab === 0
+                  {visibleTab === 0
                     ? 'You have not delegated any permissions yet'
                     : 'No active delegations received'}
                 </Typography>
@@ -179,7 +208,7 @@ const DelegationPage = () => {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>{activeTab === 0 ? 'Delegatee' : 'Delegator'}</TableCell>
+                      <TableCell>{visibleTab === 0 ? 'Delegatee' : 'Delegator'}</TableCell>
                       <TableCell>Permissions</TableCell>
                       <TableCell>Valid From</TableCell>
                       <TableCell>Valid Until</TableCell>
@@ -199,13 +228,13 @@ const DelegationPage = () => {
                               color: '#6366f1',
                               fontWeight: 600
                             }}>
-                              {(activeTab === 0 ? delegation.delegatee?.name : delegation.delegator?.name)?.charAt(0) || '?'}
+                              {(visibleTab === 0 ? delegation.delegatee_id?.name : delegation.delegator_id?.name)?.charAt(0) || '?'}
                             </Avatar>
                             <Box>
                               <Typography variant='body2' fontWeight={600}>
-                                {activeTab === 0 
-                                  ? (delegation.delegatee?.name || delegation.delegatee?.email || 'Unknown User')
-                                  : (delegation.delegator?.name || delegation.delegator?.email || 'Unknown User')
+                                {visibleTab === 0
+                                  ? (delegation.delegatee_id?.name || delegation.delegatee_id?.email || 'Unknown User')
+                                  : (delegation.delegator_id?.name || delegation.delegator_id?.email || 'Unknown User')
                                 }
                               </Typography>
                             </Box>
@@ -244,11 +273,20 @@ const DelegationPage = () => {
                           />
                         </TableCell>
                         <TableCell align='right'>
-                          <Tooltip title='View Details'>
-                            <IconButton size='small'>
-                              <Icon icon='tabler:eye' fontSize={18} />
-                            </IconButton>
-                          </Tooltip>
+                          {visibleTab === 0 && ['ACTIVE', 'PENDING'].includes(delegation.status) && (
+                            <Tooltip title='Revoke Delegation'>
+                              <IconButton
+                                size='small'
+                                color='error'
+                                onClick={() => {
+                                  setSelectedDelegation(delegation)
+                                  setRevokeDialogOpen(true)
+                                }}
+                              >
+                                <Icon icon='tabler:user-minus' fontSize={18} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -261,11 +299,34 @@ const DelegationPage = () => {
       </Grid>
 
       {/* Create Delegation Dialog */}
-      <CreateDelegationDialog
-        open={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-        onSuccess={() => setCreateDialogOpen(false)}
-      />
+      {!isEmployee && (
+        <CreateDelegationDialog
+          open={createDialogOpen}
+          onClose={() => setCreateDialogOpen(false)}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
+
+      <Dialog open={revokeDialogOpen} onClose={() => setRevokeDialogOpen(false)} maxWidth='sm' fullWidth>
+        <DialogTitle>Revoke Delegation</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 3 }}>
+            The delegated permissions will be removed immediately.
+          </DialogContentText>
+          <TextField
+            fullWidth
+            label='Reason (Optional)'
+            value={revokeReason}
+            onChange={event => setRevokeReason(event.target.value)}
+            multiline
+            rows={3}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRevokeDialogOpen(false)}>Cancel</Button>
+          <Button color='error' variant='contained' onClick={handleRevoke}>Revoke</Button>
+        </DialogActions>
+      </Dialog>
     </Grid>
   )
 }

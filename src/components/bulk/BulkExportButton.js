@@ -131,7 +131,7 @@ export const EMPLOYEE_EXPORT_COLUMNS = [
   { field: 'email', label: 'Email' },
   { field: 'phone', label: 'Phone' },
   { field: 'departmentId', label: 'Department', valueGetter: (v, row) => row.departmentId?.name || v },
-  { field: 'designationId', label: 'Designation', valueGetter: (v, row) => row.designationId?.name || v },
+  { field: 'designationId', label: 'Job Role', valueGetter: (v, row) => row.designationId?.name || v },
   { field: 'status', label: 'Status' },
   { field: 'employmentType', label: 'Employment Type' },
   { field: 'joiningDate', label: 'Joining Date', valueGetter: (v) => v ? new Date(v).toLocaleDateString() : '' },

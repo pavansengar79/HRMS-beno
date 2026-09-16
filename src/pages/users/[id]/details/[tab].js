@@ -37,16 +37,14 @@ const UserDetails = () => {
   const current_user = useSelector(selectUser)
   const permissions = useSelector(selectPermissions)
   const userRole    = useSelector(selectRoleSlug) ?? ''
-  
-  console.log('Current user:', current_user.id)
-  
+
   const canManageEmployees = permissions.includes('employee.create') || permissions.includes('employee.update')
   
   // ── Self-access check ──────────────────────────────────────────────────────
   // All users can view and update their own profile WITHOUT employee.update permission
-  // Unit Admin, HR Manager, Manager can view/edit anyone
+  // Scoped admin, HR, and manager roles can view employees within their backend-enforced scope
   const isOwnProfile = current_user?._id === id || current_user?.id === id
-  const canViewOthers = ['unit_admin', 'hr_manager', 'manager'].includes(userRole)
+  const canViewOthers = ['org_admin', 'company_admin', 'unit_admin', 'hr_manager', 'manager'].includes(userRole)
   
   // Redirect if not authorized (employee viewing someone else)
   useEffect(() => {

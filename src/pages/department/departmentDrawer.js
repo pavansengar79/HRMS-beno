@@ -89,8 +89,21 @@ const defaultValues = {
 //   editingDept — null (Add mode)   |  { _id, name, ... } (Edit mode)
 // ---------------------------------------------------------------------------
 const AddDepartmentDrawer = ({ open, toggle, onSuccess, editingDept }) => {
-  const isEditMode  = Boolean(editingDept)
+  // ✅ Edit mode only if editingDept has an _id (actual department being edited)
+  // If editingDept only has parentId, it means "Add Sub Department" mode
+  const isEditMode  = Boolean(editingDept?._id)
   const [submitting, setSubmitting] = useState(false)
+  
+  // Log for debugging
+  useEffect(() => {
+    if (open) {
+      console.log('=== Drawer opened ===')
+      console.log('editingDept:', editingDept)
+      console.log('isEditMode:', isEditMode)
+      console.log('Has _id:', Boolean(editingDept?._id))
+      console.log('Has parentId:', Boolean(editingDept?.parentId))
+    }
+  }, [open, editingDept, isEditMode])
   const [departments, setDepartments] = useState([])
   const [employees, setEmployees] = useState([])
   const [loadingDropdowns, setLoadingDropdowns] = useState(false)

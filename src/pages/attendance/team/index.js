@@ -44,6 +44,7 @@ import { EmployeeSelect, DepartmentSelect } from 'src/components/employee'
 import { selectUser, selectRoleSlug } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import AttendanceTabs from 'src/pages/attendance/AttendanceTabs'
+import useUnitContext from 'src/hooks/useUnitContext'
 
 // Dialog components
 import { RegularizeDialog, EmployeeSummaryDialog } from 'src/views/attendance/AttendanceDialogs'
@@ -75,7 +76,10 @@ const STATUS_LABEL = {
 }
 
 const ROLES = {
+  ORG_ADMIN: 'org_admin',
+  ORG_HEAD: 'org_head',
   COMPANY_ADMIN: 'company_admin',
+  COMPANY_HR_MANAGER: 'company_hr_manager',
   HR_MANAGER:   'hr_manager',
   MANAGER:      'manager',
   UNIT_ADMIN:   'unit_admin'
@@ -258,19 +262,38 @@ export default function TeamAttendance() {
   const user = useSelector(selectUser)
   const roleSlug = useSelector(selectRoleSlug)
   const router = useRouter()
+  const { orgId, companyId, unitId } = useUnitContext()
 
   // Role-based access - memoized to prevent re-render issues
-  const allowedRoles = useMemo(() => [ROLES.MANAGER, ROLES.HR_MANAGER, ROLES.COMPANY_ADMIN, ROLES.UNIT_ADMIN], [])
+  const allowedRoles = useMemo(() => [
+    ROLES.MANAGER,
+    ROLES.HR_MANAGER,
+    ROLES.UNIT_ADMIN,
+    ROLES.COMPANY_ADMIN,
+    ROLES.COMPANY_HR_MANAGER,
+    ROLES.ORG_ADMIN,
+    ROLES.ORG_HEAD
+  ], [])
   const isHR = useMemo(() => 
-    roleSlug === ROLES.HR_MANAGER || roleSlug === ROLES.COMPANY_ADMIN || roleSlug === ROLES.UNIT_ADMIN,
+    [
+      ROLES.HR_MANAGER,
+      ROLES.UNIT_ADMIN,
+      ROLES.COMPANY_ADMIN,
+      ROLES.COMPANY_HR_MANAGER,
+      ROLES.ORG_ADMIN,
+      ROLES.ORG_HEAD
+    ].includes(roleSlug),
   [roleSlug])
 
   // State
+  // ── Read URL query params on initial state ─────────────────────────────────
+  const { filterStatus: queryStatus, dateRangePreset: queryDateRange } = router.query
+  
   const [filterMonth, setFilterMonth] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
-  const [filterStatus, setFilterStatus] = useState('')
+  const [filterStatus, setFilterStatus] = useState(queryStatus || '')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 })
@@ -285,20 +308,9 @@ export default function TeamAttendance() {
   const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState(null)
   
   // Date range state
-  const [dateRangePreset, setDateRangePreset] = useState('thisMonth')
+  const [dateRangePreset, setDateRangePreset] = useState(queryDateRange || 'thisMonth')
   const [customStartDate, setCustomStartDate] = useState(null)
   const [customEndDate, setCustomEndDate] = useState(null)
-
-  // ── Read URL query params and set filters ─────────────────────────────────
-  useEffect(() => {
-    const { filterStatus: queryStatus, dateRangePreset: queryDateRange } = router.query
-    if (queryStatus) {
-      setFilterStatus(queryStatus)
-    }
-    if (queryDateRange) {
-      setDateRangePreset(queryDateRange)
-    }
-  }, [router.query])
 
   // ── Access check ───────────────────────────────────────────────────────────
   // ── Access check ───────────────────────────────────────────────────────────
@@ -377,6 +389,10 @@ export default function TeamAttendance() {
       // Status filter
       if (filterStatus) params.set('status', filterStatus)
 
+      if (orgId) params.set('orgId', orgId)
+      if (companyId) params.set('companyId', companyId)
+      if (unitId) params.set('unit_id', unitId)
+
       // Role-based endpoint selection
       const endpoint = isHR
         ? `/api/v1/attendance?${params.toString()}`
@@ -398,7 +414,7 @@ export default function TeamAttendance() {
     } finally {
       setLoading(false)
     }
-  }, [filterMonth, selectedEmployeeFilter, filterDept, filterStatus, isHR, getDateRange, paginationModel])
+  }, [filterMonth, selectedEmployeeFilter, filterDept, filterStatus, isHR, getDateRange, paginationModel, orgId, companyId, unitId])
 
   // Fetch on mount and when filters change
   useEffect(() => { 
@@ -419,18 +435,20 @@ export default function TeamAttendance() {
     try {
       // Use appropriate endpoint based on role
       const dateRange = getDateRange()
-      let endpoint
+      const params = new URLSearchParams({ employeeId, limit: '100' })
+
+      if (orgId) params.set('orgId', orgId)
+      if (companyId) params.set('companyId', companyId)
+      if (unitId) params.set('unit_id', unitId)
       
       if (dateRange) {
-        endpoint = isHR 
-          ? `/api/v1/attendance?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&employeeId=${employeeId}&limit=100`
-          : `/api/v1/attendance/team?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&employeeId=${employeeId}&limit=100`
+        params.set('startDate', dateRange.startDate)
+        params.set('endDate', dateRange.endDate)
       } else {
-        // Fallback to month if date range not available
-        endpoint = isHR 
-          ? `/api/v1/attendance?month=${filterMonth}&employeeId=${employeeId}&limit=100`
-          : `/api/v1/attendance/team?month=${filterMonth}&employeeId=${employeeId}&limit=100`
+        params.set('month', filterMonth)
       }
+
+      const endpoint = `/api/v1/attendance${isHR ? '' : '/team'}?${params.toString()}`
       
       console.log('Fetching employee summary:', { endpoint, employeeId, dateRange })
       
@@ -565,7 +583,7 @@ export default function TeamAttendance() {
     } finally {
       setEmployeeSummaryLoading(false)
     }
-  }, [filterMonth, isHR, getDateRange])
+  }, [filterMonth, isHR, getDateRange, orgId, companyId, unitId])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleEmployeeClick = (row) => {
@@ -582,7 +600,11 @@ export default function TeamAttendance() {
   }
 
   const handleRegularizeSuccess = (updated) => {
-    setRows(prev => prev.map(r => r._id === updated._id ? { ...updated, id: updated._id } : r))
+    setRows(prev => prev.map(row => (
+      row._id === updated._id
+        ? { ...row, ...updated, employeeId: updated.employeeId || row.employeeId, id: updated._id }
+        : row
+    )))
     toast.success('Attendance regularized successfully')
   }
 

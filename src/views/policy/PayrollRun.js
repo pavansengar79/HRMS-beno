@@ -85,7 +85,7 @@ const PayslipDetailDialog = ({ open, onClose, payslip }) => {
               <Typography variant='body1'>{payslip.department || 'N/A'}</Typography>
             </Grid>
             <Grid item xs={6}>
-              <Typography variant='body2' color='text.secondary'>Designation</Typography>
+              <Typography variant='body2' color='text.secondary'>Job Role</Typography>
               <Typography variant='body1'>{payslip.designation || 'N/A'}</Typography>
             </Grid>
           </Grid>

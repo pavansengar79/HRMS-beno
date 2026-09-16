@@ -83,7 +83,7 @@ export function generatePayslipPdf(payslip, company = {}) {
   ]
 
   const rightInfo = [
-    ['Designation:', payslip.designation || employee.designationId?.name || '—'],
+    ['Job Role:', payslip.designation || employee.designationId?.name || '—'],
     ['Pay Period:', `${monthName} ${payslip.year}`],
     ['Payment Date:', fmtDate(payslip.approvedAt || payslip.paidAt || new Date())]
   ]

@@ -523,7 +523,7 @@ const ExperienceSection = ({ employee, canEdit, onUpdated, isOwnProfile }) => {
                     value={entry.company} onChange={e => handleChange(idx, 'company', e.target.value)} />
                 </Grid>
                 <Grid item xs={12}>
-                  <CustomTextField fullWidth size='small' label='Role / Designation'
+                  <CustomTextField fullWidth size='small' label='Access Role / Job Role'
                     value={entry.role} onChange={e => handleChange(idx, 'role', e.target.value)} />
                 </Grid>
                 <Grid item xs={6}>

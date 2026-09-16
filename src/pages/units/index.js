@@ -3,6 +3,7 @@
 // User flow: first create LOBs, then create Business Units (LOB is required for BU).
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
@@ -281,7 +282,7 @@ const getColumns = (handleEdit, handleAssign, handleDelete) => [
 ]
 
 // ─── LOB Management section ───────────────────────────────────────────────────
-const LOBSection = () => {
+const LOBSection = ({ companyId, enabled }) => {
   const dispatch    = useDispatch()
   const lobs        = useSelector(selectAllLOBs)
   const lobLoading  = useSelector(selectLOBLoading)
@@ -289,14 +290,16 @@ const LOBSection = () => {
   const [editLob, setEditLob] = useState(null) // { _id, name }
   const [editName, setEditName] = useState('')
 
-  useEffect(() => { dispatch(fetchLOBs()) }, [dispatch])
+  useEffect(() => {
+    if (enabled) dispatch(fetchLOBs(companyId))
+  }, [companyId, dispatch, enabled])
 
   const handleAdd = async () => {
     const v = input.trim()
     if (!v) return
     if (lobs.some(l => l.name?.toLowerCase() === v.toLowerCase())) { toast.error('LOB already exists'); return }
     try {
-      await dispatch(createLOB({ name: v })).unwrap()
+      await dispatch(createLOB({ name: v, ...(companyId && { company_id: companyId }) })).unwrap()
       toast.success(`"${v}" added`)
       setInput('')
     } catch (err) { toast.error(typeof err === 'string' ? err : err?.message || 'Failed') }
@@ -399,6 +402,8 @@ const LOBSection = () => {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 const UnitsPage = () => {
+  const router = useRouter()
+  const companyId = typeof router.query.company === 'string' ? router.query.company : undefined
   const [search, setSearch]   = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -410,7 +415,9 @@ const UnitsPage = () => {
   const units    = useSelector(selectAllUnits)
   const loading  = useSelector(selectUnitLoading)
 
-  useEffect(() => { dispatch(fetchUnits()) }, [dispatch])
+  useEffect(() => {
+    if (router.isReady) dispatch(fetchUnits(companyId))
+  }, [companyId, dispatch, router.isReady])
 
   const filteredRows = units.filter(row =>
     !search ||
@@ -435,7 +442,7 @@ const UnitsPage = () => {
   }
 
   const handleAssignSuccess = () => {
-    dispatch(fetchUnits())
+    dispatch(fetchUnits(companyId))
   }
 
   const assignUnit = units.find(u => u._id === assignUnitId)
@@ -454,7 +461,7 @@ const UnitsPage = () => {
       </Box>
 
       {/* LOB Management — always shown first */}
-      <LOBSection />
+      <LOBSection companyId={companyId} enabled={router.isReady} />
 
       {/* Units table */}
       <Card>
@@ -486,8 +493,8 @@ const UnitsPage = () => {
         />
       </Card>
 
-      <AddUnitDrawer open={addOpen} toggle={() => setAddOpen(p => !p)} />
-      <EditUnitDrawer open={editOpen} unitId={editUnitId} onClose={() => { setEditOpen(false); setEditUnitId(null) }} onSuccess={() => dispatch(fetchUnits())} />
+      <AddUnitDrawer open={addOpen} toggle={() => setAddOpen(p => !p)} companyId={companyId} />
+      <EditUnitDrawer open={editOpen} unitId={editUnitId} companyId={companyId} onClose={() => { setEditOpen(false); setEditUnitId(null) }} onSuccess={() => dispatch(fetchUnits(companyId))} />
       <AssignResponsibleDialog open={assignOpen} unit={assignUnit} onClose={() => { setAssignOpen(false); setAssignUnitId(null) }} onSuccess={handleAssignSuccess} />
     </Box>
   )

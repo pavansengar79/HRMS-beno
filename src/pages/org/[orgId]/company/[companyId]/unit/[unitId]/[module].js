@@ -30,6 +30,7 @@ const LeavesPage      = dynamic(() => import('src/pages/leaves'),      { loading
 const PayrollPage     = dynamic(() => import('src/pages/payroll'),     { loading: () => <Loader /> })
 const PolicyPage = dynamic(() => import('src/views/policy/policyTab'), { loading: () => <Loader /> })
 const HolidaysPage    = dynamic(() => import('src/pages/holidays'),    { loading: () => <Loader /> })
+const DelegationPage  = dynamic(() => import('src/pages/delegation'),  { loading: () => <Loader /> })
 
 const MODULE_MAP = {
   department:  DepartmentPage,
@@ -41,6 +42,7 @@ const MODULE_MAP = {
   payroll:     PayrollPage,
   policy:      PolicyPage,
   holidays:    HolidaysPage,
+  delegation:  DelegationPage,
 }
 
 // ─── small loading fallback ───────────────────────────────────────────────────

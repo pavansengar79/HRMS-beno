@@ -304,7 +304,7 @@ const ApplicabilitySection = ({ control, watch }) => {
 
         {/* Designations — Autocomplete multi-select */}
         <Grid item xs={12} sm={6}>
-          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Designations</Typography>
+          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Job Roles</Typography>
           <Controller name='applicableFor.designations' control={control}
             render={({ field }) => (
               <Autocomplete
@@ -321,7 +321,7 @@ const ApplicabilitySection = ({ control, watch }) => {
                 value={field.value || []}
                 onChange={(_, newValue) => field.onChange(newValue)}
                 renderInput={params => (
-                  <TextField {...params} placeholder='Select designations' />
+                  <TextField {...params} placeholder='Select job roles' />
                 )}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => (
@@ -1456,7 +1456,7 @@ const TabAttendancePolicy = () => {
                         )}
                         {policy.applicableFor?.designations?.length > 0 && (
                           <Chip
-                            label={`${policy.applicableFor.designations.length} designation${policy.applicableFor.designations.length > 1 ? 's' : ''}`}
+                            label={`${policy.applicableFor.designations.length} job role${policy.applicableFor.designations.length > 1 ? 's' : ''}`}
                             size='small' variant='tonal' color='warning'
                             icon={<Icon icon='tabler:briefcase' fontSize='0.75rem' />}
                           />

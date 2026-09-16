@@ -230,33 +230,34 @@ export default function EmployeeDashboard() {
       </Grid>
 
       <Grid container spacing={4}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Recent Leaves</Typography>
-            </Box>
-            {leaves.length === 0 ? (
-              <Box sx={{ p: 4, textAlign: 'center' }}><Typography variant='body2' color='text.secondary'>No leave history</Typography></Box>
-            ) : leaves.map((l, i) => (
-              <Box key={l.id} sx={{ px: 4, py: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < leaves.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: alpha('#6366f1', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon icon='tabler:calendar-user' fontSize={15} style={{ color: '#6366f1' }} />
-                  </Box>
-                  <Box>
-                    <Typography variant='body2' sx={{ fontWeight: 600 }}>{l.leaveType?.name} ({l.leaveType?.code})</Typography>
-                    <Typography variant='caption' color='text.secondary'>
-                      {new Date(l.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {new Date(l.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} · {l.totalDays}d
-                    </Typography>
-                  </Box>
-                </Box>
-                <Chip label={l.status} size='small' sx={{ bgcolor: alpha(STATUS_COLOR[l.status] || '#6366f1', 0.1), color: STATUS_COLOR[l.status] || '#6366f1', fontWeight: 700, fontSize: 11 }} />
+        {/* Recent Leaves - Only show if there are recent leaves */}
+        {leaves.length > 0 && (
+          <Grid item xs={12} md={holidays.length > 0 ? 6 : 12}>
+            <Card>
+              <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Recent Leaves</Typography>
               </Box>
-            ))}
-          </Card>
-        </Grid>
+              {leaves.map((l, i) => (
+                <Box key={l.id} sx={{ px: 4, py: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < leaves.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: alpha('#6366f1', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon icon='tabler:calendar-user' fontSize={15} style={{ color: '#6366f1' }} />
+                    </Box>
+                    <Box>
+                      <Typography variant='body2' sx={{ fontWeight: 600 }}>{l.leaveType?.name} ({l.leaveType?.code})</Typography>
+                      <Typography variant='caption' color='text.secondary'>
+                        {new Date(l.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {new Date(l.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} · {l.totalDays}d
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Chip label={l.status} size='small' sx={{ bgcolor: alpha(STATUS_COLOR[l.status] || '#6366f1', 0.1), color: STATUS_COLOR[l.status] || '#6366f1', fontWeight: 700, fontSize: 11 }} />
+                </Box>
+              ))}
+            </Card>
+          </Grid>
+        )}
 
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={leaves.length > 0 && holidays.length > 0 ? 6 : 12}>
           <Card sx={{ height: '100%' }}>
             <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Upcoming Holidays</Typography>

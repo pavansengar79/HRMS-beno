@@ -24,7 +24,7 @@ import toast from 'react-hot-toast'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
 const Header = styled(Box)(({ theme }) => ({ display: 'flex', alignItems: 'center', padding: theme.spacing(6), justifyContent: 'space-between' }))
-const schema = yup.object().shape({ name: yup.string().required('Designation name is required') })
+const schema = yup.object().shape({ name: yup.string().required('Job role name is required') })
 
 const DesignationPage = () => {
   const permissions = useSelector(selectPermissions) || []
@@ -95,7 +95,7 @@ const DesignationPage = () => {
   }
 
   const columns = [
-    { flex: 0.35, minWidth: 200, field: 'name', headerName: 'Designation',
+    { flex: 0.35, minWidth: 200, field: 'name', headerName: 'Job Role',
       renderCell: ({ row }) => <Typography sx={{ fontWeight: 500, color: 'text.secondary' }}>{row.name}</Typography> },
     { flex: 0.25, minWidth: 180, field: 'unit_id', headerName: 'Unit',
       renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.unit_id?.name || '—'}</Typography> },
@@ -111,10 +111,10 @@ const DesignationPage = () => {
       <Grid item xs={12}>
         <Card>
           <Box sx={{ p: 5, display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'space-between' }}>
-            <CustomTextField value={search} placeholder='Search designations...' sx={{ minWidth: 200 }} onChange={e => setSearch(e.target.value)}
+            <CustomTextField value={search} placeholder='Search job roles...' sx={{ minWidth: 200 }} onChange={e => setSearch(e.target.value)}
               InputProps={{ startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} /> }} />
             {canCreate && (
-              <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={() => setDrawerOpen(true)}>Add Designation</Button>
+              <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={() => setDrawerOpen(true)}>Add Job Role</Button>
             )}
           </Box>
           <Divider sx={{ m: '0 !important' }} />
@@ -126,12 +126,12 @@ const DesignationPage = () => {
       <Drawer open={drawerOpen} anchor='right' variant='temporary' onClose={handleClose}
         ModalProps={{ keepMounted: true }} sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 400 } } }}>
         <Header>
-          <Typography variant='h5'>{editItem ? 'Edit' : 'Add'} Designation</Typography>
+          <Typography variant='h5'>{editItem ? 'Edit' : 'Add'} Job Role</Typography>
           <IconButton size='small' onClick={handleClose}><Icon icon='tabler:x' fontSize='1.125rem' /></IconButton>
         </Header>
         <Box component='form' onSubmit={handleSubmit(onSubmit)} sx={{ p: 6 }}>
           <Controller name='name' control={control} render={({ field }) => (
-            <CustomTextField {...field} fullWidth label='Designation Name' sx={{ mb: 4 }} error={!!errors.name} helperText={errors.name?.message} />
+            <CustomTextField {...field} fullWidth label='Job Role Name' sx={{ mb: 4 }} error={!!errors.name} helperText={errors.name?.message} />
           )} />
           <Box sx={{ display: 'flex', gap: 4 }}>
             <Button fullWidth type='submit' variant='contained' disabled={submitting}>{submitting ? <CircularProgress size={20} /> : editItem ? 'Update' : 'Create'}</Button>

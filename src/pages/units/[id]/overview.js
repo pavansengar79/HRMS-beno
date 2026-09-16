@@ -16,7 +16,7 @@ import { selectRoleSlug } from 'src/store/auth/authSlice'
 
 const HRMS_MODULES = [
   { title: 'Departments',  icon: 'mdi:office-building-outline', route: 'department',  color: '#7367f0' },
-  { title: 'Designations', icon: 'mdi:briefcase-outline',       route: 'designation', color: '#28c76f' },
+  { title: 'Job Roles',    icon: 'mdi:briefcase-outline',       route: 'designation', color: '#28c76f' },
   { title: 'Employees',    icon: 'mdi:account-group-outline',   route: 'users',       color: '#00cfe8' },
   { title: 'Attendance',   icon: 'mdi:clock-check-outline',     route: 'attendance',  color: '#ff9f43' },
   { title: 'Leaves',       icon: 'mdi:calendar-account-outline',route: 'leaves',      color: '#ea5455' },

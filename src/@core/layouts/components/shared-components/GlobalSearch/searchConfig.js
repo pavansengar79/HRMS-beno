@@ -29,7 +29,7 @@ export const MODULE_CONFIG = {
   designations: {
     icon: 'tabler:briefcase',
     color: 'secondary',
-    label: 'Designation',
+    label: 'Job Role',
     route: (item) => `/designation/${item._id}`
   },
   holidays: {

@@ -167,8 +167,8 @@ axiosRequest.interceptors.request.use(
       // Auto-scope every request to the org/company/unit currently in the URL,
       // unless the caller already explicitly specified one.
       const { orgId, companyId, unitId } = getScopeIdsFromUrl()
-      // appendIfAbsent(config, 'orgId', orgId)
-      // appendIfAbsent(config, 'companyId', companyId)
+      appendIfAbsent(config, 'orgId', orgId)
+      appendIfAbsent(config, 'companyId', companyId)
       appendIfAbsent(config, 'unit_id', unitId)
     }
 

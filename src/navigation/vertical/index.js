@@ -209,7 +209,9 @@ const buildUnitNav = (unit, company, orgId, showBack = true, permissions = [], r
     { sectionTitle: 'HRMS' },
     ...(has('employee.read') ? [{ title: 'Employees', icon: 'tabler:users', path: p('users') }] : []),
     ...(has('department.read') ? [{ title: 'Departments', icon: 'tabler:building', path: p('department') }] : []),
-    ...(has('designation.read') ? [{ title: 'Designations', icon: 'tabler:briefcase', path: p('designation') }] : []),
+    ...(has('designation.read') ? [{ title: 'Job Roles', icon: 'tabler:briefcase', path: p('designation') }] : []),
+    ...(has('attendance.read') ? [{ title: 'Attendance', icon: 'tabler:clock-check', path: p('attendance'), badgeContent: 'Live', badgeColor: 'success' }] : []),
+    ...(has('leave.read') ? [{ title: 'Leaves', icon: 'tabler:calendar-user', path: p('leaves'), badgeContent: 'New', badgeColor: 'error' }] : []),
     // Note: Business Units accessible at company level, not unit level
     ...(has('biometric.read') ? [
       { 
@@ -260,7 +262,7 @@ const buildDynamicNav = (roleSlug, user, units, permissions = []) => {
     { sectionTitle: 'HRMS' },
     ...(has('employee.read') ? [{ title: 'Employees', icon: 'tabler:users', path: '/users' }] : []),
     ...(has('department.read') ? [{ title: 'Departments', icon: 'tabler:building', path: '/department' }] : []),
-    ...(has('designation.read') ? [{ title: 'Designations', icon: 'tabler:briefcase', path: '/designation' }] : []),
+    ...(has('designation.read') ? [{ title: 'Job Roles', icon: 'tabler:briefcase', path: '/designation' }] : []),
     ...(has('attendance.read') ? [{ title: 'Attendance', icon: 'tabler:clock-check', path: '/attendance', badgeContent: 'Live', badgeColor: 'success' }] : []),
     ...(has('leave.read') ? [{ title: 'Leaves', icon: 'tabler:calendar-user', path: '/leaves', badgeContent: 'New', badgeColor: 'error' }] : []),
     ...(has('payroll.read') ? [{ title: 'Payroll', icon: 'tabler:cash', path: '/payroll', badgeContent: 'Run', badgeColor: 'warning' }] : []),
@@ -308,6 +310,7 @@ const SUPER_ADMIN_NAV = stamp([
   { title: 'Organisations',       icon: 'tabler:building-skyscraper', path: '/organisation' },
   { title: 'Customers',           icon: 'tabler:users-group',         path: '/customers' },
   { title: 'Plans & Billing',     icon: 'tabler:credit-card',         path: '/pages/plan' },
+  // { title: 'Trial Extensions', icon: 'tabler:clock-pause', path: '/admin/trial-extensions' },
   { sectionTitle: 'ADMINISTRATION' },
   { title: 'Access Control',      icon: 'tabler:lock',                path: '/admin/access-control' },
   { title: 'Audit Logs',          icon: 'tabler:file-text',           path: '/audit-logs' },
@@ -328,10 +331,10 @@ const buildEmployeeNav = (permissions = []) => {
   return stamp([
     { title: 'My Dashboard',        icon: 'tabler:layout-dashboard',    path: '/dashboards/analytics' },
     { sectionTitle: 'MY WORKSPACE' },
-    // Only show attendance if user has leave.read permission
-    ...(has('leave.read') ? [{ title: 'My Attendance', icon: 'tabler:clock', path: '/attendance/my' }] : []),
+    ...(has('attendance.read') ? [{ title: 'My Attendance', icon: 'tabler:clock', path: '/attendance/my' }] : []),
     // Only show leave requests if user has leave.read permission
     ...(has('leave.read') ? [{ title: 'Leave Requests', icon: 'tabler:calendar-check', path: '/leaves' }] : []),
+    { title: 'Delegations',         icon: 'tabler:user-check',         path: '/delegation' },
     { title: 'My Payslips',         icon: 'tabler:file-invoice',        path: '/payroll/my' },
     // Only show investment declaration if user has investment_declaration.read permission
     ...(has('investment_declaration.read') ? [{ sectionTitle: 'TAX PLANNING' }] : []),
@@ -355,8 +358,7 @@ const buildManagerNav = (permissions = []) => {
     { title: 'Recent Leaves',  icon: 'tabler:calendar-check', path: '/leaves' },
     { title: 'Delegation',          icon: 'tabler:users-plus',          path: '/delegation' },
     { sectionTitle: 'MY WORKSPACE' },
-    // Only show attendance if user has leave.read permission
-    ...(has('leave.read') ? [{ title: 'My Attendance', icon: 'tabler:clock', path: '/attendance/my' }] : []),
+    ...(has('attendance.read') ? [{ title: 'My Attendance', icon: 'tabler:clock', path: '/attendance/my' }] : []),
     // Only show leave if user has leave.read permission
     ...(has('leave.read') ? [{ title: 'My Leaves', icon: 'tabler:calendar-check', path: '/leaves' }] : []),
     { title: 'My Payslips',         icon: 'tabler:file-invoice',        path: '/payroll/my' },

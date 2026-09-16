@@ -31,7 +31,7 @@ export const ALL_MODULES = [
     id: 'employee',
     name: 'Employee Management',
     icon: 'tabler:users',
-    desc: 'Profiles, lifecycle, designations, documents',
+    desc: 'Profiles, lifecycle, job roles, documents',
     required: true,
     plans: ['basic', 'standard', 'professional', 'enterprise'],
     color: '#0EA5E9',

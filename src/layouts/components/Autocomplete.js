@@ -36,7 +36,7 @@ const categoryTitle = {
   employees: 'Employees',
   leave: 'Leave Requests',
   departments: 'Departments',
-  designations: 'Designations',
+  designations: 'Job Roles',
   holidays: 'Holidays',
   shifts: 'Shifts',
   rosters: 'Rosters',

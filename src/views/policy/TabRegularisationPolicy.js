@@ -180,7 +180,7 @@ const ApplicabilitySection = ({ control, watch }) => {
         Applicability
       </Typography>
       <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
-        Leave empty for all. Priority: Role {'>'} Department {'>'} Designation {'>'} Employee Type
+        Leave empty for all. Priority: Access Role {'>'} Department {'>'} Job Role {'>'} Employee Type
       </Typography>
 
       <Grid container spacing={4}>
@@ -219,7 +219,7 @@ const ApplicabilitySection = ({ control, watch }) => {
 
         {/* Designations */}
         <Grid item xs={12} sm={6}>
-          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Designations</Typography>
+          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Job Roles</Typography>
           <Controller name='applicableFor.designations' control={control}
             render={({ field }) => (
               <Autocomplete
@@ -235,7 +235,7 @@ const ApplicabilitySection = ({ control, watch }) => {
                 }}
                 value={field.value || []}
                 onChange={(_, newValue) => field.onChange(newValue)}
-                renderInput={params => <TextField {...params} placeholder='Select designations' />}
+                renderInput={params => <TextField {...params} placeholder='Select job roles' />}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => (
                     <Chip
@@ -817,7 +817,7 @@ const PolicyDetailRow = ({ policy }) => {
           />
         )}
         {policy.applicableFor?.designations?.length > 0 && (
-          <Chip label={`${policy.applicableFor.designations.length} designation${policy.applicableFor.designations.length > 1 ? 's' : ''}`}
+          <Chip label={`${policy.applicableFor.designations.length} job role${policy.applicableFor.designations.length > 1 ? 's' : ''}`}
             size='small' variant='tonal' color='warning'
             icon={<Icon icon='tabler:briefcase' fontSize='0.75rem' />}
           />
@@ -1063,7 +1063,7 @@ const TabRegularisationPolicy = () => {
                           />
                         )}
                         {policy.applicableFor?.designations?.length > 0 && (
-                          <Chip label={`${policy.applicableFor.designations.length} designation${policy.applicableFor.designations.length > 1 ? 's' : ''}`}
+                          <Chip label={`${policy.applicableFor.designations.length} job role${policy.applicableFor.designations.length > 1 ? 's' : ''}`}
                             size='small' variant='tonal' color='warning'
                             icon={<Icon icon='tabler:briefcase' fontSize='0.75rem' />}
                           />

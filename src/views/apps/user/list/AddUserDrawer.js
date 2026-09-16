@@ -308,8 +308,8 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
           <Icon icon='tabler:info-circle' fontSize='1rem' style={{ color: 'interit', flexShrink: 0 }} />
           <Typography variant='caption' style={{ color: 'inherit' }}>
             {isAdminOrHR 
-              ? 'You can edit ALL fields: Name, Department, Joining Date, Employment Type, Phone, Salary, Designation, and Reporting Manager.'
-              : 'Only Phone, Salary, Designation, and Reporting Manager can be updated. Other fields are shown for reference.'
+              ? 'You can edit ALL fields: Name, Department, Joining Date, Employment Type, Phone, Salary, Job Role, and Reporting Manager.'
+              : 'Only Phone, Salary, Job Role, and Reporting Manager can be updated. Other fields are shown for reference.'
             }
           </Typography>
         </Box>
@@ -493,12 +493,12 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   {...field}
                   select
                   fullWidth
-                  label='Designation'
+                  label='Job Role'
                   error={Boolean(errors.designationId)}
                   helperText={errors.designationId?.message}
                   disabled={isSubmitting || dropLoading}
                 >
-                  <MenuItem value=''>Select designation</MenuItem>
+                  <MenuItem value=''>Select job role</MenuItem>
                   {designations.map(d => (
                     <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
                   ))}

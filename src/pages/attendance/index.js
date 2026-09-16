@@ -1,14 +1,16 @@
-// src/pages/attendance/index.js
-// Redirect to My Attendance by default
-import { useEffect } from 'react'
 import { useRouter } from 'next/router'
+import { useSelector } from 'react-redux'
+
+import { selectLevel } from 'src/store/auth/authSlice'
+import MyAttendance from 'src/pages/attendance/my'
+import TeamAttendance from 'src/pages/attendance/team'
 
 export default function AttendanceIndex() {
   const router = useRouter()
-  
-  useEffect(() => {
-    router.replace('/attendance/my')
-  }, [router])
-  
-  return null
+  const level = useSelector(selectLevel)
+  const canViewMyAttendance = level === 'unit'
+  const requestedTab = router.query?.tab
+  const showMyAttendance = canViewMyAttendance && requestedTab !== 'team'
+
+  return showMyAttendance ? <MyAttendance /> : <TeamAttendance />
 }

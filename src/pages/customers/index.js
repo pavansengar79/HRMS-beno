@@ -1,6 +1,6 @@
 // src/pages/customers/index.js
 // REAL API — GET /api/v1/super-admin/tenants
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   fetchAllCustomers, updateTenantStatus,
@@ -70,6 +70,8 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [detailDialog, setDetailDialog] = useState({ open: false, data: null })
+  const [approvingCustomerIds, setApprovingCustomerIds] = useState([])
+  const approvalLocks = useRef(new Set())
 
   useEffect(() => {
     dispatch(fetchAllCustomers({ page: page + 1, limit, search, status: statusFilter }))
@@ -86,8 +88,15 @@ export default function CustomersPage() {
   }
 
   const handleApproveCustomer = async (customer) => {
+    const customerId = customer.id || customer._id
+
+    if (!customerId || approvalLocks.current.has(customerId)) return
+
+    approvalLocks.current.add(customerId)
+    setApprovingCustomerIds(currentIds => [...currentIds, customerId])
+
     try {
-      const res = await axiosRequest.post(`/api/v1/super-admin/customers/${customer.id || customer._id}/approve`)
+      const res = await axiosRequest.post(`/api/v1/super-admin/customers/${customerId}/approve`)
       if (res?.success) {
         toast.success(res.data?.message || 'Customer approved! Credentials sent to work email.', { duration: 6000 })
         dispatch(fetchAllCustomers({ page: page + 1, limit, search }))
@@ -96,6 +105,9 @@ export default function CustomersPage() {
       }
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'Failed to approve customer')
+    } finally {
+      approvalLocks.current.delete(customerId)
+      setApprovingCustomerIds(currentIds => currentIds.filter(id => id !== customerId))
     }
   }
 
@@ -216,6 +228,7 @@ export default function CustomersPage() {
                         {c.status === 'Pending' || c.status === 'PENDING' ? (
                           <Button size='small' variant='contained' color='success'
                             sx={{ height: 28, fontSize: 11, minWidth: 74 }}
+                            disabled={approvingCustomerIds.includes(c.id || c._id)}
                             onClick={e => { e.stopPropagation(); handleApproveCustomer(c) }}>
                             Approve
                           </Button>

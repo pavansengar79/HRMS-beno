@@ -214,7 +214,7 @@ const EmployeeImport = () => {
       console.log('Dropdown data loaded:', { departments, designations })
 
       if (departments.length === 0) toast.error('No departments found — add one in Department Management first')
-      if (designations.length === 0) toast.error('No designations found — add one in Designation Management first')
+      if (designations.length === 0) toast.error('No job roles found — add one in Job Role Management first')
     } catch (err) {
       console.error('Failed to fetch dropdown data:', err)
       toast.error('Failed to load dropdown options')
@@ -495,7 +495,7 @@ Jane Smith,jane@example.com,+919876543211,HR,2026-02-01,45000,HR Manager,FULL_TI
                   <Typography variant='body2' color='error'>• unit must be selected per row from the Unit column</Typography>
                 )}
               </Box>
-            <li><Typography><strong>Step 3:</strong> Optional fields: designation, employmentType, gender, dateOfBirth</Typography></li>
+            <li><Typography><strong>Step 3:</strong> Optional fields: job role, employmentType, gender, dateOfBirth</Typography></li>
             <li><Typography><strong>Step 4:</strong> Upload CSV and edit in preview table — add/remove rows as needed</Typography></li>
             <li><Typography><strong>Step 5:</strong> Select rows with checkboxes, then import</Typography></li>
           </Box>
@@ -593,7 +593,7 @@ Jane Smith,jane@example.com,+919876543211,HR,2026-02-01,45000,HR Manager,FULL_TI
 
             {loadingDropdowns && (
               <Alert severity='info' sx={{ mb: 2 }}>
-                Loading department / designation options…
+                Loading department / job role options…
               </Alert>
             )}
 
@@ -615,7 +615,7 @@ Jane Smith,jane@example.com,+919876543211,HR,2026-02-01,45000,HR Manager,FULL_TI
                     {showUnitColumn && <TableCell>Unit*</TableCell>}
                     <TableCell>Joining Date*</TableCell>
                     <TableCell>Basic Salary</TableCell>
-                    <TableCell>Designation</TableCell>
+                    <TableCell>Job Role</TableCell>
                     <TableCell>Emp. Type</TableCell>
                     <TableCell>Gender</TableCell>
                     <TableCell>DOB</TableCell>
@@ -731,7 +731,7 @@ Jane Smith,jane@example.com,+919876543211,HR,2026-02-01,45000,HR Manager,FULL_TI
                             MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
                           >
                             <MenuItem value='' disabled>
-                              {loadingDropdowns ? 'Loading…' : 'Select Designation'}
+                              {loadingDropdowns ? 'Loading…' : 'Select Job Role'}
                             </MenuItem>
                             {dropdownData.designations.map(desig => (
                               <MenuItem key={desig} value={desig}>{desig}</MenuItem>

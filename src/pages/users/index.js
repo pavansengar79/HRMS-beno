@@ -464,7 +464,7 @@ const buildColumns = (canEdit, canDelete, canApprove, canChangeStatus, onEdit, o
   },
   
   {
-    flex: 0.15, minWidth: 140, field: 'designationId', headerName: 'Designation',
+    flex: 0.15, minWidth: 140, field: 'designationId', headerName: 'Job Role',
     renderCell: ({ row }) => (
       <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>
         {row.designationId?.name || row.designation?.name || '—'}
@@ -541,8 +541,8 @@ const EmployeeList = () => {
   const permissions = useSelector(selectPermissions)
   const userRole    = useSelector(selectRoleSlug) ?? ''
 
-  const canCreate       = permissions.includes('employee.create') && (userRole === 'unit_admin' || userRole === 'hr_manager')
-  const canEdit         = permissions.includes('employee.update') && (userRole === 'unit_admin' || userRole === 'hr_manager')
+  const canCreate       = permissions.includes('employee.create')
+  const canEdit         = permissions.includes('employee.update')
   const canDelete       = permissions.includes('employee.delete')
   const canApprove      = canEdit && userRole === 'unit_admin'
   const canChangeStatus = canEdit

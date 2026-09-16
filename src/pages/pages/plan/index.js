@@ -2,9 +2,11 @@
 // Super Admin Plans - Rich Card Layout (Pricing Page Style)
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
+import { useSelector } from 'react-redux'
 
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
 import Grid from '@mui/material/Grid'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
@@ -16,12 +18,14 @@ import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import Divider from '@mui/material/Divider'
+import Alert from '@mui/material/Alert'
 import { alpha } from '@mui/material/styles'
 
 import Icon from 'src/@core/components/icon'
 import AddPlanDrawer from './AddPlanDrawer'
 import EditPlanDrawer from './EditPlanDrawer'
 import axiosRequest from 'src/utils/AxiosInterceptor'
+import { selectRoleSlug } from 'src/store/auth/authSlice'
 
 const STATUS_COLORS = {
   Active: { bg: alpha('#10b981', 0.15), color: '#10b981' },
@@ -64,7 +68,10 @@ const FEATURE_LABELS = {
 const fmtPrice = price => price ? `₹${price.toLocaleString('en-IN')}` : 'Custom'
 
 export default function PlansManagement() {
+  const roleSlug = useSelector(selectRoleSlug)
+  const isSuperAdmin = roleSlug?.toLowerCase() === 'super_admin'
   const [plans, setPlans] = useState([])
+  const [currentPlan, setCurrentPlan] = useState(null)
   const [loading, setLoading] = useState(false)
   const [addDrawerOpen, setAddDrawerOpen] = useState(false)
   const [editDrawerOpen, setEditDrawerOpen] = useState(false)
@@ -72,22 +79,46 @@ export default function PlansManagement() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [planToDelete, setPlanToDelete] = useState(null)
 
-  const fetchPlans = async () => {
+  const fetchCurrentPlan = async () => {
     try {
       setLoading(true)
-      const res = await axiosRequest.get('/api/v1/plans')
-      setPlans(res?.data || [])
+      const res = await axiosRequest.get('/api/v1/plans/my-plan')
+      setCurrentPlan(res?.data)
     } catch (err) {
-      toast.error('Failed to fetch plans')
+      toast.error('Failed to fetch current plan')
       console.error(err)
     } finally {
       setLoading(false)
     }
   }
 
+  const fetchPlans = async () => {
+    try {
+      setLoading(true)
+      const res = await axiosRequest.get('/api/v1/plans')
+      setPlans(res?.data || [])
+    } catch (err) {
+      // If 403, user is not SUPER_ADMIN - show current plan instead
+      if (err?.response?.status === 403 || err?.statusCode === 403) {
+        await fetchCurrentPlan()
+      } else {
+        toast.error('Failed to fetch plans')
+        console.error(err)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    fetchPlans()
-  }, [])
+    if (!roleSlug) return
+
+    if (isSuperAdmin) {
+      fetchPlans()
+    } else {
+      fetchCurrentPlan()
+    }
+  }, [isSuperAdmin, roleSlug])
 
   const handleEdit = plan => {
     setSelectedPlan(plan)
@@ -126,34 +157,187 @@ export default function PlansManagement() {
   const activePlans = plans.filter(p => p.status === 'Active' && p.is_public && !p.is_deleted)
   const otherPlans = plans.filter(p => p.status !== 'Active' || !p.is_public)
 
+  // Function to render current subscription plan
+  const renderCurrentPlan = () => {
+    if (!currentPlan) {
+      return (
+        <Alert severity='info' sx={{ mb: 4 }}>
+          No active subscription found. Please contact your administrator.
+        </Alert>
+      )
+    }
+
+    const { subscription, plan } = currentPlan
+
+    return (
+      <Card sx={{ mb: 6, borderRadius: 4, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', border: '2px solid', borderColor: 'error.main' }}>
+        <Box sx={{ background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 100%)', color: 'white', p: 5, borderRadius: '16px 16px 0 0' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Chip label='CURRENT PLAN' color='default' sx={{ bgcolor: 'rgba(255,255,255,0.9)', color: '#ec4899', fontWeight: 700, mb: 2 }} />
+              <Typography variant='h3' sx={{ fontWeight: 700, mb: 1 }}>
+                {plan.name}
+              </Typography>
+              <Typography variant='body1' sx={{ opacity: 0.9, textTransform: 'capitalize' }}>
+                {plan.package_type} · {plan.structure_level}
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography variant='h4' sx={{ fontWeight: 700 }}>
+                {plan.price_monthly ? fmtPrice(plan.price_monthly) : 'Custom'}
+              </Typography>
+              {plan.price_monthly && (
+                <Typography variant='body2' sx={{ opacity: 0.9 }}>
+                  per month
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        </Box>
+
+        <CardContent sx={{ p: 5 }}>
+          {/* Subscription Details */}
+          <Grid container spacing={4} sx={{ mb: 4 }}>
+            <Grid item xs={12} md={4}>
+              <Typography variant='caption' color='text.secondary' sx={{ textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 1 }}>
+                Status
+              </Typography>
+              <Chip 
+                label={subscription.status} 
+                color={subscription.status === 'Active' ? 'success' : subscription.status === 'Trial' ? 'warning' : 'error'}
+                sx={{ fontWeight: 600 }}
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant='caption' color='text.secondary' sx={{ textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 1 }}>
+                Billing Cycle
+              </Typography>
+              <Typography variant='body1' sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                {subscription.billing_cycle}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant='caption' color='text.secondary' sx={{ textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 1 }}>
+                Seats Used
+              </Typography>
+              <Typography variant='body1' sx={{ fontWeight: 600 }}>
+                {subscription.seats_purchased || 0} / {plan.seat_limit || '∞'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant='caption' color='text.secondary' sx={{ textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 1 }}>
+                Start Date
+              </Typography>
+              <Typography variant='body1' sx={{ fontWeight: 600 }}>
+                {subscription.starts_at ? new Date(subscription.starts_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant='caption' color='text.secondary' sx={{ textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 1 }}>
+                End Date
+              </Typography>
+              <Typography variant='body1' sx={{ fontWeight: 600 }}>
+                {subscription.ends_at ? new Date(subscription.ends_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+              </Typography>
+            </Grid>
+          </Grid>
+
+          <Divider sx={{ my: 4 }} />
+
+          {/* Modules */}
+          <Box sx={{ mb: 4 }}>
+            <Typography variant='subtitle2' sx={{ fontWeight: 700, mb: 2, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Active Modules ({plan.modules?.length || 0})
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {plan.modules?.map(mod => (
+                <Chip 
+                  key={mod._id} 
+                  label={mod.name} 
+                  size='small'
+                  icon={<Icon icon='tabler:check' />}
+                  color='primary'
+                  variant='outlined'
+                  sx={{ fontWeight: 600 }}
+                />
+              ))}
+              {(!plan.modules || plan.modules.length === 0) && (
+                <Typography variant='body2' color='text.secondary'>
+                  No modules assigned
+                </Typography>
+              )}
+            </Box>
+          </Box>
+
+          {/* Features */}
+          <Box sx={{ mb: 4 }}>
+            <Typography variant='subtitle2' sx={{ fontWeight: 700, mb: 2, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Features ({plan.features?.length || 0})
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {plan.features?.map(feature => (
+                <Chip 
+                  key={feature} 
+                  label={FEATURE_LABELS[feature] || feature} 
+                  size='small'
+                  icon={<Icon icon='tabler:star' />}
+                  color='secondary'
+                  variant='outlined'
+                  sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+                />
+              ))}
+              {(!plan.features || plan.features.length === 0) && (
+                <Typography variant='body2' color='text.secondary'>
+                  No special features
+                </Typography>
+              )}
+            </Box>
+          </Box>
+
+          <Alert severity='info' icon={<Icon icon='tabler:info-circle' />}>
+            Need more modules or features? Contact your administrator to upgrade your plan.
+          </Alert>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Box sx={{ p: 5 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 6 }}>
         <Box>
           <Typography variant='h4' sx={{ fontWeight: 700, mb: 1 }}>
-            Subscription Plans
+            {isSuperAdmin ? 'Subscription Plans' : 'My Subscription Plan'}
           </Typography>
           <Typography variant='body2' color='text.secondary'>
-            Manage platform plans, modules, and feature gates
+            {isSuperAdmin ? 'Manage platform plans, modules, and feature gates' : 'View your current plan details, modules, and features'}
           </Typography>
         </Box>
-        <Button
-          variant='contained'
-          size='large'
-          startIcon={<Icon icon='tabler:plus' />}
-          onClick={() => setAddDrawerOpen(true)}
-          sx={{ px: 4, py: 1.5 }}
-        >
-          Create Plan
-        </Button>
+        {isSuperAdmin && (
+          <Button
+            variant='contained'
+            size='large'
+            startIcon={<Icon icon='tabler:plus' />}
+            onClick={() => setAddDrawerOpen(true)}
+            sx={{ px: 4, py: 1.5 }}
+          >
+            Create Plan
+          </Button>
+        )}
       </Box>
 
       {loading && <LinearProgress sx={{ mb: 4, borderRadius: 1 }} />}
 
-      {/* Active Plans - Pricing Card Style */}
-      <Grid container spacing={6} sx={{ mb: 8 }}>
-        {activePlans.map(plan => (
+      {/* Current Subscription Plan - For non-super-admin users */}
+  {roleSlug && !isSuperAdmin && renderCurrentPlan()}
+
+      {/* SUPER_ADMIN Plans Management Section */}
+  {isSuperAdmin && (
+        <>
+          {/* Active Plans - Pricing Card Style */}
+          <Grid container spacing={6} sx={{ mb: 8 }}>
+            {activePlans.map(plan => (
           <Grid item xs={12} md={6} lg={4} key={plan._id}>
             <Card
               sx={{
@@ -409,36 +593,42 @@ export default function PlansManagement() {
           </Grid>
         </Box>
       )}
+        </>
+      )}
 
       {/* Drawers */}
-      <AddPlanDrawer open={addDrawerOpen} toggle={() => setAddDrawerOpen(!addDrawerOpen)} onSuccess={fetchPlans} />
-      <EditPlanDrawer
-        open={editDrawerOpen}
-        toggle={() => setEditDrawerOpen(!editDrawerOpen)}
-        plan={selectedPlan}
-        onSuccess={fetchPlans}
-      />
+  {isSuperAdmin && (
+        <>
+          <AddPlanDrawer open={addDrawerOpen} toggle={() => setAddDrawerOpen(!addDrawerOpen)} onSuccess={fetchPlans} />
+          <EditPlanDrawer
+            open={editDrawerOpen}
+            toggle={() => setEditDrawerOpen(!editDrawerOpen)}
+            plan={selectedPlan}
+            onSuccess={fetchPlans}
+          />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth='sm'>
-        <DialogTitle sx={{ pb: 2 }}>Delete Plan</DialogTitle>
-        <DialogContent>
-          <Typography variant='body1' sx={{ mb: 2 }}>
-            Are you sure you want to delete <strong>"{planToDelete?.name}"</strong>?
-          </Typography>
-          <Typography variant='body2' color='error.main'>
-            ⚠️ This action cannot be undone. Plans with active subscriptions cannot be deleted.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setDeleteDialogOpen(false)} color='inherit'>
-            Cancel
-          </Button>
-          <Button variant='contained' color='error' onClick={handleConfirmDelete}>
-            Delete Plan
-          </Button>
-        </DialogActions>
-      </Dialog>
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth='sm'>
+            <DialogTitle sx={{ pb: 2 }}>Delete Plan</DialogTitle>
+            <DialogContent>
+              <Typography variant='body1' sx={{ mb: 2 }}>
+                Are you sure you want to delete <strong>"{planToDelete?.name}"</strong>?
+              </Typography>
+              <Typography variant='body2' color='error.main'>
+                ⚠️ This action cannot be undone. Plans with active subscriptions cannot be deleted.
+              </Typography>
+            </DialogContent>
+            <DialogActions sx={{ p: 3 }}>
+              <Button onClick={() => setDeleteDialogOpen(false)} color='inherit'>
+                Cancel
+              </Button>
+              <Button variant='contained' color='error' onClick={handleConfirmDelete}>
+                Delete Plan
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </>
+      )}
     </Box>
   )
 }

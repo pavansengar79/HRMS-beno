@@ -265,6 +265,9 @@ const DepartmentPage = () => {
   const [editingDept, setEditingDept] = useState(null)
   const [departments, setDepartments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deptToDelete, setDeptToDelete] = useState(null)
 
   // Fetch departments
   const fetchDepartments = useCallback(async () => {
@@ -297,6 +300,29 @@ const DepartmentPage = () => {
 
   useEffect(() => { fetchDepartments() }, [fetchDepartments, refreshKey])
 
+  // Delete department handler
+  const handleDeleteClick = (dept) => {
+    setDeptToDelete(dept)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deptToDelete) return
+    setDeleting(true)
+    try {
+      await axiosRequest.delete(`/api/v1/departments/tree/${deptToDelete.id || deptToDelete._id}`)
+      toast.success('Department deleted successfully')
+      setDeleteDialogOpen(false)
+      setDeptToDelete(null)
+      setRefreshKey(k => k + 1)
+    } catch (err) {
+      console.error('Failed to delete department:', err)
+      toast.error(err.response?.data?.message || 'Failed to delete department')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <>
       <UnitContextBanner />
@@ -327,6 +353,7 @@ const DepartmentPage = () => {
               toast.error('Failed to load department details')
             })
         }}
+        onDelete={handleDeleteClick}
       />
 
       {/* Drawer — opens for both Add and Edit */}
@@ -341,6 +368,18 @@ const DepartmentPage = () => {
           setEditingDept(null)
         }}
         editingDept={editingDept}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        deptName={deptToDelete?.name || ''}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setDeleteDialogOpen(false)
+          setDeptToDelete(null)
+        }}
+        deleting={deleting}
       />
     </>
   )

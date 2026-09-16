@@ -106,7 +106,8 @@ export default function RunPayroll() {
 
   const handlePublishAll = async () => {
     try {
-      await dispatch(publishAllPayslips()).unwrap()
+      const [year, periodMonth] = month.split('-').map(Number)
+      await dispatch(publishAllPayslips({ month: periodMonth, year })).unwrap()
       toast.success('All payslips published')
       dispatch(fetchAllPayslips({ month }))
     } catch (e) { toast.error(String(e)) }

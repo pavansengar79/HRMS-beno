@@ -80,7 +80,7 @@ const UserFilters = ({
       // Look up designation name from options
       const desigObj = desigOptions.find(d => d._id === selectedDesignation)
       const desigName = desigObj?.name || selectedDesignation
-      chips.push({ key: 'designation', label: `Designation: ${desigName}`, value: selectedDesignation })
+      chips.push({ key: 'designation', label: `Job Role: ${desigName}`, value: selectedDesignation })
     }
     if (typeFilter) {
       const typeLabel = EMPLOYMENT_TYPE_OPTIONS.find(t => t.value === typeFilter)?.label || typeFilter
@@ -266,7 +266,7 @@ const UserFilters = ({
             value={selectedDesignation}
             onChange={(desigId) => setSelectedDesignation(desigId)}
             size='small'
-            label='Designation'
+            label='Job Role'
           />
         </Box>
 

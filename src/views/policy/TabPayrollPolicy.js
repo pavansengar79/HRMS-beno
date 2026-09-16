@@ -402,7 +402,7 @@ const ApplicabilitySection = ({ control }) => {
 
         {/* Designations - Multi-select dropdown */}
         <Grid item xs={12} sm={6}>
-          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Designations</Typography>
+          <Typography variant='body2' fontWeight={500} sx={{ mb: 1 }}>Job Roles</Typography>
           <Controller name='applicableFor.designations' control={control}
             render={({ field }) => (
               <CustomTextField
@@ -410,15 +410,15 @@ const ApplicabilitySection = ({ control }) => {
                 select
                 fullWidth
                 SelectProps={{ multiple: true }}
-                placeholder='Select designations'
-                helperText='Select applicable designations'
+                placeholder='Select job roles'
+                helperText='Select applicable job roles'
                 disabled={loading}
                 value={field.value || []}
                 onChange={e => field.onChange(e.target.value)}
               >
                 {designations.length === 0 ? (
                   <MenuItem disabled>
-                    <Typography color='text.secondary'>No designations available</Typography>
+                    <Typography color='text.secondary'>No job roles available</Typography>
                   </MenuItem>
                 ) : (
                   designations.map(desig => (

@@ -60,12 +60,12 @@ const TabList = styled(MuiTabList)(({ theme }) => ({
 // ─── Tab config with permission requirements ─────────────────────────────────
 
 const TABS = [
-    { value: 'company', label: 'Company Config', icon: 'tabler:building', permission: 'attendancePolicy.read' },
+    { value: 'company', label: 'Unit Config', icon: 'tabler:building', permission: 'attendancePolicy.read' },
     { value: 'leave', label: 'Leave Policy', icon: 'tabler:calendar-off', permission: 'leavePolicy.read' },
     { value: 'attendance', label: 'Attendance', icon: 'tabler:clock', permission: 'attendancePolicy.read' },
     { value: 'holiday', label: 'Holiday Calendar', icon: 'tabler:calendar-event', permission: 'holiday.read' },
     { value: 'payroll', label: 'Payroll', icon: 'tabler:cash', permission: 'payrollPolicy.read' },
-    { value: 'regularisation', label: 'Regularisation', icon: 'tabler:refresh', permission: 'attendancePolicy.read' }, // HR only
+    { value: 'regularisation', label: 'Regularisation', icon: 'tabler:refresh', permission: 'regularisationPolicy.read' },
 ]
 
 // ─── PolicyManagement ─────────────────────────────────────────────────────────

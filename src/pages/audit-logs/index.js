@@ -1,6 +1,6 @@
 // src/pages/audit-logs/index.js
 // Enterprise Audit Logs Page - Production Level UI
-// STRICT ROLE CHECK: org_admin, company_admin, unit_admin, SUPER_ADMIN
+// STRICT ROLE CHECK: super_admin, org_admin, company_admin, unit_admin
 
 import { useState, useEffect, useCallback } from 'react'
 import { useSelector } from 'react-redux'
@@ -39,7 +39,7 @@ import { selectUser, selectRoleSlug } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 
 // ─── ADMIN ROLES ────────────────────────────────────────────────────────────
-const ADMIN_ROLES = ['SUPER_ADMIN', 'org_admin', 'company_admin', 'unit_admin']
+const ADMIN_ROLES = ['super_admin', 'org_admin', 'company_admin', 'unit_admin']
 
 // ─── Action Colors & Labels ──────────────────────────────────────────────────
 const ACTION_CONFIG = {
@@ -141,6 +141,7 @@ const AuditLogsPage = () => {
   const theme = useTheme()
   const user = useSelector(selectUser)
   const roleSlug = useSelector(selectRoleSlug)
+  const canViewAuditLogs = ADMIN_ROLES.includes(roleSlug?.toLowerCase())
 
   // State
   const [logs, setLogs] = useState([])
@@ -163,17 +164,30 @@ const AuditLogsPage = () => {
   const [companies, setCompanies] = useState([])
   const [units, setUnits] = useState([])
 
+  const filteredCompanies = orgFilter
+    ? companies.filter(company => String(company.org_id?._id || company.org_id) === orgFilter)
+    : companies
+  const filteredUnits = companyFilter
+    ? units.filter(unit => String(unit.company_id?._id || unit.company_id) === companyFilter)
+    : orgFilter
+      ? units.filter(unit => {
+          const company = companies.find(item => String(item._id) === String(unit.company_id?._id || unit.company_id))
+
+          return String(company?.org_id?._id || company?.org_id) === orgFilter
+        })
+      : units
+
   // Detail View Modal
   const [selectedLog, setSelectedLog] = useState(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
 
   // ── Access Control ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (!ADMIN_ROLES.includes(roleSlug)) {
+    if (roleSlug && !canViewAuditLogs) {
       toast.error('Access denied. Only administrators can view audit logs.')
       router.push('/dashboards/analytics')
     }
-  }, [roleSlug, router])
+  }, [canViewAuditLogs, roleSlug, router])
 
   // ── Fetch Logs ───────────────────────────────────────────────────────────
   const fetchLogs = useCallback(async () => {
@@ -231,8 +245,8 @@ const AuditLogsPage = () => {
   }, [paginationModel, moduleFilter, actionFilter, fromDate, toDate, orgFilter, companyFilter, unitFilter, searchQuery])
 
   useEffect(() => {
-    fetchLogs()
-  }, [fetchLogs])
+    if (canViewAuditLogs) fetchLogs()
+  }, [canViewAuditLogs, fetchLogs])
 
   // ── Handle Filter Change ─────────────────────────────────────────────────
   const handleFilterChange = () => {
@@ -261,6 +275,9 @@ const AuditLogsPage = () => {
       if (actionFilter) params.append('action', actionFilter)
       if (fromDate) params.append('from', fromDate)
       if (toDate) params.append('to', toDate)
+      if (orgFilter) params.append('org_id', orgFilter)
+      if (companyFilter) params.append('company_id', companyFilter)
+      if (unitFilter) params.append('unit_id', unitFilter)
       
       const res = await axiosRequest.get(`/api/v1/audit-logs/export?${params.toString()}`)
       if (res?.success) {
@@ -691,12 +708,12 @@ const AuditLogsPage = () => {
                       setCompanyFilter(e.target.value)
                       setUnitFilter('')
                     }}
-                    disabled={companies.length === 0}
+                    disabled={filteredCompanies.length === 0}
                   >
                     <MenuItem value=''>
                       <em>All Companies</em>
                     </MenuItem>
-                    {companies.map((company) => (
+                    {filteredCompanies.map((company) => (
                       <MenuItem key={company._id} value={company._id}>
                         {company.company_name || company.brand_name || company.name}
                       </MenuItem>
@@ -711,12 +728,12 @@ const AuditLogsPage = () => {
                     label='Unit'
                     value={unitFilter}
                     onChange={(e) => setUnitFilter(e.target.value)}
-                    disabled={units.length === 0}
+                    disabled={filteredUnits.length === 0}
                   >
                     <MenuItem value=''>
                       <em>All Units</em>
                     </MenuItem>
-                    {units.map((unit) => (
+                    {filteredUnits.map((unit) => (
                       <MenuItem key={unit._id} value={unit._id}>
                         {unit.name}
                       </MenuItem>

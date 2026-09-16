@@ -222,7 +222,7 @@ export const PERMISSION_PAGE_MAP = {
     actions: ['view_designation', 'export_designation'],
     ui: {
       sidebar: {
-        title: 'Designations',
+        title: 'Job Roles',
         icon: 'tabler:briefcase',
         badge: null,
         order: 3
@@ -233,7 +233,7 @@ export const PERMISSION_PAGE_MAP = {
         delete: false
       }
     },
-    description: 'View designations',
+    description: 'View job roles',
     category: 'HR Operations'
   },
 
@@ -248,7 +248,7 @@ export const PERMISSION_PAGE_MAP = {
       }
     },
     dependencies: ['designation.read'],
-    description: 'Create designations',
+    description: 'Create job roles',
     category: 'HR Operations'
   },
 
@@ -263,7 +263,7 @@ export const PERMISSION_PAGE_MAP = {
       }
     },
     dependencies: ['designation.read'],
-    description: 'Edit designations',
+    description: 'Edit job roles',
     category: 'HR Operations'
   },
 
@@ -277,7 +277,7 @@ export const PERMISSION_PAGE_MAP = {
       }
     },
     dependencies: ['designation.read'],
-    description: 'Delete designations',
+    description: 'Delete job roles',
     category: 'HR Operations'
   },
 

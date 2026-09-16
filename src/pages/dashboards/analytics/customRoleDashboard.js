@@ -52,8 +52,8 @@ const MODULE_CONFIG = {
   designation: {
     icon: 'tabler:briefcase',
     color: '#ec4899',
-    label: 'Designations',
-    description: 'Manage designations',
+    label: 'Job Roles',
+    description: 'Manage job roles',
     path: '/designation',
     actions: ['designation.read', 'designation.create']
   },

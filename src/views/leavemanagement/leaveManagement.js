@@ -21,7 +21,17 @@ import TabLeaveTypes from './leaveTypes'
 import TabLeaveBalance from './leaveBalance'
 import TabLeaveInitialize from './leaveInitialize'
 import { useSelector } from 'react-redux'
-import { selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectLevel, selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
+
+const getLeaveTabPath = (query, tab) => {
+  const { orgId, companyId, unitId } = query
+
+  if (orgId && companyId && unitId) {
+    return `/org/${orgId}/company/${companyId}/unit/${unitId}/leaves?tab=${tab}`
+  }
+
+  return `/leaves/${tab}`
+}
 
 const TabList = styled(MuiTabList)(({ theme }) => ({
   border: '0 !important',
@@ -61,6 +71,9 @@ const LeaveManagement = ({ tab }) => {
   const router = useRouter()
   const hideText = useMediaQuery(theme => theme.breakpoints.down('md'))
   const roleSlug = useSelector(selectRoleSlug) || ''
+  const level = useSelector(selectLevel)
+  const permissions = useSelector(selectPermissions) || []
+  const canViewBalance = level === 'unit' && permissions.includes('leave.read')
 
   useEffect(() => {
     if (tab && tab !== activeTab) setActiveTab(tab)
@@ -68,19 +81,30 @@ const LeaveManagement = ({ tab }) => {
 
   const handleChange = (event, value) => {
     setIsLoading(true)
-    router.push(`/leaves/${value}`).then(() => setIsLoading(false))
+    router.push(getLeaveTabPath(router.query, value)).then(() => setIsLoading(false))
   }
 
   // Only show initialize tab to users with role 'hr'
   const visibleTabs = TABS.filter(t => {
     if (t.value === 'initialize') return roleSlug === 'hr_manager'
+    if (t.value === 'balance') return canViewBalance
     return true
   })
 
   // If the current active tab is not allowed for this role, redirect to 'requests'
   useEffect(() => {
-    if (activeTab === 'initialize' && roleSlug !== 'hr_manager') setActiveTab('requests')
-  }, [roleSlug, activeTab])
+    if (!level) return
+
+    const cannotViewInitialize = activeTab === 'initialize' && roleSlug !== 'hr_manager'
+    const cannotViewBalance = activeTab === 'balance' && !canViewBalance
+
+    if (cannotViewInitialize || cannotViewBalance) {
+      setActiveTab('requests')
+      router.replace(getLeaveTabPath(router.query, 'requests'))
+    }
+  }, [activeTab, canViewBalance, level, roleSlug, router])
+
+  const displayedTab = activeTab === 'balance' && !canViewBalance ? 'requests' : activeTab
 
   const tabContentList = {
     requests: <TabLeaveRequests />,
@@ -93,7 +117,7 @@ const LeaveManagement = ({ tab }) => {
   return (
     <Grid container spacing={6}>
       <Grid item xs={12}>
-        <TabContext value={activeTab}>
+        <TabContext value={displayedTab}>
           <Grid container spacing={6}>
             <Grid item xs={12}>
               <TabList
@@ -123,8 +147,8 @@ const LeaveManagement = ({ tab }) => {
                   <Typography>Loading...</Typography>
                 </Box>
               ) : (
-                <TabPanel sx={{ p: 0 }} value={activeTab}>
-                  {tabContentList[activeTab]}
+                <TabPanel sx={{ p: 0 }} value={displayedTab}>
+                  {tabContentList[displayedTab]}
                 </TabPanel>
               )}
             </Grid>

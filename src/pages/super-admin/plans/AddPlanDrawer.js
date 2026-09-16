@@ -34,7 +34,7 @@ const Header = styled(Box)(({ theme }) => ({
 }))
 
 const AVAILABLE_MODULES = [
-  { _id: '6a44ef75d97f5fdfeaf1d57e', slug: 'employee', name: 'Employee Management', description: 'Employee profiles, lifecycle, designations, documents' },
+  { _id: '6a44ef75d97f5fdfeaf1d57e', slug: 'employee', name: 'Employee Management', description: 'Employee profiles, lifecycle, job roles, documents' },
   { _id: '6a44f1b6d97f5fdfeaf1d668', slug: 'attendance', name: 'Attendance Management', description: 'Check-in/out, biometric, WFH, overtime, reports' },
   { _id: '6a44f1b6d97f5fdfeaf1d66a', slug: 'leave', name: 'Leave Management', description: 'Leave types, policy, approval workflow, balance tracking' },
   { _id: '6a44f1b7d97f5fdfeaf1d66b', slug: 'payroll', name: 'Payroll Management', description: 'Salary structure, pay runs, payslips, TDS/PF/ESI' },

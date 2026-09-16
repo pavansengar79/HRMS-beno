@@ -10,7 +10,8 @@ import { useRouter } from 'next/router'
 import { useSelector } from 'react-redux'
 
 import Icon from 'src/@core/components/icon'
-import { selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectLevel, selectRoleSlug } from 'src/store/auth/authSlice'
+import useUnitContext from 'src/hooks/useUnitContext'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styled — same look & feel as PayrollTabs
@@ -51,11 +52,28 @@ const TAB_ROUTES = {
 const AttendanceTabs = ({ activeTab, children }) => {
   const router = useRouter()
   const roleSlug = useSelector(selectRoleSlug)
+  const level = useSelector(selectLevel)
+  const { orgId, companyId, unitId } = useUnitContext()
 
-  // Show team tab for manager, hr_manager, company_admin, unit_admin
-  const canViewTeam = ['manager', 'hr_manager', 'company_admin', 'unit_admin'].includes(roleSlug)
+  const canViewMyAttendance = level === 'unit'
+  const canViewTeam = [
+    'manager',
+    'hr_manager',
+    'unit_admin',
+    'company_admin',
+    'company_hr_manager',
+    'org_admin',
+    'org_head'
+  ].includes(roleSlug)
 
   const handleChange = (_, value) => {
+    if (orgId && companyId && unitId) {
+      const tab = value === 'team-attendance' ? 'team' : 'my'
+      router.push(`/org/${orgId}/company/${companyId}/unit/${unitId}/attendance?tab=${tab}`)
+
+      return
+    }
+
     const target = TAB_ROUTES[value]
     if (target) router.push(target)
   }
@@ -78,11 +96,13 @@ const AttendanceTabs = ({ activeTab, children }) => {
             aria-label='attendance tabs'
             sx={{ borderBottom: theme => `1px solid ${theme.palette.divider}` }}
           >
-            <Tab
-              value='my-attendance'
-              label='My Attendance'
-              icon={<Icon fontSize='1.125rem' icon='tabler:user-check' />}
-            />
+            {canViewMyAttendance && (
+              <Tab
+                value='my-attendance'
+                label='My Attendance'
+                icon={<Icon fontSize='1.125rem' icon='tabler:user-check' />}
+              />
+            )}
             {canViewTeam && (
               <Tab
                 value='team-attendance'

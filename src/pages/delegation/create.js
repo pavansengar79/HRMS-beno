@@ -28,8 +28,7 @@ import { alpha } from '@mui/material/styles'
 import Icon from 'src/@core/components/icon'
 import toast from 'react-hot-toast'
 
-import { createDelegation } from 'src/store/delegation/delegationSlice'
-import { fetchAllEmployees } from 'src/store/employee/employeeSlice'
+import { createDelegation, fetchEligibleDelegatees } from 'src/store/delegation/delegationSlice'
 import { selectPermissions } from 'src/store/auth/authSlice'
 
 // ─── Date Helpers ───────────────────────────────────────────────────────────────
@@ -67,8 +66,7 @@ const ALL_PERMISSIONS = [
 // ─── Main Component ────────────────────────────────────────────────────────────
 const CreateDelegationDialog = ({ open, onClose, onSuccess }) => {
   const dispatch = useDispatch()
-  const { creating, error } = useSelector(state => state.delegation)
-  const { list: employees } = useSelector(state => state.employee)
+  const { creating, eligibleDelegatees, eligibleDelegateesLoading } = useSelector(state => state.delegation)
   const { user } = useSelector(state => state.auth)
   const userPermissions = useSelector(selectPermissions)
 
@@ -81,10 +79,10 @@ const CreateDelegationDialog = ({ open, onClose, onSuccess }) => {
   const [reason, setReason] = useState('')
   const [formErrors, setFormErrors] = useState({})
 
-  // Fetch employees
+  // Fetch only peers and higher-level users outside the reporting chain.
   useEffect(() => {
-    dispatch(fetchAllEmployees({ page: 1, limit: 100 }))
-  }, [dispatch])
+    if (open) dispatch(fetchEligibleDelegatees())
+  }, [dispatch, open])
 
   // Filter permissions to only those the current user has
   // Users can only delegate permissions they themselves possess
@@ -108,6 +106,7 @@ const CreateDelegationDialog = ({ open, onClose, onSuccess }) => {
     if (selectedPermissions.length === 0) errors.permissions = 'At least one permission is required'
     if (!startDate) errors.startDate = 'Start date is required'
     if (!endDate) errors.endDate = 'End date is required'
+    if (reason.trim().length < 5) errors.reason = 'Reason must be at least 5 characters'
     if (new Date(startDate) < today.setHours(0, 0, 0, 0)) {
       errors.startDate = 'Start date cannot be in the past'
     }
@@ -133,7 +132,7 @@ const CreateDelegationDialog = ({ open, onClose, onSuccess }) => {
         startDate,
         endDate,
         reason,
-        unit_id: user.unitId
+        unit_id: user.unitId || user.unit_id
       })).unwrap()
 
       toast.success('Delegation created successfully')
@@ -153,7 +152,7 @@ const CreateDelegationDialog = ({ open, onClose, onSuccess }) => {
   }
 
   // Filtered employees (exclude self)
-  const availableEmployees = (employees || []).filter(e => e._id !== user.userId && e.status === 'ACTIVE')
+  const availableEmployees = eligibleDelegatees || []
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -173,6 +172,7 @@ const CreateDelegationDialog = ({ open, onClose, onSuccess }) => {
             </Typography>
             <Autocomplete
               options={availableEmployees}
+              loading={eligibleDelegateesLoading}
               value={delegatee}
               onChange={(_, newValue) => {
                 setDelegatee(newValue)
@@ -303,10 +303,16 @@ const CreateDelegationDialog = ({ open, onClose, onSuccess }) => {
           <Grid item xs={12}>
             <TextField
               fullWidth
-              label="Reason (Optional)"
+              label="Reason"
               placeholder="e.g., Vacation, Medical Leave, etc."
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => {
+                setReason(e.target.value)
+                if (formErrors.reason) setFormErrors({ ...formErrors, reason: null })
+              }}
+              required
+              error={!!formErrors.reason}
+              helperText={formErrors.reason}
               multiline
               rows={2}
             />

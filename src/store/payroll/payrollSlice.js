@@ -34,8 +34,8 @@ export const publishPayslip = createAsyncThunk('payroll/publish', async (id, { r
   catch (err) { return rejectWithValue(err || 'Publish failed') }
 })
 
-export const publishAllPayslips = createAsyncThunk('payroll/publishAll', async (_, { rejectWithValue }) => {
-  try { return await axiosRequest.patch('/api/v1/payslips/publish-all', {}) }
+export const publishAllPayslips = createAsyncThunk('payroll/publishAll', async ({ month, year }, { rejectWithValue }) => {
+  try { return await axiosRequest.patch('/api/v1/payslips/publish-all', { month, year }) }
   catch (err) { return rejectWithValue(err || 'Publish all failed') }
 })
 

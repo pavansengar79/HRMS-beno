@@ -78,7 +78,7 @@ const PayrollLockPage = () => {
       const monthParam = `${year}-${month.padStart(2, '0')}`
       const body = await axiosRequest.get(`/api/v1/payroll-lock/${monthParam}`)
       const d = body?.data ?? body
-      setLockStatus(d?.status ?? d ?? null)
+      setLockStatus(d ?? null)
       setLockHistory(d?.history ?? [])
     } catch (err) {
       console.error('Failed to fetch lock status:', err)
@@ -142,10 +142,10 @@ const PayrollLockPage = () => {
     }
   }
 
-  const isLocked = lockStatus?.locked === true
+  const isLocked = lockStatus?.isLocked === true
   const lockedBy = lockStatus?.lockedBy
   const lockedAt = lockStatus?.lockedAt
-  const lockReason = lockStatus?.reason
+  const lockReason = lockStatus?.lockReason
 
   return (
     <PayrollTabs activeTab='lock'>
@@ -155,7 +155,7 @@ const PayrollLockPage = () => {
           Payroll Lock / Unlock
         </Typography>
         <Typography variant='body2' color='text.secondary'>
-          Lock payroll periods to prevent modifications after final processing
+          Lock attendance inputs before running and publishing payroll
         </Typography>
       </Box>
 
@@ -238,8 +238,8 @@ const PayrollLockPage = () => {
                     icon={<Icon icon={isLocked ? 'tabler:lock' : 'tabler:lock-open'} />}
                   >
                     {isLocked
-                      ? `This payroll period is LOCKED. No modifications allowed.`
-                      : `This payroll period is UNLOCKED. Modifications are allowed.`}
+                      ? `This payroll period is locked and ready for payroll processing.`
+                      : `Lock this period before running payroll.`}
                   </Alert>
 
                   {/* Status Details */}
@@ -320,13 +320,13 @@ const PayrollLockPage = () => {
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                   <Icon icon='tabler:circle-check' color='#10b981' fontSize={16} />
                   <Typography variant='body2'>
-                    <strong>Lock Period:</strong> Prevents any changes to payslips, attendance, or leave records for the selected month
+                    <strong>Lock Period:</strong> Freezes attendance inputs for the selected payroll month
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                   <Icon icon='tabler:circle-check' color='#10b981' fontSize={16} />
                   <Typography variant='body2'>
-                    <strong>Final Processing:</strong> Lock after marking all payslips as PAID to prevent accidental modifications
+                    <strong>Payroll Processing:</strong> Run and publish payslips only after the period is locked
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>

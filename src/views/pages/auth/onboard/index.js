@@ -26,7 +26,7 @@ const C = {
 // ── Module catalogue ─────────────────────────────────────────────────────────
 const MODULES = [
   { id:"core",       name:"Core Platform",       icon:"⬡", desc:"Auth, RBAC, audit logs, org structure", required:true,  plans:["starter","growth","pro","enterprise"] },
-  { id:"employee",   name:"Employee Management",  icon:"👤", desc:"Profiles, lifecycle, designations",    required:true,  plans:["starter","growth","pro","enterprise"] },
+  { id:"employee",   name:"Employee Management",  icon:"👤", desc:"Profiles, lifecycle, job roles",       required:true,  plans:["starter","growth","pro","enterprise"] },
   { id:"attendance", name:"Attendance",           icon:"🕐", desc:"Check-in/out, biometric, WFH, reports", required:false, plans:["growth","pro","enterprise"] },
   { id:"leave",      name:"Leave Management",     icon:"🌴", desc:"Policy, approval workflow, balance",    required:false, plans:["growth","pro","enterprise"] },
   { id:"payroll",    name:"Payroll",              icon:"💳", desc:"Salary structure, pay runs, payslips",  required:false, plans:["growth","pro","enterprise"] }

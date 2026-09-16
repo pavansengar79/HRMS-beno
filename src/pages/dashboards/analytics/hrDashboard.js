@@ -104,7 +104,7 @@ export default function HRDashboard({ companyId, unitId }) {
       sub: `across ${depts.total ?? 0} departments`, 
       icon: 'tabler:users', 
       color: '#6366f1',
-      onClick: () => navigateTo('/users')
+      onClick: () => navigateTo('/employees')
     },
     { 
       label: 'Present Today', 
@@ -132,7 +132,7 @@ export default function HRDashboard({ companyId, unitId }) {
       color: '#f59e0b',
       trend: pendLeaves.length > 5 ? 'Action needed' : null,
       trendUp: false,
-      onClick: () => navigateTo('/leaves', { tab: 'approval' })
+      onClick: () => navigateTo('/leaves/requests', { status: 'PENDING' })
     },
     { 
       label: 'Departments', 
@@ -140,10 +140,10 @@ export default function HRDashboard({ companyId, unitId }) {
       sub: 'active units', 
       icon: 'tabler:sitemap', 
       color: '#0ea5e9',
-      onClick: () => navigateTo('/departments')
+      onClick: () => navigateTo('/department')
     },
     { 
-      label: 'Designations', 
+      label: 'Job Roles',
       value: desigs.total, 
       sub: 'job roles', 
       icon: 'tabler:badge', 
@@ -156,7 +156,7 @@ export default function HRDashboard({ companyId, unitId }) {
       sub: `${users.active || 0} active`, 
       icon: 'tabler:user-check', 
       color: '#14b8a6',
-      onClick: () => navigateTo('/users')
+      onClick: () => navigateTo('/admin-users')
     },
     { 
       label: 'Roles', 
@@ -242,10 +242,13 @@ export default function HRDashboard({ companyId, unitId }) {
         <Grid item xs={12} md={8}>
           <Stack spacing={4}>
             {/* Recent Users */}
-            <Card>
-              <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Recent Users</Typography>
-                <Typography variant='caption' color='text.secondary'>Latest team members in your unit</Typography>
+            <Card sx={{ cursor: 'pointer' }} onClick={() => navigateTo('/admin-users')}>
+              <Box sx={{ px: 4, py: 3, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                  <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Recent Users</Typography>
+                  <Typography variant='caption' color='text.secondary'>Latest team members in your unit</Typography>
+                </Box>
+                <Icon icon='tabler:chevron-right' fontSize={20} color='text.disabled' />
               </Box>
               {recentUsers.length === 0 ? (
                 <Box sx={{ p: 4, textAlign: 'center' }}><Typography variant='body2' color='text.secondary'>No users found</Typography></Box>

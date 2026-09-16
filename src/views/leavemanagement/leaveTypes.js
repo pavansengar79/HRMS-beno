@@ -21,11 +21,15 @@ import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
-import { fetchLeaveTypes, createLeaveType, updateLeaveType } from 'src/store/leaves/leaveSlice'
+import { fetchLeaveTypes, createLeaveType, updateLeaveType, deleteLeaveType } from 'src/store/leaves/leaveSlice'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -33,7 +37,6 @@ const GENDER_OPTIONS = [
   { value: 'ALL',    label: 'All'    },
   { value: 'MALE',   label: 'Male'   },
   { value: 'FEMALE', label: 'Female' },
-  { value: 'OTHER',  label: 'Other'  },
 ]
 
 const EMPLOYMENT_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']
@@ -47,12 +50,12 @@ const COLOR_PRESETS = [
 const defaultLeaveTypeValues = {
   name: '',
   code: '',
+  description: '',
   defaultDaysPerYear: 0,
-  accrualRatePerMonth: 0,
   isPaid: true,
   colorCode: '#10B981',
   isCarryForwardAllowed: false,
-  carryForwardLimit: 0,
+  maxCarryForwardDays: 0,
   isEncashmentAllowed: false,
   isHalfDayAllowed: true,
   isSandwichApplicable: false,
@@ -64,38 +67,6 @@ const defaultLeaveTypeValues = {
   isActive: true,
 }
 
-const predefinedLeaveTypes = [
-  {
-    name: "Annual Leave",
-    code: "AL",
-  },
-  {
-    name: "Sick Leave",
-    code: "SL",
-  },
-  {
-    name: "Casual Leave",
-    code: "CL",
-  },
-  {
-    name: "Maternity Leave",
-    code: "ML",
-  },
-  {
-    name: "Paternity Leave",
-    code: "PL",
-  },
-  {
-    name: "Loss of Pay",
-    code: "LOP",
-  },
-  {
-    name: "Compensatory Off",
-    code: "COMP",
-  },
-]
-
-
 // ─── Leave Type Drawer ────────────────────────────────────────────────────────
 
 const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
@@ -103,7 +74,7 @@ const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
   const [saving, setSaving] = useState(false)
   const isEdit = Boolean(editData?._id)
 
-  const { control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
+  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm({
     defaultValues: defaultLeaveTypeValues
   })
 
@@ -128,9 +99,9 @@ const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
 
   const buildPayload = (data) => ({
     name: data.name,
-    code: data.code,
-    accrualRatePerMonth: Number(data.accrualRatePerMonth),
-    carryForwardLimit: Number(data.carryForwardLimit),
+    code: data.code.trim().toUpperCase(),
+    description: data.description,
+    maxCarryForwardDays: Number(data.maxCarryForwardDays),
     isPaid: data.isPaid,
     colorCode: data.colorCode,
     defaultDaysPerYear: Number(data.defaultDaysPerYear),
@@ -139,7 +110,7 @@ const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
     isHalfDayAllowed: data.isHalfDayAllowed,
     isSandwichApplicable: data.isSandwichApplicable,
     minNoticeDays: Number(data.minNoticeDays),
-    maxConsecutiveDays: data.maxConsecutiveDays === '' ? null : Number(data.maxConsecutiveDays),
+    maxConsecutiveDays: data.maxConsecutiveDays === '' ? 0 : Number(data.maxConsecutiveDays),
     applicableGender: data.applicableGender,
     applicableEmploymentTypes: data.applicableEmploymentTypes,
     requiresDocumentAfterDays: data.requiresDocumentAfterDays === '' ? null : Number(data.requiresDocumentAfterDays),
@@ -187,44 +158,35 @@ const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
         {/* ── Basic Info ── */}
         <Box>
           <Typography variant='overline' color='text.secondary' sx={{ display: 'block', mb: 3 }}>Basic Info</Typography>
-                      <Grid item xs={12} sm={8}>
-    <Controller
-        name='name'
-        control={control}
-        rules={{ required: 'Leave type name is required' }}
-        render={({ field }) => (
-            <CustomTextField
-                select
-                fullWidth
-                label='Leave Type Name *'
-                value={field.value}
-                onChange={e => {
-                    const selected = predefinedLeaveTypes.find(
-                        item => item.name === e.target.value
-                    )
-
-                    field.onChange(e.target.value)
-
-                    if (selected) {
-                        setValue('code', selected.code)
-                    }
-                }}
-                error={!!errors.name}
-                helperText={errors.name?.message}
-            >
-                <MenuItem value=''>
-                    Select Leave Type
-                </MenuItem>
-
-                {predefinedLeaveTypes.map(item => (
-                    <MenuItem key={item.code} value={item.name}>
-                        {item.name}
-                    </MenuItem>
-                ))}
-            </CustomTextField>
-        )}
-    />
-</Grid>
+          <Grid container spacing={4}>
+            <Grid item xs={12} sm={8}>
+              <Controller
+                name='name'
+                control={control}
+                rules={{ required: 'Leave type name is required' }}
+                render={({ field }) => (
+                  <CustomTextField {...field} fullWidth label='Leave Type Name *'
+                    error={!!errors.name} helperText={errors.name?.message} />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <Controller
+                name='code'
+                control={control}
+                rules={{ required: 'Code is required', maxLength: { value: 10, message: 'Maximum 10 characters' } }}
+                render={({ field }) => (
+                  <CustomTextField {...field} fullWidth label='Code *' inputProps={{ maxLength: 10 }}
+                    error={!!errors.code} helperText={errors.code?.message} />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Controller name='description' control={control}
+                render={({ field }) => <CustomTextField {...field} fullWidth multiline minRows={2} label='Description' />}
+              />
+            </Grid>
+          </Grid>
         </Box>
 
         <Divider />
@@ -240,16 +202,6 @@ const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
                 render={({ field }) => (
                   <CustomTextField {...field} fullWidth type='number' label='Default Days / Year *'
                     error={!!errors.defaultDaysPerYear} helperText={errors.defaultDaysPerYear?.message} />
-                )}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Controller
-                name='accrualRatePerMonth' control={control}
-                rules={{ required: 'Required' }}
-                render={({ field }) => (
-                  <CustomTextField {...field} fullWidth type='number' label='Accrual Rate / Month *' placeholder='1.25'
-                    error={!!errors.accrualRatePerMonth} helperText={errors.accrualRatePerMonth?.message} />
                 )}
               />
             </Grid>
@@ -286,7 +238,7 @@ const LeaveTypeDrawer = ({ open, onClose, editData, onSuccess }) => {
             </Grid>
             {carryForwardAllowed && (
               <Grid item xs={12} sm={6}>
-                <Controller name='carryForwardLimit' control={control}
+                <Controller name='maxCarryForwardDays' control={control}
                   render={({ field }) => (
                     <CustomTextField {...field} fullWidth type='number' label='Carry Forward Limit (Days)' />
                   )}
@@ -399,23 +351,40 @@ const TabLeaveTypes = () => {
   const dispatch = useDispatch()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editData, setEditData] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const { leaveTypes, leaveTypesLoading } = useSelector(state => state.leaves)
   const permissions = useSelector(state => state.auth.permissions) || []
-  const hasUpdatePermission = permissions.includes('leave.update')
+  const hasCreatePermission = permissions.includes('leaveType.create')
+  const hasUpdatePermission = permissions.includes('leaveType.update')
+  const hasDeletePermission = permissions.includes('leaveType.delete')
 
   const fetchTypes = useCallback(() => { dispatch(fetchLeaveTypes()) }, [dispatch])
   useEffect(() => { fetchTypes() }, [fetchTypes])
 
   const openAdd  = () => { setEditData(null);  setDrawerOpen(true) }
   const openEdit = lt  => { if (hasUpdatePermission) { setEditData(lt); setDrawerOpen(true) } }
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await dispatch(deleteLeaveType(deleteTarget._id)).unwrap()
+      toast.success('Leave type deleted successfully')
+      setDeleteTarget(null)
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'Failed to delete leave type')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   return (
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
         <Typography variant='h5'>Leave Types</Typography>
-        {hasUpdatePermission && (
+        {hasCreatePermission && (
           <Button variant='contained' size='small' startIcon={<Icon icon='tabler:plus' />} onClick={openAdd}>
             Add Leave Type
           </Button>
@@ -446,8 +415,8 @@ const TabLeaveTypes = () => {
                     <Box>
                       <Typography fontWeight={600}>{lt.name}</Typography>
                       <Typography variant='caption' color='text.secondary'>
-                        {lt.defaultDaysPerYear} days/yr · {lt.accrualRatePerMonth}/mo accrual
-                        {lt.isCarryForwardAllowed && ` · CF: ${lt.carryForwardLimit}`}
+                        {lt.defaultDaysPerYear} days/year
+                        {lt.isCarryForwardAllowed && ` · Carry forward: ${lt.maxCarryForwardDays}`}
                       </Typography>
                     </Box>
                   </Box>
@@ -461,15 +430,26 @@ const TabLeaveTypes = () => {
                     {lt.isSandwichApplicable   && <Chip label='Sandwich'    size='small' variant='tonal' />}
                     {lt.applicableGender !== 'ALL' && <Chip label={lt.applicableGender} size='small' color='secondary' variant='tonal' />}
                     {!lt.isActive              && <Chip label='Inactive'    size='small' color='default' />}
+                    {lt.isSystem               && <Chip label='System'      size='small' color='info' variant='tonal' />}
                   </Box>
 
-                  {/* Edit - only show if user has leave.update permission */}
-                  {hasUpdatePermission && (
-                    <Tooltip title='Edit'>
-                      <IconButton size='small' onClick={() => openEdit(lt)}>
-                        <Icon icon='tabler:pencil' fontSize='1.1rem' />
-                      </IconButton>
-                    </Tooltip>
+                  {!lt.isSystem && (hasUpdatePermission || hasDeletePermission) && (
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      {hasUpdatePermission && (
+                        <Tooltip title='Edit leave type'>
+                          <IconButton size='small' onClick={() => openEdit(lt)}>
+                            <Icon icon='tabler:pencil' fontSize='1.1rem' />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {hasDeletePermission && (
+                        <Tooltip title='Delete leave type'>
+                          <IconButton size='small' color='error' onClick={() => setDeleteTarget(lt)}>
+                            <Icon icon='tabler:trash' fontSize='1.1rem' />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
                   )}
                 </Box>
               </CardContent>
@@ -484,6 +464,21 @@ const TabLeaveTypes = () => {
         editData={editData}
         onSuccess={fetchTypes}
       />
+
+      <Dialog open={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} maxWidth='xs' fullWidth>
+        <DialogTitle>Delete leave type?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            {deleteTarget?.name} will no longer be available for new leave policies or requests.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 4, pb: 3 }}>
+          <Button color='secondary' onClick={() => setDeleteTarget(null)} disabled={deleting}>Cancel</Button>
+          <Button color='error' variant='contained' onClick={confirmDelete} disabled={deleting}>
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

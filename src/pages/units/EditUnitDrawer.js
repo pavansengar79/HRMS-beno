@@ -30,7 +30,7 @@ const schema = yup.object().shape({
   name: yup.string().required('Unit name is required'),
 })
 
-const EditUnitDrawer = ({ open, unitId, onClose, onSuccess }) => {
+const EditUnitDrawer = ({ open, unitId, companyId, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false)
   const [geolocation, setGeolocation] = useState({})
   const [locationSettings, setLocationSettings] = useState({
@@ -47,9 +47,9 @@ const EditUnitDrawer = ({ open, unitId, onClose, onSuccess }) => {
   // Fetch LOBs when drawer opens
   useEffect(() => {
     if (open) {
-      dispatch(fetchLOBs())
+      dispatch(fetchLOBs(companyId))
     }
-  }, [open, dispatch])
+  }, [open, companyId, dispatch])
 
   // Prefill when unit data is available
   useEffect(() => {
@@ -92,7 +92,7 @@ const EditUnitDrawer = ({ open, unitId, onClose, onSuccess }) => {
       
       await dispatch(updateUnit({ id: unitId, payload })).unwrap()
       toast.success('Unit updated successfully')
-      dispatch(fetchUnits())
+      dispatch(fetchUnits(companyId))
       onSuccess?.()
       onClose()
     }

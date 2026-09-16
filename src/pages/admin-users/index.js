@@ -57,7 +57,9 @@ const STATUS_COLOR = {
   BLOCKED:  'error',
 }
 
-const ROLES_THAT_CAN_MANAGE = ['org_admin', 'company_admin', 'unit_admin', 'hr_manager', 'company_hr_manager']
+// ── ACTION PERMISSIONS: Edit/Delete restricted to unit_admin only ──
+// hr_manager and other roles can VIEW but not edit/delete admin users
+const ROLES_THAT_CAN_MANAGE = ['org_admin', 'company_admin', 'unit_admin']
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Row options menu
@@ -123,8 +125,8 @@ const AdminUserList = () => {
   const userRole    = useSelector(selectRoleSlug) ?? ''
 
   const canCreate = permissions.includes('admin_user.create') || ROLES_THAT_CAN_MANAGE.includes(userRole)
-  const canEdit   = permissions.includes('admin_user.update') || ROLES_THAT_CAN_MANAGE.includes(userRole)
-  const canDelete = permissions.includes('admin_user.delete') || ROLES_THAT_CAN_MANAGE.includes(userRole)
+  const canEdit   = permissions.includes('admin_user.update') || userRole === 'unit_admin' // ✅ Unit admin only
+  const canDelete = permissions.includes('admin_user.delete') || userRole === 'unit_admin' // ✅ Unit admin only
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const [search,          setSearch]          = useState('')

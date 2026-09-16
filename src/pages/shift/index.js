@@ -110,6 +110,7 @@ const ShiftsTab = ({ shifts, loading, dispatch, unitId }) => {
   const [editItem, setEditItem] = useState(null)
   const [deleteDialog, setDeleteDialog] = useState(null)
   const [anchorEl, setAnchorEl] = useState(null)
+  const [menuRow, setMenuRow] = useState(null)
 
   const { control, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
@@ -219,14 +220,14 @@ const ShiftsTab = ({ shifts, loading, dispatch, unitId }) => {
     { flex: 0.1, minWidth: 80, field: 'actions', headerName: 'Actions', sortable: false,
       renderCell: ({ row }) => (
         <>
-          <IconButton size='small' onClick={e => setAnchorEl(e.currentTarget)}>
+          <IconButton size='small' onClick={e => { setMenuRow(row); setAnchorEl(e.currentTarget) }}>
             <Icon icon='tabler:dots-vertical' />
           </IconButton>
-          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-            <MenuItem onClick={() => { handleEdit(row); setAnchorEl(null) }}>
+          <Menu anchorEl={anchorEl} open={Boolean(anchorEl && menuRow?._id === row._id)} onClose={() => { setAnchorEl(null); setMenuRow(null) }}>
+            <MenuItem onClick={() => { handleEdit(menuRow); setAnchorEl(null); setMenuRow(null) }}>
               <Icon icon='tabler:edit' fontSize={18} style={{ marginRight: 8 }} /> Edit
             </MenuItem>
-            <MenuItem onClick={() => { setDeleteDialog(row); setAnchorEl(null) }} sx={{ color: 'error.main' }}>
+            <MenuItem onClick={() => { setDeleteDialog(menuRow); setAnchorEl(null); setMenuRow(null) }} sx={{ color: 'error.main' }}>
               <Icon icon='tabler:trash' fontSize={18} style={{ marginRight: 8 }} /> Delete
             </MenuItem>
           </Menu>
