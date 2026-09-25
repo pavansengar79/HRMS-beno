@@ -202,8 +202,10 @@ axiosRequest.interceptors.response.use(
         const key = authConfig.storageTokenKeyName || 'accessToken'
         window.localStorage.removeItem('userData')
         window.localStorage.removeItem(key)
-        window.dispatchEvent(new Event('auth:logout'))
-        window.location.replace('/auth/login')
+        if (!window.location.pathname.startsWith('/auth/')) {
+          window.dispatchEvent(new Event('auth:logout'))
+          window.location.replace('/auth/login')
+        }
       }
 
       return Promise.reject(message || 'Session expired')

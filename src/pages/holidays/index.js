@@ -15,7 +15,10 @@ import Tooltip from '@mui/material/Tooltip'
 import { useDispatch, useSelector } from 'react-redux'
 
 // ** Auth
-import { selectRoleSlug, selectUser } from 'src/store/auth/authSlice'
+import { selectRoleSlug, selectUser, selectPermissions } from 'src/store/auth/authSlice'
+
+// ** Utils
+import { hasAnyPermission } from 'src/utils/permissions'
 
 // ** Hooks
 import { useSettings } from 'src/@core/hooks/useSettings'
@@ -46,10 +49,11 @@ import UnitContextBanner from 'src/@core/components/CustomComponents/UnitContext
 
 // ─── Permission helper ────────────────────────────────────────────────────────
 /**
- * Only company_admin can create / delete holidays.
- * All other roles (including HR) are view-only.
+ * Check if user has any holiday edit permission (create, update, or delete)
  */
-const canEditHolidays = roleSlug => roleSlug === 'company_admin'
+const hasHolidayEditPermission = permissions => {
+  return hasAnyPermission(permissions, ['holiday.create', 'holiday.update', 'holiday.delete'])
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 const AppHolidayCalendar = () => {
@@ -64,13 +68,14 @@ const AppHolidayCalendar = () => {
   const dispatch   = useDispatch()
   const store      = useSelector(state => state.holiday)
   const roleSlug   = useSelector(selectRoleSlug)
+  const permissions = useSelector(selectPermissions)
 
   const mdAbove         = useMediaQuery(theme => theme.breakpoints.up('md'))
   const leftSidebarWidth = 280
   const addSidebarWidth  = 420
 
-  // Only company_admin can add / delete
-  const hasEditPermission = canEditHolidays(roleSlug)
+  // Check if user has holiday edit permissions (create, update, or delete)
+  const hasEditPermission = hasHolidayEditPermission(permissions)
 
   // ── GET /holidays?year=YYYY ────────────────────────────────────────────────
   // Re-fetch whenever selected types or year changes
@@ -191,10 +196,12 @@ const handleEventClick = ({ event }) => {
 
   setAddSidebarOpen(true)
 
-  // IMPORTANT: use _id fallback
+  // NOTE: Don't fetch by ID for master holidays - they don't exist in HolidayCalendar collection
+  // Only fetch if the holiday is NOT from HolidayMaster (check if it has org_id)
   const holidayId = data?._id || data?.id || event?.id
+  const isMasterHoliday = !data.org_id // Master holidays don't have org_id
 
-  if (holidayId) {
+  if (holidayId && !isMasterHoliday) {
     dispatch(fetchHolidayById(holidayId))
   }
 }

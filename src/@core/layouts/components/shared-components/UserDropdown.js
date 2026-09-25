@@ -101,6 +101,9 @@ const UserDropdown = props => {
   const orgLogo = useSelector(selectOrgLogo)            // Organization logo
   const companyLogo = useSelector(selectCompanyLogo)    // Company logo
 
+  // ── Employee ID for profile navigation (Employee document ID, not User ID)
+  const employeeId = user?.employeeId || user?.id
+
   // ── Determine which logo to show based on role ────────────────────────────────
   const getAvatarImage = () => {
     // Priority: Employee DP > Company Logo > Org Logo
@@ -138,7 +141,7 @@ const UserDropdown = props => {
   
   // ── Profile path (own employee details) ──────────────────────────────────────
   const getProfilePath = () => {
-    return `/users/${userId}/details/account`
+    return `/users/${employeeId}/details/account`
   }
 
   // ── Handlers ───────────────────────────────────────────────────────────────

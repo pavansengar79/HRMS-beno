@@ -444,7 +444,7 @@ const AboutSection = ({ employee, onUpdated }) => {
 }
 
 // ─── Main UserViewLeft ────────────────────────────────────────────────────────
-const UserViewLeft = ({ employee: initialEmployee, canEdit = true ,role,isPermitted  }) => {
+const UserViewLeft = ({ employee: initialEmployee, canEdit = true, role, isOwnProfile }) => {
   const [employee, setEmployee]       = useState(initialEmployee)
   const [uploading, setUploading]     = useState(false)
   const fileInputRef                  = useRef(null)
@@ -615,7 +615,7 @@ console.log("Ewe",employee)
         <Divider sx={{ my: 2 }} />
 
         {/* ── Personal info ─────────────────────────────────────── */}
-        <PersonalInfoSection employee={employee} onUpdated={onUpdated} canEdit={isPermitted} />
+        <PersonalInfoSection employee={employee} onUpdated={onUpdated} canEdit={canEdit} />
         <Divider sx={{ my: 2 }} />
 
       </CardContent>

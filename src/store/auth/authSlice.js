@@ -129,7 +129,9 @@ export const { setCredentials, rehydrateAuth, clearCredentials, setLoading, setE
 export default authSlice.reducer
 
 export const selectUser            = s => s.auth.user
-export const selectUserId          = s => s.auth.user?._id || null
+// Backend returns 'id' field, but we check both for compatibility
+export const selectUserId          = s => s.auth.user?.id || s.auth.user?._id || null
+export const selectEmployeeId      = s => s.auth.user?.employeeId || null  // Employee document ID
 export const selectToken           = s => s.auth.token
 export const selectIsAuthenticated = s => s.auth.isAuthenticated
 export const selectAuthLoading     = s => s.auth.loading

@@ -59,7 +59,7 @@ const TabList = styled(MuiTabList)(({ theme }) => ({
 // ─────────────────────────────────────────────────────────────────────────────
 // UserViewRight
 // ─────────────────────────────────────────────────────────────────────────────
-const UserViewRight = ({ tab, employee ,isPermitted, isOwnProfile}) => {
+const UserViewRight = ({ tab, employee, canEdit, isOwnProfile }) => {
   const [activeTab, setActiveTab] = useState(tab || 'account')
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -117,7 +117,7 @@ const UserViewRight = ({ tab, employee ,isPermitted, isOwnProfile}) => {
               {roleSlug ==="company_admin" ?
                <UserProgressionTimeline userId={employee} /> 
                : 
-               <UserViewAccount employee={employee} isPermitted={isPermitted} isOwnProfile={isOwnProfile} />}
+               <UserViewAccount employee={employee} canEdit={canEdit} isOwnProfile={isOwnProfile} />}
             </TabPanel>
             <TabPanel sx={{ p: 0 }} value='timeline'>
               <EmployeeTimeline userId={employee.userId} employee={employee} />

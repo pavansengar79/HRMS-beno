@@ -38,25 +38,36 @@ const UserDetails = () => {
   const permissions = useSelector(selectPermissions)
   const userRole    = useSelector(selectRoleSlug) ?? ''
 
-  const canManageEmployees = permissions.includes('employee.create') || permissions.includes('employee.update')
-  
+  // ── Simple Permission Mathematics ────────────────────────────────────────────
+  // employee.read   → Can VIEW employee page
+  // employee.create → Can ADD employee (show Add button)
+  // employee.update → Can EDIT employee (show Edit button)
+  // employee.delete → Can DELETE employee (show Delete button)
+
+  const canViewEmployee   = permissions.includes('employee.read')
+  const canCreateEmployee = permissions.includes('employee.create')
+  const canUpdateEmployee = permissions.includes('employee.update')
+  const canDeleteEmployee = permissions.includes('employee.delete')
+
   // ── Self-access check ──────────────────────────────────────────────────────
-  // All users can view and update their own profile WITHOUT employee.update permission
-  // Scoped admin, HR, and manager roles can view employees within their backend-enforced scope
+  // All users can view and update their own profile WITHOUT permissions
   const isOwnProfile = current_user?._id === id || current_user?.id === id
-  const canViewOthers = ['org_admin', 'company_admin', 'unit_admin', 'hr_manager', 'manager'].includes(userRole)
   
-  // Redirect if not authorized (employee viewing someone else)
+  // View access: has permission OR viewing own profile OR has admin-level role
+  const canViewOthers = canViewEmployee ||
+    ['org_admin', 'company_admin', 'unit_admin', 'hr_manager', 'manager'].includes(userRole)
+
+  // Redirect if not authorized (employee viewing someone else without permission)
   useEffect(() => {
-    if (!isOwnProfile && !canViewOthers && !canManageEmployees) {
+    if (!isOwnProfile && !canViewOthers) {
       toast.error('You can only view your own profile')
       router.push('/dashboards/analytics')
     }
-  }, [isOwnProfile, canViewOthers, canManageEmployees, router])
+  }, [isOwnProfile, canViewOthers, router])
   
-  // ── Permission Logic ────────────────────────────────────────────────────────
-  // Can edit if: own profile OR has employee management permissions OR is admin
-  const isPermitted = isOwnProfile || canManageEmployees || canViewOthers
+  // ── Edit Permission Logic ─────────────────────────────────────────────────
+  // Can EDIT if: has employee.update permission OR viewing own profile
+  const canEdit = isOwnProfile || canUpdateEmployee
 
   useEffect(() => {
     if (id) {
@@ -83,10 +94,10 @@ const UserDetails = () => {
         {/* {current_user?.id}
         <br/>
         {id} */}
-        <UserViewLeft employee={employee}  role={userRole} isPermitted={ isPermitted} isOwnProfile={isOwnProfile} />
+        <UserViewLeft employee={employee} role={userRole} canEdit={canEdit} isOwnProfile={isOwnProfile} />
       </Grid>
       <Grid item xs={12} md={7} lg={8}>
-        <UserViewRight tab={activeTab} employee={employee}  isPermitted={ isPermitted} isOwnProfile={isOwnProfile}/>
+        <UserViewRight tab={activeTab} employee={employee} canEdit={canEdit} isOwnProfile={isOwnProfile} />
       </Grid>
     </Grid>
   )

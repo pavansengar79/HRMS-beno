@@ -135,6 +135,12 @@ const formatDate = (date) => {
   })
 }
 
+const formatChangeValue = value => {
+  if (value === null || value === undefined) return '—'
+
+  return JSON.stringify(value) ?? String(value)
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 const AuditLogsPage = () => {
   const router = useRouter()
@@ -480,7 +486,7 @@ const AuditLogsPage = () => {
                   <Box key={field} sx={{ mb: 0.5 }}>
                     <Typography variant='caption' fontWeight={600} color='primary.main'>{field}:</Typography>
                     <Typography variant='caption' display='block' sx={{ fontSize: '0.7rem' }}>
-                      {JSON.stringify(val.from)} → {JSON.stringify(val.to)}
+                      {formatChangeValue(val?.from)} → {formatChangeValue(val?.to)}
                     </Typography>
                   </Box>
                 ))}
@@ -899,17 +905,17 @@ const AuditLogsPage = () => {
                             {field}
                           </Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                            <Chip 
-                              size='small' 
-                              label={JSON.stringify(val.from)} 
+                            <Chip
+                              size='small'
+                              label={formatChangeValue(val?.from)}
                               color='error'
                               variant='outlined'
                               sx={{ fontSize: '0.7rem' }}
                             />
                             <Icon icon='tabler:arrow-right' fontSize='1rem' color='disabled' />
-                            <Chip 
-                              size='small' 
-                              label={JSON.stringify(val.to)} 
+                            <Chip
+                              size='small'
+                              label={formatChangeValue(val?.to)}
                               color='success'
                               variant='outlined'
                               sx={{ fontSize: '0.7rem' }}

@@ -568,12 +568,11 @@ const ExperienceSection = ({ employee, canEdit, onUpdated, isOwnProfile }) => {
 }
 
 // ─── Main UserViewAccount ─────────────────────────────────────────────────────
-const UserViewAccount = ({ employee: initialEmployee, isPermitted, isOwnProfile }) => {
+const UserViewAccount = ({ employee: initialEmployee, canEdit, isOwnProfile }) => {
   const permissions = useSelector(selectPermissions)
   const roleSlug = useSelector(selectRoleSlug)
   const dispatch = useDispatch()
 
-  const canEdit = isPermitted
   const isTenantAdmin = roleSlug === 'company_admin'
 
   // ── Local employee state — each section updates this after save ────────────
@@ -590,7 +589,7 @@ const UserViewAccount = ({ employee: initialEmployee, isPermitted, isOwnProfile 
 
   if (!employee) return null
 
-  const sharedProps = { employee, canEdit, onUpdated, isOwnProfile }
+  const sharedProps = { employee, canEdit: canEdit || false, onUpdated, isOwnProfile }
 
   return (
     <Grid container spacing={3} alignItems='stretch'>

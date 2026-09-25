@@ -104,7 +104,7 @@ export default function HRDashboard({ companyId, unitId }) {
       sub: `across ${depts.total ?? 0} departments`, 
       icon: 'tabler:users', 
       color: '#6366f1',
-      onClick: () => navigateTo('/employees')
+      onClick: () => navigateTo('/users')
     },
     { 
       label: 'Present Today', 

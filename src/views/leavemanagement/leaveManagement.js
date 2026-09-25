@@ -75,6 +75,16 @@ const LeaveManagement = ({ tab }) => {
   const permissions = useSelector(selectPermissions) || []
   const canViewBalance = level === 'unit' && permissions.includes('leave.read')
 
+  // ── APPROVAL TAB VISIBILITY ───────────────────────────────
+  // Only show "Pending Approval" tab to users who can approve leaves:
+  // 1. HR Manager roles (hr_manager, company_hr_manager)
+  // 2. Admin roles (unit_admin, org_admin, company_admin, super_admin)
+  // 3. Reporting Managers (checked via 'leave.approve' permission)
+  const isHRManager = ['hr_manager', 'company_hr_manager'].includes(roleSlug)
+  const isAdmin = ['unit_admin', 'org_admin', 'company_admin', 'super_admin'].includes(roleSlug)
+  const canApproveLeave = permissions.includes('leave.approve')
+  const canViewApprovalTab = isHRManager || isAdmin || canApproveLeave
+
   useEffect(() => {
     if (tab && tab !== activeTab) setActiveTab(tab)
   }, [tab, activeTab])
@@ -84,10 +94,11 @@ const LeaveManagement = ({ tab }) => {
     router.push(getLeaveTabPath(router.query, value)).then(() => setIsLoading(false))
   }
 
-  // Only show initialize tab to users with role 'hr'
+  // Filter tabs based on role and permissions
   const visibleTabs = TABS.filter(t => {
     if (t.value === 'initialize') return roleSlug === 'hr_manager'
     if (t.value === 'balance') return canViewBalance
+    if (t.value === 'approval') return canViewApprovalTab
     return true
   })
 
@@ -97,14 +108,15 @@ const LeaveManagement = ({ tab }) => {
 
     const cannotViewInitialize = activeTab === 'initialize' && roleSlug !== 'hr_manager'
     const cannotViewBalance = activeTab === 'balance' && !canViewBalance
+    const cannotViewApproval = activeTab === 'approval' && !canViewApprovalTab
 
-    if (cannotViewInitialize || cannotViewBalance) {
+    if (cannotViewInitialize || cannotViewBalance || cannotViewApproval) {
       setActiveTab('requests')
       router.replace(getLeaveTabPath(router.query, 'requests'))
     }
-  }, [activeTab, canViewBalance, level, roleSlug, router])
+  }, [activeTab, canViewBalance, canViewApprovalTab, level, roleSlug, router])
 
-  const displayedTab = activeTab === 'balance' && !canViewBalance ? 'requests' : activeTab
+  const displayedTab = (activeTab === 'balance' && !canViewBalance) || (activeTab === 'approval' && !canViewApprovalTab) ? 'requests' : activeTab
 
   const tabContentList = {
     requests: <TabLeaveRequests />,

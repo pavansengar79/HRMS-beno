@@ -185,7 +185,8 @@ const AddHolidaySidebar = ({
   // ── Delete — DELETE /holidays/:id ────────────────────────────────────────
   const handleConfirmDelete = async () => {
     setConfirmDelete(false)
-    const result = await dispatch(deleteHoliday(selectedHoliday.id))
+    const holidayId = selectedHoliday?._id || selectedHoliday?.id
+    const result = await dispatch(deleteHoliday(holidayId))
     if (!result.error) {
       handleClose()
     }
@@ -235,7 +236,7 @@ const AddHolidaySidebar = ({
               </Typography>
               <Typography variant='caption' sx={{ color: 'text.secondary' }}>
                 {isEditMode
-                  ? `ID: ${selectedHoliday?.id ?? '—'}`
+                  ? `ID: ${selectedHoliday?._id || selectedHoliday?.id || '—'}`
                   : 'POST to /holidays'}
               </Typography>
             </Box>
@@ -252,7 +253,7 @@ const AddHolidaySidebar = ({
             icon={<Icon icon='tabler:lock' />}
             sx={{ mx: 5, mt: 4, borderRadius: 2, flexShrink: 0 }}
           >
-            View-only access. Only <strong>tenant admins</strong> can create or delete holidays.
+            View-only access. You need <strong>holiday.create</strong> permission to add holidays.
           </Alert>
         )}
 
