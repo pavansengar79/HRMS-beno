@@ -160,7 +160,9 @@ axiosRequest.interceptors.request.use(
       const token = window.localStorage.getItem(
         authConfig.storageTokenKeyName || 'accessToken'
       )
-      if (token) {
+      if (config.skipAuth) {
+        delete config.headers.Authorization
+      } else if (token) {
         config.headers.Authorization = `Bearer ${token}`
       }
 
@@ -197,7 +199,7 @@ axiosRequest.interceptors.response.use(
 
     // ── 401 / token expired ──────────────────────────────────────────────────
     // Don't redirect on login endpoint - 401 means "invalid credentials" not "session expired"
-    if ((status === 401 || message === 'Token invalid or expired') && !isLoginEndpoint) {
+    if ((status === 401 || message === 'Token invalid or expired') && !isLoginEndpoint && !error?.config?.skipAuth) {
       if (typeof window !== 'undefined') {
         const key = authConfig.storageTokenKeyName || 'accessToken'
         window.localStorage.removeItem('userData')

@@ -180,11 +180,11 @@ const RegisterPage = () => {
   const sameEmailValue = watch('same_email')
 
   useEffect(() => {
-    axiosRequest.get('/api/v1/plans/public')
+    axiosRequest.get('/api/v1/plans/public', { skipAuth: true })
       .then(res => {
-        if (res?.success && Array.isArray(res.data)) {
+        if (res?.success && Array.isArray(res.data?.plans)) {
           // Filter: only show plans where is_custom is true
-          const customPlans = res.data.filter(p => p.is_custom === false)
+          const customPlans = res.data.plans.filter(p => p.is_custom === false)
           setPlans(customPlans)
           if (customPlans.length > 0) {
             // Default: select first custom plan
