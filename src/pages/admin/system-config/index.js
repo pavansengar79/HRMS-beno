@@ -258,7 +258,7 @@ const SystemConfigPage = () => {
   // Step 1: Company Details (Essentials handled on separate page by Org Admin)
   const [profile, setProfile] = useState({ legalName: '', brandName: '', cin: '', tan: '', gst: '', pf: '', esic: '', ptState: 'Karnataka', industry: 'Information Technology', regAddress: '', corrAddress: '' })
   // Step 3: Security
-  const [security, setSecurity] = useState({ mfa: 'ADMINS', maxAttempts: '5', sessionTimeout: '60 mins', googleOAuth: true, msOAuth: true })
+  const [security, setSecurity] = useState({ mfa: 'OPTIONAL', maxAttempts: '5', sessionTimeout: 60, googleOAuth: true, msOAuth: true })
   // Step 4: SMTP / Maps
   const [smtp, setSmtp] = useState({ fromName: '', fromEmail: '', host: '', port: '587', smtpSecurity: 'TLS', username: '', apiKey: '', mapsKey: '' })
   // Operational defaults (unit overrides + step 5)
@@ -302,6 +302,14 @@ const SystemConfigPage = () => {
         }
         const cfgRes = await axiosRequest.get('/api/v1/company-config/config').catch(() => null)
         const cfg    = cfgRes?.data || cfgRes || {}  // AxiosInterceptor returns response.data
+        setSecurity(previous => ({
+          ...previous,
+          mfa: ['NONE', 'OPTIONAL', 'MANDATORY'].includes(cfg.mfaEnforcementLevel) ? cfg.mfaEnforcementLevel : previous.mfa,
+          maxAttempts: String(cfg.loginMaxAttempts ?? previous.maxAttempts),
+          sessionTimeout: cfg.sessionTimeoutMinutes ?? previous.sessionTimeout,
+          googleOAuth: cfg.googleOAuthEnabled ?? previous.googleOAuth,
+          msOAuth: cfg.microsoftOAuthEnabled ?? previous.msOAuth
+        }))
         // Essentials are now handled by Org Admin on separate page
         // Auto-fill Working Days/Prefs (Step 5) from config
         const ww = Array.isArray(cfg.workWeek) ? cfg.workWeek : []
@@ -381,9 +389,15 @@ const SystemConfigPage = () => {
   }
 
   const saveSecurity = async () => {
+    const loginMaxAttempts = Number(security.maxAttempts)
+    if (!Number.isInteger(loginMaxAttempts) || loginMaxAttempts < 3 || loginMaxAttempts > 20) {
+      toast.error('Login attempts must be a whole number between 3 and 20')
+      return
+    }
+
     setSaving(true)
     try {
-      await axiosRequest.put('/api/v1/company-config/config', { mfaEnforcementLevel: security.mfa, loginMaxAttempts: Number(security.maxAttempts), sessionTimeoutMinutes: Number(security.sessionTimeout), googleOAuthEnabled: security.googleOAuth, microsoftOAuthEnabled: security.msOAuth })
+      await axiosRequest.put('/api/v1/company-config/config', { mfaEnforcementLevel: security.mfa, loginMaxAttempts, sessionTimeoutMinutes: Number(security.sessionTimeout), googleOAuthEnabled: security.googleOAuth, microsoftOAuthEnabled: security.msOAuth })
       setCompleted(p => ({ ...p, 2: true })); toast.success('Security settings saved'); setActiveStep(3)
     } catch (err) { toast.error(err?.response?.data?.message || 'Save failed') }
     finally { setSaving(false) }
@@ -765,8 +779,8 @@ const SystemConfigPage = () => {
           <StepCard title='Step 3 — Security' sub='Authentication and access controls — company-wide, units cannot lower these'>
             <SecurityRow label='Multi-Factor Authentication (MFA)' sub='TOTP via Google Authenticator or similar.'>
               <CustomTextField select size='small' value={security.mfa} onChange={e => setSecurity(p => ({ ...p, mfa: e.target.value }))} sx={{ minWidth: 200 }}>
+                <MenuItem value='NONE'>Not required</MenuItem>
                 <MenuItem value='OPTIONAL'>Optional for all</MenuItem>
-                <MenuItem value='ADMINS'>Required for Admins</MenuItem>
                 <MenuItem value='MANDATORY'>Required for all users</MenuItem>
               </CustomTextField>
             </SecurityRow>
@@ -778,7 +792,11 @@ const SystemConfigPage = () => {
             </SecurityRow>
             <SecurityRow label='Session Timeout' sub='Auto-logout after inactivity'>
               <CustomTextField select size='small' value={security.sessionTimeout} onChange={e => setSecurity(p => ({ ...p, sessionTimeout: e.target.value }))} sx={{ minWidth: 150 }}>
-                {['30 mins', '60 mins', '2 hours', '8 hours'].map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                {![30, 60, 120, 480].includes(Number(security.sessionTimeout)) && <MenuItem value={security.sessionTimeout}>{security.sessionTimeout} mins</MenuItem>}
+                <MenuItem value={30}>30 mins</MenuItem>
+                <MenuItem value={60}>60 mins</MenuItem>
+                <MenuItem value={120}>2 hours</MenuItem>
+                <MenuItem value={480}>8 hours</MenuItem>
               </CustomTextField>
             </SecurityRow>
             <SecurityRow label='OAuth Login' sub='Allow login with Google or Microsoft'>
