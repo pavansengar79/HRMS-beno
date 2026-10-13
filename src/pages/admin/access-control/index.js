@@ -235,6 +235,7 @@ const ModuleMatrixModal = ({ open, role, onClose, onSaved, allPermissions }) => 
   // Initialize form with role data when modal opens
   useEffect(() => {
     if (role && open) {
+      setPermSearch('')
       const permIds = (role.permissions || []).map(p => p._id || p)
       setForm({
         name: role.name || '',
@@ -367,14 +368,12 @@ const ModuleMatrixModal = ({ open, role, onClose, onSaved, allPermissions }) => 
 
   ;(filteredPermissions || []).forEach(p => {
     const permModule = p.module || 'general'
-    if (!permGroups[permModule]) {
-      permGroups[permModule] = []
-    }
     if (!searchTerm ||
         permModule.toLowerCase().includes(searchTerm) ||
         (p.label || '').toLowerCase().includes(searchTerm) ||
         (p.name || '').toLowerCase().includes(searchTerm) ||
         (p.slug || '').toLowerCase().includes(searchTerm)) {
+      if (!permGroups[permModule]) permGroups[permModule] = []
       permGroups[permModule].push(p)
     }
   })
@@ -438,6 +437,13 @@ const ModuleMatrixModal = ({ open, role, onClose, onSaved, allPermissions }) => 
             startAdornment: (
               <InputAdornment position="start">
                 <Icon icon='tabler:search' fontSize={18} />
+              </InputAdornment>
+            ),
+            endAdornment: permSearch && (
+              <InputAdornment position='end'>
+                <IconButton size='small' aria-label='Clear permission search' onClick={() => setPermSearch('')}>
+                  <Icon icon='tabler:x' fontSize={18} />
+                </IconButton>
               </InputAdornment>
             )
           }}
@@ -544,6 +550,7 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
   const levelLocked = Boolean(defaultLevel)
 
   useEffect(() => {
+    if (open) setPermSearch('')
     if (editRole) {
       const permIds = (editRole.permissions || []).map(p => p._id || p)
       setForm({ name: editRole.name || '', level: editRole.level || defaultLevel || 'unit', description: editRole.description || '',
@@ -682,14 +689,12 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
 
   ;(filteredPermissions || []).forEach(p => {
     const permModule = p.module || 'general'
-    if (!permGroups[permModule]) {
-      permGroups[permModule] = []
-    }
     if (!searchTerm ||
         permModule.toLowerCase().includes(searchTerm) ||
         (p.label || '').toLowerCase().includes(searchTerm) ||
         (p.name || '').toLowerCase().includes(searchTerm) ||
         (p.slug || '').toLowerCase().includes(searchTerm)) {
+      if (!permGroups[permModule]) permGroups[permModule] = []
       permGroups[permModule].push(p)
     }
   })
@@ -767,6 +772,13 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
             startAdornment: (
               <InputAdornment position="start">
                 <Icon icon='tabler:search' fontSize={18} />
+              </InputAdornment>
+            ),
+            endAdornment: permSearch && (
+              <InputAdornment position='end'>
+                <IconButton size='small' aria-label='Clear permission search' onClick={() => setPermSearch('')}>
+                  <Icon icon='tabler:x' fontSize={18} />
+                </IconButton>
               </InputAdornment>
             )
           }}
@@ -1000,7 +1012,14 @@ const AccessControlPage = () => {
             </Box>
             <Stack direction='row' spacing={2}>
               <CustomTextField size='small' placeholder='Search roles…' value={search} onChange={e => setSearch(e.target.value)}
-                InputProps={{ startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} /> }} />
+                InputProps={{
+                  startAdornment: <Icon icon='tabler:search' style={{ marginRight: 8, opacity: 0.5 }} />,
+                  endAdornment: search && <InputAdornment position='end'>
+                    <IconButton size='small' aria-label='Clear role search' onClick={() => setSearch('')}>
+                      <Icon icon='tabler:x' fontSize={18} />
+                    </IconButton>
+                  </InputAdornment>
+                }} />
               {canCreate && <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={() => { setEditRole(null); setFormOpen(true) }}>Create Role</Button>}
             </Stack>
           </Box>

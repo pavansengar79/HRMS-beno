@@ -15,6 +15,7 @@ import Grid from '@mui/material/Grid'
 import Divider from '@mui/material/Divider'
 import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
+import InputAdornment from '@mui/material/InputAdornment'
 import Typography from '@mui/material/Typography'
 import LinearProgress from '@mui/material/LinearProgress'
 import Table from '@mui/material/Table'
@@ -133,6 +134,11 @@ export default function CustomersPage() {
               <CustomTextField
                 size='small' placeholder='Search customers...' value={search}
                 onChange={e => { setSearch(e.target.value); setPage(0) }}
+                InputProps={{ endAdornment: search && <InputAdornment position='end'>
+                  <IconButton size='small' aria-label='Clear customer search' onClick={() => { setSearch(''); setPage(0) }}>
+                    <Icon icon='tabler:x' fontSize={18} />
+                  </IconButton>
+                </InputAdornment> }}
                 sx={{ minWidth: 220 }}
               />
               <FormControl size='small' sx={{ minWidth: 120 }}>

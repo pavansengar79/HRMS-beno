@@ -80,8 +80,8 @@ const Company = () => {
     { flex: 0.25, minWidth: 240, field: 'company_name', headerName: 'Company',
       renderCell: ({ row }) => (
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <CustomAvatar skin='light' color='primary' sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500 }}>
-            {getInitials(row.company_name || 'NA')}
+          <CustomAvatar skin='light' color='primary' sx={{ mr: 2.5, width: 38, height: 38, flexShrink: 0, fontWeight: 500 }}>
+            {getInitials(row.company_name || 'NA').slice(0, 2)}
           </CustomAvatar>
           <Box>
             <Typography noWrap component={Link} href={`/company/${row._id}/details/overview`}

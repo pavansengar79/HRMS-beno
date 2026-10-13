@@ -1719,10 +1719,12 @@ const TabLeavePolicy = () => {
       <Box sx={{ px: 5, py: 3, display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'center' }}>
         <CustomTextField
           size='small'
+          label='Search'
           placeholder='Search policies...'
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(0) }}
           sx={{ minWidth: 220 }}
+          InputLabelProps={{ shrink: true }}
           InputProps={{
             startAdornment: (
               <InputAdornment position='start'>
