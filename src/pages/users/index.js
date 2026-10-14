@@ -50,7 +50,6 @@ import { selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomAvatar from 'src/@core/components/mui/avatar'
 import CustomTextField from 'src/@core/components/mui/text-field'
-import { getInitials } from 'src/@core/utils/get-initials'
 import { EmployeeSelect, DepartmentSelect, DesignationSelect } from 'src/components/employee'
 
 // ** Table Components
@@ -91,16 +90,16 @@ const EMPLOYMENT_TYPE_COLOR = {
 // Avatar renderer - uses profilePhoto if available
 // ─────────────────────────────────────────────────────────────────────────────
 const renderAvatar = row => {
-  const initials = getInitials(row.name || 'NA')
+  const initial = row.name?.trim().charAt(0).toUpperCase() || '?'
   
   return (
     <CustomAvatar
       src={row.profilePhoto}
       skin='light'
       color='primary'
-      sx={{ mr: 2.5, width: 38, height: 38, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
+      sx={{ mr: 2.5, width: 38, height: 38, flexShrink: 0, fontWeight: 500, fontSize: theme => theme.typography.body1.fontSize }}
     >
-      {!row.profilePhoto && initials}
+      {!row.profilePhoto && initial}
     </CustomAvatar>
   )
 }
@@ -435,11 +434,12 @@ const buildColumns = (canEdit, canDelete, canApprove, canChangeStatus, onEdit, o
   {
     flex: 0.25, minWidth: 260, field: 'name', headerName: 'Employee',
     renderCell: ({ row }) => (
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', minWidth: 0 }}>
         {renderAvatar(row)}
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column' }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column', minWidth: 0, flex: 1 }}>
           <Typography noWrap component={Link} href={`/users/${row._id}/details`}
-            sx={{ fontWeight: 500, textDecoration: 'none', color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
+            title={row.name}
+            sx={{ display: 'block', maxWidth: '100%', fontWeight: 500, textDecoration: 'none', color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
             {row.name}
           </Typography>
           <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>{row.email}</Typography>

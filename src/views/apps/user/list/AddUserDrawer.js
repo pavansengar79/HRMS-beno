@@ -56,11 +56,11 @@ const Header = styled(Box)(({ theme }) => ({
 const addSchema = yup.object().shape({
   name:           yup.string().trim().min(2, 'Min 2 characters').required('Name is required'),
   email:          yup.string().email('Invalid email').required('Email is required'),
-  phone:          yup.string().matches(/^[0-9]{10}$/, 'Enter valid 10-digit number').optional(),
+  phone:          yup.string().required('Phone is required').matches(/^[0-9]{10}$/, 'Enter valid 10-digit number'),
   departmentId:   yup.string().required('Department is required'),
   joiningDate:    yup.string().required('Joining date is required'),
   employmentType: yup.string().required('Employment type is required'),
-  designationId: yup.string().optional(),
+  designationId: yup.string().required('Designation is required'),
   reportingManagerId: yup.string().optional(),
   // Salary fields - no validation, completely optional
   salaryBasic:    yup.string().optional(),
@@ -157,6 +157,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
       reset({
         name: '', email: '', phone: '',
         departmentId: '', joiningDate: '', employmentType: '',
+        designationId: '', reportingManagerId: '',
         salaryBasic: '', salaryHra: '', salaryTravel: '', salaryPf: '', salaryTds: '',
       })
     }
@@ -168,15 +169,20 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
     const fetchDropdowns = async () => {
       try {
         setDropLoading(true)
-        const [deptRes, desigRes, mgrRes] = await Promise.all([
+        const [deptResult, desigResult, mgrResult] = await Promise.allSettled([
           axiosRequest.get('/api/v1/departments'),
           axiosRequest.get('/api/v1/designations'),
           axiosRequest.get('/api/v1/employees?limit=100')
         ])
 
-        if (deptRes?.success) setDepartments(deptRes.data || [])
-        if (desigRes?.success) setDesignations(desigRes.data || [])
-        if (mgrRes?.success) setManagers((mgrRes.data || []).filter(m => m._id !== editingEmployee?._id))
+        setDepartments(deptResult.status === 'fulfilled' ? deptResult.value.data || [] : [])
+        setDesignations(desigResult.status === 'fulfilled' ? desigResult.value.data || [] : [])
+        setManagers(mgrResult.status === 'fulfilled'
+          ? (mgrResult.value.data || []).filter(manager => manager._id !== editingEmployee?._id)
+          : [])
+        for (const result of [deptResult, desigResult, mgrResult]) {
+          if (result.status === 'rejected') console.error('Failed to load employee dropdown:', result.reason)
+        }
       } catch (err) {
         console.error('Failed to load dropdown data:', err)
       } finally {
@@ -332,7 +338,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                 <CustomTextField
                   {...field}
                   fullWidth
-                  label='Full Name'
+                  label={isEditMode ? 'Full Name' : 'Full Name *'}
                   placeholder='Rahul Sharma'
                   error={Boolean(errors.name)}
                   helperText={errors.name?.message}
@@ -353,7 +359,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   {...field}
                   fullWidth
                   type='email'
-                  label='Email'
+                  label={isEditMode ? 'Email' : 'Email *'}
                   placeholder='rahul@company.com'
                   error={Boolean(errors.email)}
                   helperText={errors.email?.message}
@@ -367,13 +373,13 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
               )} />
             </Grid>
 
-            {/* Phone — editable in BOTH modes, optional */}
+            {/* Phone — editable in BOTH modes */}
             <Grid item xs={12}>
               <Controller name='phone' control={control} render={({ field }) => (
                 <CustomTextField
                   {...field}
                   fullWidth
-                  label='Phone (optional)'
+                  label={isEditMode ? 'Phone' : 'Phone *'}
                   placeholder='9876543210'
                   error={Boolean(errors.phone)}
                   helperText={errors.phone?.message || 'Enter 10-digit number (e.g., 9876543210)'}
@@ -414,7 +420,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                     {...field}
                     select
                     fullWidth
-                    label='Department'
+                    label={isEditMode ? 'Department' : 'Department *'}
                     error={Boolean(errors.departmentId)}
                     helperText={errors.departmentId?.message}
                     disabled={isSubmitting || dropLoading}
@@ -435,7 +441,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   {...field}
                   fullWidth
                   type='date'
-                  label='Joining Date'
+                  label={isEditMode ? 'Joining Date' : 'Joining Date *'}
                   InputLabelProps={{ shrink: true }}
                   error={Boolean(errors.joiningDate)}
                   helperText={errors.joiningDate?.message}
@@ -471,7 +477,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                     {...field}
                     select
                     fullWidth
-                    label='Employment Type'
+                    label={isEditMode ? 'Employment Type' : 'Employment Type *'}
                     error={Boolean(errors.employmentType)}
                     helperText={errors.employmentType?.message}
                     disabled={isSubmitting}
@@ -493,12 +499,12 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   {...field}
                   select
                   fullWidth
-                  label='Job Role'
+                  label={isEditMode ? 'Designation' : 'Designation *'}
                   error={Boolean(errors.designationId)}
                   helperText={errors.designationId?.message}
                   disabled={isSubmitting || dropLoading}
                 >
-                  <MenuItem value=''>Select job role</MenuItem>
+                  <MenuItem value=''>Select designation</MenuItem>
                   {designations.map(d => (
                     <MenuItem key={d._id} value={d._id}>{d.name}</MenuItem>
                   ))}

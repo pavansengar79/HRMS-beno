@@ -27,6 +27,7 @@ import Icon from 'src/@core/components/icon'
 import { useDispatch, useSelector } from 'react-redux'
 import { updateCompany, getCompanyModules, updateCompanyModules } from 'src/store/company/companySlice'
 import { useEffect, useState } from 'react'
+import toast from 'react-hot-toast'
 
 // ─── Overview tab ─────────────────────────────────────────────────────────────
 const OverviewTab = ({ company }) => {
@@ -276,24 +277,28 @@ const ModulesTab = ({ company }) => {
   }, [companyId, dispatch])
 
   useEffect(() => {
-    if (modules && modules.length > 0) {
-      setLocalModules(modules.map(m => ({ ...m, is_active: m.is_active ?? m.isActive ?? true })))
-    }
+    setLocalModules((modules || []).map(m => ({ ...m, is_active: m.company_level_active })))
   }, [modules])
 
-  const handleToggle = (moduleId) => {
+  const handleToggle = moduleId => {
     setLocalModules(prev =>
-      prev.map(m => m.module_id === moduleId || m.moduleId === moduleId ? { ...m, is_active: !m.is_active } : m)
+      prev.map(m => m.module_id === moduleId && m.can_toggle ? { ...m, is_active: !m.is_active } : m)
     )
   }
 
   const handleSave = async () => {
     const companyId = company._id || company.id
     const updates = localModules.map(m => ({
-      moduleId: m.module_id || m.moduleId,
+      module_id: m.module_id,
       is_active: m.is_active
     }))
-    await dispatch(updateCompanyModules({ companyId, modules: updates }))
+    try {
+      await dispatch(updateCompanyModules({ companyId, modules: updates })).unwrap()
+      await dispatch(getCompanyModules(companyId)).unwrap()
+    } catch (error) {
+      console.error('Failed to update company modules:', error)
+      toast.error(typeof error === 'string' ? error : error?.message || 'Failed to update modules')
+    }
   }
 
   if (loading) return <Alert severity='info'>Loading modules…</Alert>
@@ -303,7 +308,7 @@ const ModulesTab = ({ company }) => {
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
           <Typography variant='h6'>Active Modules</Typography>
-          <Button variant='contained' size='small' onClick={handleSave}>Save Changes</Button>
+          <Button variant='contained' size='small' disabled={localModules.length === 0} onClick={handleSave}>Save Changes</Button>
         </Box>
 
         {localModules.length === 0 ? (
@@ -322,7 +327,7 @@ const ModulesTab = ({ company }) => {
                       border: `2px solid`,
                       borderColor: isActive ? '#6366f1' : 'divider',
                       bgcolor: isActive ? alpha('#6366f1', 0.05) : 'background.paper',
-                      cursor: 'pointer',
+                      cursor: m.can_toggle ? 'pointer' : 'not-allowed',
                       transition: 'all 0.2s',
                       '&:hover': { boxShadow: 4 }
                     }}

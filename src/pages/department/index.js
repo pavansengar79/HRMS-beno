@@ -317,7 +317,9 @@ const DepartmentPage = () => {
       setRefreshKey(k => k + 1)
     } catch (err) {
       console.error('Failed to delete department:', err)
-      toast.error(err.response?.data?.message || 'Failed to delete department')
+      if (typeof err !== 'string' && !err.response?.data?.message) {
+        toast.error('Failed to delete department')
+      }
     } finally {
       setDeleting(false)
     }

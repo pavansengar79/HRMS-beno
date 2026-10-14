@@ -25,6 +25,7 @@ import {
 } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import toast from 'react-hot-toast'
+import { format } from 'date-fns'
 
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
@@ -390,15 +391,11 @@ const BiometricManagePage = () => {
     setOperationLoading(true)
     setSyncResult(null)
     try {
-      const today = new Date()
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0)
-      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999)
-
       const res = await axiosRequest.post(
         `/api/v1/biometric/config/${config._id}/devices/${deviceSerial}/sync`,
         {
-          startTime: startOfDay.toISOString(),
-          endTime: endOfDay.toISOString()
+          startTime: transactionRange.fromDateTime.toISOString(),
+          endTime: transactionRange.toDateTime.toISOString()
         }
       )
       
@@ -833,7 +830,7 @@ const BiometricManagePage = () => {
                     fullWidth
                     type='datetime-local'
                     label='From Date/Time'
-                    value={transactionRange.fromDateTime.toISOString().slice(0, 16)}
+                    value={format(transactionRange.fromDateTime, "yyyy-MM-dd'T'HH:mm")}
                     onChange={(e) => setTransactionRange({
                       ...transactionRange,
                       fromDateTime: new Date(e.target.value)
@@ -845,7 +842,7 @@ const BiometricManagePage = () => {
                     fullWidth
                     type='datetime-local'
                     label='To Date/Time'
-                    value={transactionRange.toDateTime.toISOString().slice(0, 16)}
+                    value={format(transactionRange.toDateTime, "yyyy-MM-dd'T'HH:mm")}
                     onChange={(e) => setTransactionRange({
                       ...transactionRange,
                       toDateTime: new Date(e.target.value)
@@ -874,16 +871,15 @@ const BiometricManagePage = () => {
                 <Box sx={{ mb: 4 }}>
                   <Stack direction='row' spacing={2} alignItems='center' sx={{ mb: 2 }}>
                     <Typography variant='h6'>Sync Result</Typography>
-                    <Chip label={`${syncResult.recordsFetched} fetched`} size='small' />
+                    <Chip label={`${syncResult.recordsFetched} company punches`} size='small' />
                     <Chip label={`${syncResult.recordsMatched} matched`} color='success' size='small' />
-                    <Chip label={`${syncResult.unmatchedCount} unmatched`} color='warning' size='small' />
                   </Stack>
 
                   {/* Matched Records Table */}
                   {syncResult.matchedRecords?.length > 0 && (
                     <Box sx={{ mb: 4 }}>
                       <Typography variant='subtitle1' sx={{ mb: 1, fontWeight: 600 }}>
-                        Today's Biometric Attendance ({syncResult.matchedRecords?.length} employees)
+                        Biometric Attendance ({syncResult.matchedRecords?.length} employees)
                       </Typography>
                       <TableContainer component={Card} variant='outlined'>
                         <Table size='small'>
@@ -946,57 +942,6 @@ const BiometricManagePage = () => {
                     </Box>
                   )}
 
-                  {/* Unmatched Records Table */}
-                  {syncResult.unmatchedRecords?.length > 0 && (
-                    <Box>
-                      <Typography variant='subtitle1' sx={{ mb: 1, fontWeight: 600 }}>
-                        Unmatched Records ({syncResult.unmatchedRecords?.length} unknown biometric codes)
-                      </Typography>
-                      <Alert severity='warning' sx={{ mb: 2 }}>
-                        These biometric codes don't have corresponding employees in HRMS. 
-                        Click "Assign to Employee" to map this code to an employee.
-                      </Alert>
-                      <TableContainer component={Card} variant='outlined'>
-                        <Table size='small'>
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Biometric Code</TableCell>
-                              <TableCell>First Punch (IST)</TableCell>
-                              <TableCell>Last Punch (IST)</TableCell>
-                              <TableCell>Total Punches</TableCell>
-                              <TableCell>Action</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {syncResult.unmatchedRecords.map((rec, idx) => (
-                              <TableRow key={idx}>
-                                <TableCell>
-                                  <Chip label={rec.employeeCode} color='warning' size='small' />
-                                </TableCell>
-                                <TableCell>{toIST(rec.punchTime)}</TableCell>
-                                <TableCell>{toIST(rec.lastPunchTime || rec.punchTime)}</TableCell>
-                                <TableCell>
-                                  <Chip label={rec.totalPunches || 1} size='small' />
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    size='small'
-                                    variant='contained'
-                                    color='primary'
-                                    onClick={() => openAssignCodeDialog(rec.employeeCode)}
-                                    disabled={operationLoading}
-                                    startIcon={<Icon icon='tabler:link' />}
-                                  >
-                                    Assign to Employee
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    </Box>
-                  )}
                 </Box>
               )}
 

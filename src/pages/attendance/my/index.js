@@ -122,7 +122,9 @@ const MonthlySummaryCards = ({ summary, loading }) => {
                   <Icon icon={item.icon} color='white' fontSize='1.1rem' />
                 </Box>
                 <Typography variant='h6' fontWeight={700}>
-                  {summary?.[item.key] ?? '—'}
+                  {item.key === 'totalWorkingHours' && typeof summary?.totalWorkingHours === 'number'
+                    ? `${Math.floor(Math.round(summary.totalWorkingHours * 60) / 60)}h ${String(Math.round(summary.totalWorkingHours * 60) % 60).padStart(2, '0')}m`
+                    : summary?.[item.key] ?? '—'}
                 </Typography>
                 <Typography variant='caption' color='text.secondary'>{item.label}</Typography>
               </>

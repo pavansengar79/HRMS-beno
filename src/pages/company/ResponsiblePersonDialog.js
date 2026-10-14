@@ -43,10 +43,7 @@ const ResponsiblePersonDialog = ({ open, onClose, companyId, companyName, onSucc
         
         if (res?.success && Array.isArray(res.data)) {
           console.log('All roles:', res.data)
-          // Filter company-level roles or org-level roles (both can be assigned to company)
-          const assignableRoles = res.data.filter(role => 
-            role.level === 'company' || role.level === 'org'
-          )
+          const assignableRoles = res.data.filter(role => role.level === 'company')
           console.log('Assignable roles:', assignableRoles)
           setRoles(assignableRoles)
         } else {
@@ -122,10 +119,14 @@ const ResponsiblePersonDialog = ({ open, onClose, companyId, companyName, onSucc
     }
   }
 
+  const handleDialogClose = (event, reason) => {
+    if (reason !== 'backdropClick') handleClose()
+  }
+
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={handleDialogClose}
       maxWidth='sm'
       fullWidth
       PaperProps={{

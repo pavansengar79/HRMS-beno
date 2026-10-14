@@ -369,13 +369,25 @@ const TabLeaveTypes = () => {
   const { leaveTypes, leaveTypesLoading } = useSelector(state => state.leaves)
   const permissions = useSelector(selectPermissions) || []
   const roleSlug = (useSelector(selectRoleSlug) || '').toLowerCase()
+  const isEmployeeRole = roleSlug === 'employee'
   const canManageLeaveTypes = LEAVE_TYPE_MANAGER_ROLES.includes(roleSlug)
   const hasCreatePermission = canManageLeaveTypes || permissions.includes('leaveType.create')
   const hasUpdatePermission = canManageLeaveTypes || permissions.includes('leaveType.update')
   const hasDeletePermission = canManageLeaveTypes || permissions.includes('leaveType.delete')
 
-  const fetchTypes = useCallback(() => { dispatch(fetchLeaveTypes()) }, [dispatch])
-  useEffect(() => { fetchTypes() }, [fetchTypes])
+  const fetchTypes = useCallback(() => {
+    if (isEmployeeRole) return
+
+    dispatch(fetchLeaveTypes())
+  }, [dispatch, isEmployeeRole])
+
+  useEffect(() => {
+    if (isEmployeeRole) return
+
+    fetchTypes()
+  }, [fetchTypes, isEmployeeRole])
+
+  if (isEmployeeRole) return null
 
   const openAdd  = () => { setEditData(null);  setDrawerOpen(true) }
   const openEdit = lt  => { if (hasUpdatePermission) { setEditData(lt); setDrawerOpen(true) } }

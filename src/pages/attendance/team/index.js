@@ -99,11 +99,11 @@ const monthOf = (dateStr) => {
 // Team Overview Widget
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TeamOverviewWidget = ({ rows, loading }) => {
-  const present = rows.filter(r => ['PRESENT', 'LATE', 'WFH'].includes(r.status)).length
-  const absent = rows.filter(r => r.status === 'ABSENT').length
-  const onLeave = rows.filter(r => r.status === 'ON_LEAVE').length
-  const late = rows.filter(r => r.status === 'LATE').length
+const TeamOverviewWidget = ({ rows, overview, loading }) => {
+  const present = overview?.present ?? rows.filter(r => ['PRESENT', 'LATE', 'WFH'].includes(r.status)).length
+  const absent = overview?.absent ?? rows.filter(r => r.status === 'ABSENT').length
+  const onLeave = overview?.onLeave ?? rows.filter(r => r.status === 'ON_LEAVE').length
+  const late = overview?.late ?? rows.filter(r => r.status === 'LATE').length
 
   if (loading) return <Skeleton variant='rounded' height={80} sx={{ mb: 4 }} />
 
@@ -298,6 +298,7 @@ export default function TeamAttendance() {
   const [loading, setLoading] = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 })
   const [rowCount, setRowCount] = useState(0)
+  const [overview, setOverview] = useState(null)
   const [regularizeRecord, setRegularizeRecord] = useState(null)
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [employeeSummary, setEmployeeSummary] = useState(null)
@@ -407,7 +408,8 @@ export default function TeamAttendance() {
           : []
 
         setRows(normalized)
-        setRowCount(res.data?.pagination?.total ?? normalized.length)
+        setRowCount(res.pagination?.total ?? normalized.length)
+        setOverview(res.overview || null)
       }
     } catch (err) {
       toast.error('Failed to load team attendance')
@@ -624,7 +626,7 @@ export default function TeamAttendance() {
       <Grid container spacing={5}>
         {/* ── Team Overview Widget ─────────────────────────────────────── */}
         <Grid item xs={12}>
-          <TeamOverviewWidget rows={rows} loading={loading} />
+          <TeamOverviewWidget rows={rows} overview={overview} loading={loading} />
         </Grid>
 
       {/* ── Main Table Card ─────────────────────────────────────────── */}
@@ -684,19 +686,27 @@ export default function TeamAttendance() {
               {isHR && (
                 <DepartmentSelect
                   value={filterDept}
-                  onChange={setFilterDept}
+                  onChange={departmentId => {
+                    setFilterDept(departmentId)
+                    setSelectedEmployeeFilter(null)
+                  }}
                   size='small'
                   sx={{ minWidth: 160 }}
                 />
               )}
 
               {isHR && (
-                <EmployeeSelect
-                  value={selectedEmployeeFilter}
-                  onChange={setSelectedEmployeeFilter}
-                  size='small'
-                  sx={{ minWidth: 280 }}
-                />
+                <Box>
+                  <Typography variant='body2' sx={{ mb: 1 }}>Search Employee</Typography>
+                  <EmployeeSelect
+                    label=''
+                    value={selectedEmployeeFilter}
+                    onChange={setSelectedEmployeeFilter}
+                    departmentId={filterDept || null}
+                    size='small'
+                    sx={{ minWidth: 280 }}
+                  />
+                </Box>
               )}
 
               <CustomTextField
@@ -713,7 +723,7 @@ export default function TeamAttendance() {
                 ))}
               </CustomTextField>
 
-              <Typography variant='caption' color='text.secondary' sx={{ ml: 'auto' }}>
+              <Typography variant='caption' color='text.secondary'>
                 {rowCount} record{rowCount !== 1 ? 's' : ''}
               </Typography>
             </Box>

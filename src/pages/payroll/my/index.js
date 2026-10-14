@@ -257,7 +257,7 @@ export default function MyPayslips() {
                       <Box>
                         <Typography variant='body2' sx={{ fontWeight: 600 }}>{monthName} {p.year}</Typography>
                         <Typography variant='caption' color='text.secondary'>
-                          {p.totalWorkingDays || 22} working days
+                          {p.totalWorkingDays ?? '—'} cycle working days
                         </Typography>
                       </Box>
                     </TableCell>
@@ -471,19 +471,23 @@ function PayslipDetailDialog({ open, onClose, loading, payslip, onDownload }) {
 
             {/* Attendance Summary */}
             <Box sx={{ p: 3 }}>
-              <Typography variant='subtitle2' sx={{ mb: 2, fontWeight: 700 }}>Attendance Summary</Typography>
+              <Typography variant='subtitle2' sx={{ mb: 2, fontWeight: 700 }}>Salary Details</Typography>
               <Grid container spacing={2}>
-                <Grid item xs={4}>
-                  <Typography variant='caption' color='text.secondary'>Working Days</Typography>
-                  <Typography variant='body2'>{payslip.totalWorkingDays || 22}</Typography>
+                <Grid item xs={6} sm={6}>
+                  <Typography variant='caption' color='text.secondary'>Actual Total Days</Typography>
+                  <Typography variant='body2'>{payslip.eligibleCalendarDays ?? '—'}</Typography>
                 </Grid>
-                <Grid item xs={4}>
-                  <Typography variant='caption' color='text.secondary'>Days Present</Typography>
-                  <Typography variant='body2'>{payslip.daysPresent || '—'}</Typography>
+                <Grid item xs={6} sm={6}>
+                  <Typography variant='caption' color='text.secondary'>Total Working Days</Typography>
+                  <Typography variant='body2'>{payslip.eligibleWorkingDays ?? '—'}</Typography>
                 </Grid>
-                <Grid item xs={4}>
-                  <Typography variant='caption' color='text.secondary'>LOP Days</Typography>
-                  <Typography variant='body2'>{payslip.lopDays || 0}</Typography>
+                <Grid item xs={6} sm={6}>
+                  <Typography variant='caption' color='text.secondary'>Loss of Pay Days</Typography>
+                  <Typography variant='body2'>{payslip.lopDays ?? '—'}</Typography>
+                </Grid>
+                <Grid item xs={6} sm={6}>
+                  <Typography variant='caption' color='text.secondary'>Days Payable</Typography>
+                  <Typography variant='body2'>{payslip.daysPayable ?? '—'}</Typography>
                 </Grid>
               </Grid>
             </Box>

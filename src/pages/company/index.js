@@ -96,7 +96,7 @@ const Company = () => {
     { flex: 0.12, minWidth: 100, field: 'company_code', headerName: 'Code',
       renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary', fontFamily: 'monospace', fontSize: '0.75rem' }}>{row.company_code}</Typography> },
     { flex: 0.15, minWidth: 130, field: 'company_phone', headerName: 'Phone',
-      renderCell: ({ row }) => <Typography sx={{ color: 'text.secondary' }}>{row.company_phone || '—'}</Typography> },
+      renderCell: ({ row }) => <Typography noWrap title={row.company_phone || ''} sx={{ color: 'text.secondary', maxWidth: '100%' }}>{row.company_phone || '—'}</Typography> },
     { 
       flex: 0.18, 
       minWidth: 200, 

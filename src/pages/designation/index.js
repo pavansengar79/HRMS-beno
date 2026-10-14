@@ -62,13 +62,13 @@ const DesignationPage = () => {
       if (editItem) { await axiosRequest.put(`/api/v1/designations/${editItem._id}`, data); toast.success('Updated') }
       else { await axiosRequest.post('/api/v1/designations/create', data); toast.success('Created') }
       fetchData(); handleClose()
-    } catch (err) { toast.error(typeof err === 'string' ? err : err?.message || 'Failed') }
+    } catch (err) { if (typeof err !== 'string') toast.error(err?.message || 'Failed') }
     finally { setSubmitting(false) }
   }
 
   const handleDelete = async id => {
     try { await axiosRequest.delete(`/api/v1/designations/${id}`); toast.success('Deleted'); fetchData() }
-    catch (err) { toast.error(typeof err === 'string' ? err : err?.message || 'Failed') }
+    catch (err) { if (typeof err !== 'string') toast.error(err?.message || 'Failed') }
   }
 
   const RowOptions = ({ row }) => {

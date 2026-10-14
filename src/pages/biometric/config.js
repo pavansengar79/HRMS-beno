@@ -499,7 +499,7 @@ const BiometricConfigPage = () => {
                 size='small'
                 startIcon={<Icon icon='tabler:plug-connected' />}
                 onClick={() => testConnection()}
-                disabled={!configForm.serverUrl || !configForm.username || !configForm.password}
+                disabled={saving || !configForm.serverUrl || !configForm.username}
               >
                 Test Connection
               </Button>

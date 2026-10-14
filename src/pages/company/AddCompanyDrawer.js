@@ -21,8 +21,8 @@ const Header = styled(Box)(({ theme }) => ({
 
 const schema = yup.object().shape({
   company_name:  yup.string().required('Company name is required'),
-  company_email: yup.string().email('Enter valid email').required('Company email is required'),
-  company_phone: yup.string().required('Phone is required'),
+  company_email: yup.string().email('Enter valid email').matches(/^[^.]/, 'Email cannot start with a dot').required('Company email is required'),
+  company_phone: yup.string().required('Phone is required').matches(/^[0-9]{1,13}$/, 'Enter up to 13 digits'),
   // admin_name:    yup.string().required('Admin name is required'),
   // admin_email:   yup.string().email('Enter valid email').required('Admin email is required'),
   // admin_phone:   yup.string(),
@@ -58,13 +58,16 @@ const AddCompanyDrawer = ({ open, toggle }) => {
       <Box component='form' onSubmit={handleSubmit(onSubmit)} sx={{ p: 6 }}>
         <Typography variant='subtitle2' sx={{ mb: 2, color: 'text.disabled', textTransform: 'uppercase', fontSize: '0.75rem' }}>Company Details</Typography>
         <Controller name='company_name' control={control} render={({ field }) => (
-          <CustomTextField {...field} fullWidth label='Company Name' sx={{ mb: 4 }} error={!!errors.company_name} helperText={errors.company_name?.message} />
+          <CustomTextField {...field} fullWidth required label='Company Name' sx={{ mb: 4 }} error={!!errors.company_name} helperText={errors.company_name?.message} />
         )} />
         <Controller name='company_email' control={control} render={({ field }) => (
-          <CustomTextField {...field} fullWidth label='Company Email' sx={{ mb: 4 }} error={!!errors.company_email} helperText={errors.company_email?.message} />
+          <CustomTextField {...field} fullWidth required label='Company Email' sx={{ mb: 4 }} error={!!errors.company_email} helperText={errors.company_email?.message} />
         )} />
         <Controller name='company_phone' control={control} render={({ field }) => (
-          <CustomTextField {...field} fullWidth label='Company Phone' sx={{ mb: 4 }} error={!!errors.company_phone} helperText={errors.company_phone?.message} />
+          <CustomTextField {...field} fullWidth required label='Company Phone' sx={{ mb: 4 }}
+            inputProps={{ inputMode: 'numeric', maxLength: 13 }}
+            onChange={event => field.onChange(event.target.value.replace(/\D/g, '').slice(0, 13))}
+            error={!!errors.company_phone} helperText={errors.company_phone?.message} />
         )} />
         {/* <Typography variant='subtitle2' sx={{ mb: 2, color: 'text.disabled', textTransform: 'uppercase', fontSize: '0.75rem' }}>Admin Details</Typography>
         <Controller name='admin_name' control={control} render={({ field }) => (

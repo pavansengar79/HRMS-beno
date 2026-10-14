@@ -157,6 +157,27 @@ const SalaryRegister = () => {
     }
   }
 
+  const handleRecalculateDraft = async (payslip) => {
+    const employee = payslip.employee_id
+    const employeeId = typeof employee === 'object' ? employee?._id : employee
+    if (!employeeId || !confirm('Recalculate this draft using the current payroll policy and attendance? Its salary amounts will change.')) return
+
+    setActionLoading(`recalculate-${payslip._id}`)
+    try {
+      await axiosRequest.post(`/api/v1/payroll-policies/run/${employeeId}`, {
+        month: `${payslip.year}-${String(payslip.month).padStart(2, '0')}`
+      })
+      const body = await axiosRequest.get(`/api/v1/payslips/${payslip._id}`)
+      setPayslipDetail(body?.data ?? body)
+      await fetchPayslips()
+      toast.success('Draft recalculated using the current payroll policy')
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to recalculate draft')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   const downloadPayslipPdf = async (payslipId, label) => {
     try {
       const response = await axiosRequest.get(`/api/v1/payslips/${payslipId}/pdf`, { responseType: 'blob' })
@@ -654,19 +675,23 @@ const SalaryRegister = () => {
                 <Typography variant='h6' sx={{ fontWeight: 800, color: '#10b981' }}>{fmt(payslipDetail.netSalary)}</Typography>
               </Box>
 
-              <Typography variant='subtitle2' sx={{ mt: 3, mb: 1, fontWeight: 700 }}>Attendance</Typography>
+              <Typography variant='subtitle2' sx={{ mt: 3, mb: 1, fontWeight: 700 }}>Salary Details</Typography>
               <Grid container spacing={2}>
-                <Grid item xs={4}>
-                  <Typography variant='caption' color='text.secondary'>Working Days</Typography>
-                  <Typography variant='body2'>{payslipDetail.totalWorkingDays ?? '—'}</Typography>
+                <Grid item xs={6} sm={6}>
+                  <Typography variant='caption' color='text.secondary'>Actual Total Days</Typography>
+                  <Typography variant='body2'>{payslipDetail.eligibleCalendarDays ?? '—'}</Typography>
                 </Grid>
-                <Grid item xs={4}>
-                  <Typography variant='caption' color='text.secondary'>Days Present</Typography>
-                  <Typography variant='body2'>{payslipDetail.daysPresent ?? '—'}</Typography>
+                <Grid item xs={6} sm={6}>
+                  <Typography variant='caption' color='text.secondary'>Total Working Days</Typography>
+                  <Typography variant='body2'>{payslipDetail.eligibleWorkingDays ?? '—'}</Typography>
                 </Grid>
-                <Grid item xs={4}>
-                  <Typography variant='caption' color='text.secondary'>Overtime Hours</Typography>
-                  <Typography variant='body2'>{payslipDetail.overtimeHours ?? 0}</Typography>
+                <Grid item xs={6} sm={6}>
+                  <Typography variant='caption' color='text.secondary'>Loss of Pay Days</Typography>
+                  <Typography variant='body2'>{payslipDetail.lopDays ?? '—'}</Typography>
+                </Grid>
+                <Grid item xs={6} sm={6}>
+                  <Typography variant='caption' color='text.secondary'>Days Payable</Typography>
+                  <Typography variant='body2'>{payslipDetail.daysPayable ?? '—'}</Typography>
                 </Grid>
               </Grid>
             </>
@@ -675,6 +700,15 @@ const SalaryRegister = () => {
           )}
         </DialogContent>
         <DialogActions>
+          {payslipDetail?.status === 'DRAFT' && (
+            <Button
+              startIcon={actionLoading === `recalculate-${payslipDetail._id}` ? <CircularProgress size={16} /> : <Icon icon='tabler:refresh' />}
+              disabled={Boolean(actionLoading)}
+              onClick={() => handleRecalculateDraft(payslipDetail)}
+            >
+              Recalculate Draft
+            </Button>
+          )}
           {payslipDetail && (
             <Button
               startIcon={<Icon icon='mdi:download' />}

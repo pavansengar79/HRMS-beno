@@ -82,6 +82,7 @@ const LeaveManagement = ({ tab }) => {
   // 3. Reporting Managers (checked via 'leave.approve' permission)
   const isHRManager = ['hr_manager', 'company_hr_manager'].includes(roleSlug)
   const isAdmin = ['unit_admin', 'org_admin', 'company_admin', 'super_admin'].includes(roleSlug)
+  const isEmployeeRole = roleSlug === 'employee'
   const canApproveLeave = permissions.includes('leave.approve')
   const canViewApprovalTab = isHRManager || isAdmin || canApproveLeave
 
@@ -99,6 +100,7 @@ const LeaveManagement = ({ tab }) => {
     if (t.value === 'initialize') return roleSlug === 'hr_manager'
     if (t.value === 'balance') return canViewBalance
     if (t.value === 'approval') return canViewApprovalTab
+    if (t.value === 'types') return !isEmployeeRole
     return true
   })
 
@@ -109,14 +111,20 @@ const LeaveManagement = ({ tab }) => {
     const cannotViewInitialize = activeTab === 'initialize' && roleSlug !== 'hr_manager'
     const cannotViewBalance = activeTab === 'balance' && !canViewBalance
     const cannotViewApproval = activeTab === 'approval' && !canViewApprovalTab
+    const cannotViewTypes = activeTab === 'types' && isEmployeeRole
 
-    if (cannotViewInitialize || cannotViewBalance || cannotViewApproval) {
+    if (cannotViewInitialize || cannotViewBalance || cannotViewApproval || cannotViewTypes) {
       setActiveTab('requests')
       router.replace(getLeaveTabPath(router.query, 'requests'))
     }
-  }, [activeTab, canViewBalance, canViewApprovalTab, level, roleSlug, router])
+  }, [activeTab, canViewBalance, canViewApprovalTab, level, roleSlug, router, isEmployeeRole])
 
-  const displayedTab = (activeTab === 'balance' && !canViewBalance) || (activeTab === 'approval' && !canViewApprovalTab) ? 'requests' : activeTab
+  const displayedTab =
+    (activeTab === 'balance' && !canViewBalance) ||
+    (activeTab === 'approval' && !canViewApprovalTab) ||
+    (activeTab === 'types' && isEmployeeRole)
+      ? 'requests'
+      : activeTab
 
   const tabContentList = {
     requests: <TabLeaveRequests />,

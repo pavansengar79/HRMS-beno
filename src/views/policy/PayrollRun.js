@@ -322,7 +322,7 @@ const PayrollRun = () => {
         setRunStatus('completed')
       }
     } catch (err) {
-      toast.error(err?.response?.data?.message || 'Payroll run failed')
+      if (typeof err !== 'string') toast.error(err?.response?.data?.message || 'Payroll run failed')
       setRunStatus('failed')
     } finally {
       setCalculating(false)

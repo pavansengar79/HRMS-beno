@@ -58,7 +58,7 @@ const LinkStyled = styled(Link)(({ theme }) => ({
 }))
 
 const schema = yup.object().shape({
-  email:    yup.string().email('Enter a valid email').required('Email is required'),
+  email:    yup.string().trim().email('Enter a valid email').required('Email is required'),
   password: yup.string().min(1, 'Password is required').required('Password is required'),
 })
 
@@ -84,7 +84,7 @@ const LoginPage = () => {
     try {
       const res = await axiosRequest.post('/api/v1/auth/login', {
         email:    data.email.trim().toLowerCase(),
-        password: data.password,
+        password: data.password.trim(),
       })
 
       // ✅ MFA required - redirect to MFA challenge

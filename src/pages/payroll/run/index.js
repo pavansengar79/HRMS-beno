@@ -82,7 +82,7 @@ export default function RunPayroll() {
       const s = res?.data?.summary ?? res?.summary ?? {}
       toast.success(`Payroll run complete. Processed: ${s.processed ?? 0}, Failed: ${s.failed ?? 0}`)
       dispatch(fetchAllPayslips({ month }))
-    } catch (e) { toast.error(String(e)) }
+    } catch (e) { if (typeof e !== 'string') toast.error(String(e)) }
   }
 
   const handleRunSingle = async (empId, empName) => {

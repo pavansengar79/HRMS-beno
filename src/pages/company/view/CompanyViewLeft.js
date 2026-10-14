@@ -32,6 +32,7 @@ import { getInitials } from 'src/@core/utils/get-initials'
 // ** Redux
 import { useDispatch } from 'react-redux'
 import { updateCompany } from 'src/store/company/companySlice'
+import toast from 'react-hot-toast'
 
 // ─── Color maps ───────────────────────────────────────────────────────────────
 const STATUS_COLOR = {
@@ -67,11 +68,14 @@ const CompanyViewLeft = ({ company }) => {
   const updatedFormatted  = fmt(company.updatedAt)
 
   // ── Suspend ────────────────────────────────────────────────────────────────
-  const handleSuspend = async () => {
+  const isInactive = company.status === 'Inactive' || company.status === 'Suspended'
+  const handleStatusChange = async () => {
     try {
       setSuspending(true)
-      await dispatch(updateCompany({ id: company._id || company.id, payload: { status: 'Inactive' } }))
+      await dispatch(updateCompany({ id: company._id || company.id, payload: { status: isInactive ? 'Active' : 'Inactive' } })).unwrap()
       setSuspendOpen(false)
+    } catch (error) {
+      toast.error(typeof error === 'string' ? error : error?.message || 'Failed to update company status')
     } finally {
       setSuspending(false)
     }
@@ -287,13 +291,11 @@ const CompanyViewLeft = ({ company }) => {
           </CardContent>
 
           {/* ── Actions ────────────────────────────────────────── */}
-          {company.status !== 'Inactive' && (
-            <CardActions sx={{ display: 'flex', justifyContent: 'center' }}>
-              <Button color='error' variant='tonal' onClick={() => setSuspendOpen(true)}>
-                Suspend
-              </Button>
-            </CardActions>
-          )}
+          <CardActions sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Button color={isInactive ? 'success' : 'error'} variant='tonal' onClick={() => setSuspendOpen(true)}>
+              {isInactive ? 'Activate' : 'Suspend'}
+            </Button>
+          </CardActions>
 
         </Card>
       </Grid>
@@ -308,10 +310,10 @@ const CompanyViewLeft = ({ company }) => {
             px: theme => [`${theme.spacing(5)} !important`, `${theme.spacing(15)} !important`],
           }}
         >
-          <Typography variant='h4'>Suspend Company</Typography>
+          <Typography variant='h4'>{isInactive ? 'Activate' : 'Suspend'} Company</Typography>
           <Typography color='text.secondary' sx={{ mt: 2 }}>
-            Are you sure you want to suspend <strong>{displayName}</strong>?
-            Their status will be set to Inactive.
+            Are you sure you want to {isInactive ? 'activate' : 'suspend'} <strong>{displayName}</strong>?
+            Their status will be set to {isInactive ? 'Active' : 'Inactive'}.
           </Typography>
         </DialogTitle>
         <DialogActions
@@ -322,11 +324,11 @@ const CompanyViewLeft = ({ company }) => {
           }}
         >
           <Button
-            variant='contained' color='error'
-            onClick={handleSuspend} disabled={suspending}
+            variant='contained' color={isInactive ? 'success' : 'error'}
+            onClick={handleStatusChange} disabled={suspending}
             startIcon={suspending ? <CircularProgress size={16} color='inherit' /> : null}
           >
-            {suspending ? 'Suspending…' : 'Suspend'}
+            {suspending ? 'Updating…' : isInactive ? 'Activate' : 'Suspend'}
           </Button>
           <Button variant='tonal' color='secondary' onClick={() => setSuspendOpen(false)} disabled={suspending}>
             Cancel

@@ -51,7 +51,7 @@ const UserDetails = () => {
 
   // ── Self-access check ──────────────────────────────────────────────────────
   // All users can view and update their own profile WITHOUT permissions
-  const isOwnProfile = current_user?._id === id || current_user?.id === id
+  const isOwnProfile = current_user?.employeeId === id || current_user?._id === id || current_user?.id === id
   
   // View access: has permission OR viewing own profile OR has admin-level role
   const canViewOthers = canViewEmployee ||
@@ -59,11 +59,11 @@ const UserDetails = () => {
 
   // Redirect if not authorized (employee viewing someone else without permission)
   useEffect(() => {
-    if (!isOwnProfile && !canViewOthers) {
+    if (router.isReady && id && current_user && !isOwnProfile && !canViewOthers) {
       toast.error('You can only view your own profile')
       router.push('/dashboards/analytics')
     }
-  }, [isOwnProfile, canViewOthers, router])
+  }, [id, current_user, isOwnProfile, canViewOthers, router])
   
   // ── Edit Permission Logic ─────────────────────────────────────────────────
   // Can EDIT if: has employee.update permission OR viewing own profile

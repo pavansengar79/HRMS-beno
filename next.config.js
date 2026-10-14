@@ -9,6 +9,7 @@ module.exports = {
   trailingSlash: true,
   reactStrictMode: false,
   output: 'export',
+  distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   
   webpack: config => {
     config.resolve.alias = {

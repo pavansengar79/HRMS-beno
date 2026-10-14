@@ -93,7 +93,7 @@ export const RegularizeDialog = ({ open, onClose, record, onSuccess }) => {
     setValue,
     setError,
     clearErrors,
-    formState: { errors }
+    formState: { errors, dirtyFields }
   } = useForm({
     defaultValues: {
       regularizationType: '',
@@ -180,9 +180,15 @@ export const RegularizeDialog = ({ open, onClose, record, onSuccess }) => {
       return
     }
 
-    const checkIn = requiresCheckIn ? combineRecordDateAndTime(record.date, data.checkIn) : null
-    const checkOut = requiresCheckOut ? combineRecordDateAndTime(record.date, data.checkOut) : null
-    if (checkIn && checkOut && new Date(checkOut) <= new Date(checkIn)) {
+    const checkIn = data.checkIn && (requiresCheckIn || dirtyFields.checkIn)
+      ? combineRecordDateAndTime(record.date, data.checkIn)
+      : null
+    const checkOut = data.checkOut && (requiresCheckOut || dirtyFields.checkOut)
+      ? combineRecordDateAndTime(record.date, data.checkOut)
+      : null
+    const effectiveCheckIn = checkIn || record.checkIn
+    const effectiveCheckOut = checkOut || record.checkOut
+    if (effectiveCheckIn && effectiveCheckOut && new Date(effectiveCheckOut) <= new Date(effectiveCheckIn)) {
       setError('checkOut', { message: 'Check-out time must be after check-in time.' })
       return
     }
@@ -272,7 +278,7 @@ export const RegularizeDialog = ({ open, onClose, record, onSuccess }) => {
             />
           </Grid>
           {requiresCheckIn && (
-            <Grid item xs={12} sm={requiresCheckOut ? 6 : 12}>
+            <Grid item xs={12} sm={6}>
               <Controller name='checkIn' control={control}
                 render={({ field }) => (
                   <CustomTextField {...field} fullWidth type='time' label='Check In Time *'
@@ -284,19 +290,17 @@ export const RegularizeDialog = ({ open, onClose, record, onSuccess }) => {
               />
             </Grid>
           )}
-          {requiresCheckOut && (
-            <Grid item xs={12} sm={requiresCheckIn ? 6 : 12}>
+          <Grid item xs={12} sm={requiresCheckIn ? 6 : 12}>
               <Controller name='checkOut' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} fullWidth type='time' label='Check Out Time *'
+                  <CustomTextField {...field} fullWidth type='time' label={`Check Out Time${requiresCheckOut ? ' *' : ''}`}
                     InputLabelProps={{ shrink: true }}
                     error={!!errors.checkOut}
-                    helperText={errors.checkOut?.message || (requiresCheckIn ? 'Must be after check-in time.' : 'Select the corrected punch-out time.')}
+                    helperText={errors.checkOut?.message || (requiresCheckOut ? 'Select the corrected punch-out time.' : 'Optional: add or correct the punch-out time.')}
                   />
                 )}
               />
-            </Grid>
-          )}
+          </Grid>
           <Grid item xs={12}>
             <Controller name='remarks' control={control}
               render={({ field }) => (
