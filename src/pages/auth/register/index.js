@@ -1,9 +1,9 @@
 // src/pages/auth/register/index.js
 // Public signup page.
 // Fetches real plans from: GET /api/v1/plans/public
-// Submits to:              POST /api/v1/tenant/register
+// Submits to:              POST /api/v1/super-admin/register (pending approval)
 // On success: redirects to /auth/login
-// Backend emails temp password → user logs in → is_first_login=true → /auth/set-password
+// Credentials are sent after approval, not at signup.
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'

@@ -41,7 +41,7 @@ const AddCompanyDrawer = ({ open, toggle }) => {
     setLoading(true)
     try {
       await dispatch(createCompany(data)).unwrap()
-      toast.success('Company created! Admin credentials sent via email.')
+      toast.success('Company created successfully.')
       dispatch(fetchAllCompanies())
       toggle(); reset()
     } catch (err) { toast.error(err || 'Failed to create company') }
