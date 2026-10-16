@@ -1,7 +1,7 @@
 // src/pages/payroll/lock.js
 // Payroll Lock/Unlock Management — Prevents modifications after final payroll processing
 // Backend routes: POST /payroll-lock/lock, /unlock, GET /payroll-lock/status
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useRouter } from 'next/router'
 import toast from 'react-hot-toast'
@@ -59,11 +59,22 @@ const PayrollLockPage = () => {
   const now = new Date()
   const [month, setMonth] = useState(String(now.getMonth() + 1))
   const [year, setYear] = useState(String(now.getFullYear()))
+
+  useEffect(() => {
+    if (!router.isReady) return
+    const requestedMonth = router.query.month
+    if (typeof requestedMonth !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth)) return
+    const [requestedYear, requestedPeriodMonth] = requestedMonth.split('-')
+    if (!YEAR_OPTIONS.includes(requestedYear)) return
+    setYear(requestedYear)
+    setMonth(String(Number(requestedPeriodMonth)))
+  }, [router.isReady, router.query.month])
   
   const [lockStatus, setLockStatus] = useState(null)
   const [lockHistory, setLockHistory] = useState([])
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
+  const lockRequest = useRef(0)
   
   const [lockDialogOpen, setLockDialogOpen] = useState(false)
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false)
@@ -72,19 +83,25 @@ const PayrollLockPage = () => {
 
   // Fetch lock status for selected month/year
   const fetchLockStatus = useCallback(async () => {
+    const requestId = ++lockRequest.current
+    setLockStatus(null)
     setLoading(true)
     try {
       // Backend route: GET /:month (YYYY-MM format as URL param)
       const monthParam = `${year}-${month.padStart(2, '0')}`
       const body = await axiosRequest.get(`/api/v1/payroll-lock/${monthParam}`)
       const d = body?.data ?? body
-      setLockStatus(d ?? null)
-      setLockHistory(d?.history ?? [])
+      if (requestId === lockRequest.current) {
+        setLockStatus(d ?? null)
+        setLockHistory(d?.history ?? [])
+      }
     } catch (err) {
-      console.error('Failed to fetch lock status:', err)
-      toast.error('Failed to fetch lock status')
+      if (requestId === lockRequest.current) {
+        setLockStatus(null)
+        toast.error('Failed to fetch lock status')
+      }
     } finally {
-      setLoading(false)
+      if (requestId === lockRequest.current) setLoading(false)
     }
   }, [month, year])
 
@@ -373,14 +390,14 @@ const PayrollLockPage = () => {
                       sx={{
                         fontWeight: 700,
                         fontSize: 11,
-                        bgcolor: alpha(h.action === 'LOCK' ? '#f59e0b' : '#10b981', 0.1),
-                        color: h.action === 'LOCK' ? '#f59e0b' : '#10b981'
+                        bgcolor: alpha(h.action === 'LOCKED' ? '#f59e0b' : '#10b981', 0.1),
+                        color: h.action === 'LOCKED' ? '#f59e0b' : '#10b981'
                       }}
                     />
                   </TableCell>
-                  <TableCell>{MONTH_NAMES[h.month - 1]} {h.year}</TableCell>
+                  <TableCell>{lockStatus?.period || `${MONTH_NAMES[Number(month) - 1]} ${year}`}</TableCell>
                   <TableCell>{h.by?.name || 'Admin'}</TableCell>
-                  <TableCell>{new Date(h.date).toLocaleString('en-IN')}</TableCell>
+                  <TableCell>{h.at ? new Date(h.at).toLocaleString('en-IN') : '—'}</TableCell>
                   <TableCell>{h.reason || '—'}</TableCell>
                 </TableRow>
               ))}

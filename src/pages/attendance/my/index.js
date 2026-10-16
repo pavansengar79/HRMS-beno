@@ -261,7 +261,7 @@ export default function MyAttendance() {
       params.set('month', filterMonth)
       if (filterStatus) params.set('status', filterStatus)
 
-      const res = await axiosRequest.get(`/api/v1/attendance/me?${params.toString()}`)
+      const res = await axiosRequest.get(`/api/v1/attendance/me?${params.toString()}`, { params: { orgId: null } })
 
       if (res?.success) {
         const records = res.data?.records ?? res.data?.attendance ?? res.data ?? []
@@ -283,7 +283,7 @@ export default function MyAttendance() {
   const fetchSummary = useCallback(async () => {
     setSummaryLoading(true)
     try {
-      const res = await axiosRequest.get(`/api/v1/attendance/me/summary?month=${filterMonth}`)
+      const res = await axiosRequest.get(`/api/v1/attendance/me/summary?month=${filterMonth}`, { params: { orgId: null } })
       if (res?.success) setSummary(res.data?.summary ?? res.data)
     } catch {
       // Non-critical — summary cards show —

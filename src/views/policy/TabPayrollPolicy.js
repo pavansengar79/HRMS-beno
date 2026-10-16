@@ -820,10 +820,8 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
             <Grid item xs={12} sm={4}>
               <Controller name='salaryCycle.type' control={control}
                 render={({ field }) => (
-                  <CustomTextField {...field} select fullWidth label='Cycle Type'>
+                  <CustomTextField {...field} select fullWidth label='Cycle Type' helperText='Weekly and bi-weekly payroll are not supported yet'>
                     <MenuItem value='monthly'>Monthly</MenuItem>
-                    <MenuItem value='weekly'>Weekly</MenuItem>
-                    <MenuItem value='biweekly'>Bi-Weekly</MenuItem>
                   </CustomTextField>
                 )}
               />

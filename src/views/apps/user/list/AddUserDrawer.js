@@ -61,7 +61,7 @@ const addSchema = yup.object().shape({
   joiningDate:    yup.string().required('Joining date is required'),
   employmentType: yup.string().required('Employment type is required'),
   designationId: yup.string().required('Designation is required'),
-  reportingManagerId: yup.string().optional(),
+  reportingManagerId: yup.string().required('Reporting manager is required'),
   // Salary fields - no validation, completely optional
   salaryBasic:    yup.string().optional(),
   salaryHra:      yup.string().optional(),
@@ -519,7 +519,7 @@ const AddEmployeeDrawer = ({ open, toggle, editingEmployee, onSuccess }) => {
                   {...field}
                   select
                   fullWidth
-                  label='Reporting Manager'
+                  label={isEditMode ? 'Reporting Manager' : 'Reporting Manager *'}
                   error={Boolean(errors.reportingManagerId)}
                   helperText={errors.reportingManagerId?.message}
                   disabled={isSubmitting || dropLoading}

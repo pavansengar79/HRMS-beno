@@ -976,7 +976,7 @@ const UnitPayroll = ({ data, setData, onNext, onBack }) => {
             <Select label="Pay day" value={cfg.payDay} onChange={v=>setCfg(c=>({...c,payDay:v}))}
               options={[{value:"last",label:"Last day of month"},{value:"1",label:"1st of next month"},{value:"5",label:"5th of next month"}]} />
             <Select label="Salary mode" value={cfg.salaryMode} onChange={v=>setCfg(c=>({...c,salaryMode:v}))}
-              options={[{value:"monthly",label:"Monthly"},{value:"weekly",label:"Weekly"},{value:"biweekly",label:"Bi-weekly"}]} />
+              options={[{value:"monthly",label:"Monthly"}]} />
           </Card>
         </div>
       </div>

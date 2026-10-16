@@ -277,7 +277,7 @@ const UserFilters = ({
           label='Employment Type'
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          sx={{ minWidth: 150, flex: '0 0 auto' }}
+          sx={{ minWidth: 150,mt: 5, flex: '0 0 auto' }}
           InputProps={{
             startAdornment: typeFilter && (
               <InputAdornment position='start'>

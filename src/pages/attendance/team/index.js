@@ -390,7 +390,7 @@ export default function TeamAttendance() {
       // Status filter
       if (filterStatus) params.set('status', filterStatus)
 
-      if (orgId) params.set('orgId', orgId)
+      if (orgId && roleSlug !== ROLES.UNIT_ADMIN) params.set('orgId', orgId)
       if (companyId) params.set('companyId', companyId)
       if (unitId) params.set('unit_id', unitId)
 
@@ -399,7 +399,7 @@ export default function TeamAttendance() {
         ? `/api/v1/attendance?${params.toString()}`
         : `/api/v1/attendance/team?${params.toString()}`
 
-      const res = await axiosRequest.get(endpoint)
+      const res = await axiosRequest.get(endpoint, roleSlug === ROLES.UNIT_ADMIN ? { params: { orgId: null } } : undefined)
 
       if (res?.success) {
         const records = res.data?.records ?? res.data ?? []
@@ -416,7 +416,7 @@ export default function TeamAttendance() {
     } finally {
       setLoading(false)
     }
-  }, [filterMonth, selectedEmployeeFilter, filterDept, filterStatus, isHR, getDateRange, paginationModel, orgId, companyId, unitId])
+  }, [filterMonth, selectedEmployeeFilter, filterDept, filterStatus, isHR, getDateRange, paginationModel, orgId, companyId, unitId, roleSlug])
 
   // Fetch on mount and when filters change
   useEffect(() => { 
@@ -439,7 +439,7 @@ export default function TeamAttendance() {
       const dateRange = getDateRange()
       const params = new URLSearchParams({ employeeId, limit: '100' })
 
-      if (orgId) params.set('orgId', orgId)
+      if (orgId && roleSlug !== ROLES.UNIT_ADMIN) params.set('orgId', orgId)
       if (companyId) params.set('companyId', companyId)
       if (unitId) params.set('unit_id', unitId)
       
@@ -454,7 +454,7 @@ export default function TeamAttendance() {
       
       console.log('Fetching employee summary:', { endpoint, employeeId, dateRange })
       
-      const res = await axiosRequest.get(endpoint)
+      const res = await axiosRequest.get(endpoint, roleSlug === ROLES.UNIT_ADMIN ? { params: { orgId: null } } : undefined)
       
       console.log('API Response:', res)
       
@@ -585,7 +585,7 @@ export default function TeamAttendance() {
     } finally {
       setEmployeeSummaryLoading(false)
     }
-  }, [filterMonth, isHR, getDateRange, orgId, companyId, unitId])
+  }, [filterMonth, isHR, getDateRange, orgId, companyId, unitId, roleSlug])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleEmployeeClick = (row) => {

@@ -32,6 +32,7 @@ import Icon from 'src/@core/components/icon'
 import { useRouter } from 'next/router'
 import { selectRoleSlug } from 'src/store/auth/authSlice'
 import PayrollTabs from '../PayrollTabs'
+import axiosRequest from 'src/utils/AxiosInterceptor'
 
 const fmt = n => n == null ? '—' : '₹' + Math.round(n).toLocaleString('en-IN')
 const fmtDate = s => s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
@@ -62,6 +63,8 @@ export default function RunPayroll() {
   const now = new Date()
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
   const [actionLoading, setActionLoading] = useState(null)
+  const [periodLock, setPeriodLock] = useState(null)
+  const [lockError, setLockError] = useState(false)
 
   // Employees can't run payroll — bounce them to their own payslips.
   useEffect(() => {
@@ -75,6 +78,20 @@ export default function RunPayroll() {
   useEffect(() => {
     dispatch(fetchAllPayslips({ month }))
   }, [dispatch, month])
+
+  useEffect(() => {
+    let active = true
+    setPeriodLock(null)
+    setLockError(false)
+    axiosRequest.get(`/api/v1/payroll-lock/${month}`)
+      .then(response => {
+        if (active) setPeriodLock({ month, isLocked: response?.data?.isLocked === true })
+      })
+      .catch(() => {
+        if (active) setLockError(true)
+      })
+    return () => { active = false }
+  }, [month])
 
   const handleRunAll = async () => {
     try {
@@ -124,6 +141,7 @@ export default function RunPayroll() {
 
   const draftPayslips     = payslips.filter(p => p.status === 'DRAFT')
   const publishedPayslips = payslips.filter(p => p.status === 'PUBLISHED')
+  const canRunPayroll = periodLock?.month === month && periodLock.isLocked
 
   return (
     <PayrollTabs activeTab='run-payroll'>
@@ -167,7 +185,7 @@ export default function RunPayroll() {
         <CardContent>
           <Stack direction='row' spacing={2} flexWrap='wrap'>
             <Button variant='contained' startIcon={runLoading ? <CircularProgress size={16} color='inherit' /> : <Icon icon='tabler:player-play' />}
-              onClick={handleRunAll} disabled={runLoading}>
+              onClick={handleRunAll} disabled={runLoading || !canRunPayroll}>
               Run Payroll for {month}
             </Button>
             {draftPayslips.length > 0 && (
@@ -176,6 +194,12 @@ export default function RunPayroll() {
               </Button>
             )}
           </Stack>
+          {!canRunPayroll && (
+            <Alert severity={lockError ? 'error' : 'warning'} sx={{ mt: 2 }}
+              action={<Button color='inherit' size='small' onClick={() => router.push(`/payroll/lock?month=${month}`)}>Period locks</Button>}>
+              {lockError ? 'Could not verify the payroll period lock. Run payroll is unavailable.' : periodLock ? `Lock ${month} before running payroll.` : 'Checking payroll period lock...'}
+            </Alert>
+          )}
           {lastResult && (
             <Alert severity='success' sx={{ mt: 2 }}>
               Processed: {lastResult?.summary?.processed ?? 0} · Failed: {lastResult?.summary?.failed ?? 0}

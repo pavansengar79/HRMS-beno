@@ -197,6 +197,13 @@ const RegisterPage = () => {
       .finally(() => setPlansLoading(false))
   }, [setValue])
 
+  useEffect(() => {
+    if (!router.isReady) return
+    const { email, name } = router.query
+    if (typeof email === 'string' && email) setValue('contact_email', email)
+    if (typeof name === 'string' && name) setValue('contact_name', name)
+  }, [router.isReady, router.query, setValue])
+
   const handlePlanSelect = plan => {
     setValue('plan_id', plan._id, { shouldValidate: true })
     setSelectedPlan(plan)
@@ -237,7 +244,8 @@ const RegisterPage = () => {
 
   const handleGoogleLogin = () => {
     if (typeof window === 'undefined') return
-    const oauthUrl = new URL(`https://p62tk0sp-5000.inc1.devtunnels.ms/api/v1/auth/google`)
+    const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/+$/, '')
+    const oauthUrl = new URL(`${apiBaseUrl}/api/v1/auth/google`)
     oauthUrl.searchParams.set('returnUrl', `${window.location.origin}/auth/google/callback`)
     window.location.href = oauthUrl.toString()
   }
