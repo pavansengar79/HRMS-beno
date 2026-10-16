@@ -45,10 +45,14 @@ import { fetchAllEmployees } from 'src/store/employee/employeeSlice'
 import { publishPayslip, markPayslipPaid } from 'src/store/payroll/payrollSlice'
 
 import PayrollTabs from './PayrollTabs'
+import PayslipCalendar from './PayslipCalendar'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = n => n == null ? '—' : '₹' + Math.round(n).toLocaleString('en-IN')
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const formatPayrollDate = (date, timeZone = 'UTC') => new Date(date).toLocaleDateString('en-IN', {
+  day: 'numeric', month: 'long', year: 'numeric', timeZone
+})
 
 const STATUS_CONFIG = {
   DRAFT:     { color: '#8b5cf6', label: 'Draft',     icon: 'tabler:file-description' },
@@ -99,6 +103,7 @@ const SalaryRegister = () => {
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [payslipDetail, setPayslipDetail] = useState(null)
+  const [calendarOpen, setCalendarOpen] = useState(false)
 
   // Multi-select state
   const [selected, setSelected] = useState([])
@@ -144,6 +149,7 @@ const SalaryRegister = () => {
 
   // ── Actions ──────────────────────────────────────────────────────────────
   const handleViewDetail = async (payslip) => {
+    setCalendarOpen(false)
     setDetailOpen(true)
     setDetailLoading(true)
     try {
@@ -602,9 +608,14 @@ const SalaryRegister = () => {
       <Dialog open={detailOpen} onClose={() => { setDetailOpen(false); setPayslipDetail(null) }} maxWidth='sm' fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           Payslip Details
-          <IconButton onClick={() => { setDetailOpen(false); setPayslipDetail(null) }}>
-            <Icon icon='tabler:x' />
-          </IconButton>
+          <Box sx={{ display: 'flex' }}>
+            <Tooltip title='Daily salary calendar'>
+              <span><IconButton disabled={!payslipDetail} aria-label='Daily salary calendar' onClick={() => setCalendarOpen(true)}><Icon icon='tabler:calendar-month' /></IconButton></span>
+            </Tooltip>
+            <IconButton aria-label='Close payslip' onClick={() => { setDetailOpen(false); setPayslipDetail(null) }}>
+              <Icon icon='tabler:x' />
+            </IconButton>
+          </Box>
         </DialogTitle>
         <DialogContent dividers>
           {detailLoading ? (
@@ -626,7 +637,19 @@ const SalaryRegister = () => {
                 </Grid>
               </Grid>
 
+              {(payslipDetail.calculatedThrough || payslipDetail.updatedAt) && (
+                <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
+                  {payslipDetail.calculatedThrough
+                    ? `Calculated through ${formatPayrollDate(payslipDetail.calculatedThrough)}`
+                    : `Last updated ${formatPayrollDate(payslipDetail.updatedAt, 'Asia/Kolkata')}`}
+                </Typography>
+              )}
               <Typography variant='subtitle2' sx={{ mb: 1, fontWeight: 700 }}>Earnings</Typography>
+              {payslipDetail.lopFormulaDays != null && (
+                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1 }}>
+                  LOP deduction basis: {payslipDetail.lopFormulaDays} days. Earnings follow the payroll policy's pro-rata basis; paid off days do not incur LOP.
+                </Typography>
+              )}
               <Table size='small'>
                 <TableBody>
                   <DetailRow label='Basic' value={fmt(payslipDetail.earnings?.basic)} />
@@ -689,11 +712,22 @@ const SalaryRegister = () => {
                   <Typography variant='caption' color='text.secondary'>Loss of Pay Days</Typography>
                   <Typography variant='body2'>{payslipDetail.lopDays ?? '—'}</Typography>
                 </Grid>
+                {payslipDetail.payableCalendarDays != null && (
+                  <Grid item xs={6} sm={6}>
+                    <Typography variant='caption' color='text.secondary'>Payable Calendar Days (equivalent)</Typography>
+                    <Typography variant='body2' sx={{ fontWeight: 700 }}>{payslipDetail.payableCalendarDays}</Typography>
+                  </Grid>
+                )}
                 <Grid item xs={6} sm={6}>
-                  <Typography variant='caption' color='text.secondary'>Days Payable</Typography>
+                  <Typography variant='caption' color='text.secondary'>Payable Scheduled Days</Typography>
                   <Typography variant='body2'>{payslipDetail.daysPayable ?? '—'}</Typography>
                 </Grid>
               </Grid>
+              {payslipDetail.payableCalendarDays != null && (
+                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
+                  {payslipDetail.daysPayable} payable scheduled days + {payslipDetail.payableOffDays} off days = {payslipDetail.payableCalendarDays} calendar-day equivalent. Off days are included in monthly salary, not extra pay or LOP.
+                </Typography>
+              )}
             </>
           ) : (
             <Typography color='text.secondary'>No data available</Typography>
@@ -722,6 +756,7 @@ const SalaryRegister = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      <PayslipCalendar payslip={payslipDetail} open={calendarOpen && Boolean(payslipDetail)} onClose={() => setCalendarOpen(false)} />
     </PayrollTabs>
   )
 }

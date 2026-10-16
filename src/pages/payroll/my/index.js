@@ -32,6 +32,7 @@ import { alpha } from '@mui/material/styles'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import Icon from 'src/@core/components/icon'
 import PayrollTabs from '../PayrollTabs'
+import PayslipCalendar from '../PayslipCalendar'
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 const fmt = n => n == null ? '—' : '₹' + Math.round(n).toLocaleString('en-IN')
@@ -257,7 +258,7 @@ export default function MyPayslips() {
                       <Box>
                         <Typography variant='body2' sx={{ fontWeight: 600 }}>{monthName} {p.year}</Typography>
                         <Typography variant='caption' color='text.secondary'>
-                          {p.totalWorkingDays ?? '—'} cycle working days
+                          {p.lopFormulaDays != null ? `${p.lopFormulaDays}-day LOP basis` : 'LOP basis unavailable'}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -341,9 +342,11 @@ export default function MyPayslips() {
 
 // ─── Payslip Detail Dialog Component ───────────────────────────────────────────
 function PayslipDetailDialog({ open, onClose, loading, payslip, onDownload }) {
+  const [calendarOpen, setCalendarOpen] = useState(false)
   if (!open) return null
 
   return (
+    <>
     <Box
       sx={{
         position: 'fixed',
@@ -392,9 +395,14 @@ function PayslipDetailDialog({ open, onClose, loading, payslip, onDownload }) {
                   sx={{ mt: 1 }}
                 />
               </Box>
-              <IconButton onClick={onClose}>
-                <Icon icon='tabler:x' />
-              </IconButton>
+              <Box sx={{ display: 'flex' }}>
+                <Tooltip title='Daily salary calendar'>
+                  <IconButton aria-label='Daily salary calendar' onClick={() => setCalendarOpen(true)}><Icon icon='tabler:calendar-month' /></IconButton>
+                </Tooltip>
+                <IconButton aria-label='Close payslip' onClick={onClose}>
+                  <Icon icon='tabler:x' />
+                </IconButton>
+              </Box>
             </Box>
 
             {/* Employee Info */}
@@ -417,7 +425,19 @@ function PayslipDetailDialog({ open, onClose, loading, payslip, onDownload }) {
 
             {/* Earnings */}
             <Box sx={{ p: 3 }}>
+              {(payslip.calculatedThrough || payslip.updatedAt) && (
+                <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
+                  {payslip.calculatedThrough
+                    ? `Calculated through ${new Date(payslip.calculatedThrough).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}`
+                    : `Last updated ${new Date(payslip.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' })}`}
+                </Typography>
+              )}
               <Typography variant='subtitle2' sx={{ mb: 2, fontWeight: 700 }}>Earnings</Typography>
+              {payslip.lopFormulaDays != null && (
+                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1 }}>
+                  LOP deduction basis: {payslip.lopFormulaDays} days. Earnings follow the payroll policy's pro-rata basis; paid off days do not incur LOP.
+                </Typography>
+              )}
               <Table size='small'>
                 <TableBody>
                   <DetailRow label='Basic Salary' value={fmt(payslip.earnings?.basic)} />
@@ -485,11 +505,22 @@ function PayslipDetailDialog({ open, onClose, loading, payslip, onDownload }) {
                   <Typography variant='caption' color='text.secondary'>Loss of Pay Days</Typography>
                   <Typography variant='body2'>{payslip.lopDays ?? '—'}</Typography>
                 </Grid>
+                {payslip.payableCalendarDays != null && (
+                  <Grid item xs={6} sm={6}>
+                    <Typography variant='caption' color='text.secondary'>Payable Calendar Days (equivalent)</Typography>
+                    <Typography variant='body2' sx={{ fontWeight: 700 }}>{payslip.payableCalendarDays}</Typography>
+                  </Grid>
+                )}
                 <Grid item xs={6} sm={6}>
-                  <Typography variant='caption' color='text.secondary'>Days Payable</Typography>
+                  <Typography variant='caption' color='text.secondary'>Payable Scheduled Days</Typography>
                   <Typography variant='body2'>{payslip.daysPayable ?? '—'}</Typography>
                 </Grid>
               </Grid>
+              {payslip.payableCalendarDays != null && (
+                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
+                  {payslip.daysPayable} payable scheduled days + {payslip.payableOffDays} off days = {payslip.payableCalendarDays} calendar-day equivalent. Off days are included in monthly salary, not extra pay or LOP.
+                </Typography>
+              )}
             </Box>
 
             {/* Actions */}
@@ -505,6 +536,8 @@ function PayslipDetailDialog({ open, onClose, loading, payslip, onDownload }) {
         ) : null}
       </Card>
     </Box>
+    <PayslipCalendar payslip={payslip} open={calendarOpen} onClose={() => setCalendarOpen(false)} />
+    </>
   )
 }
 

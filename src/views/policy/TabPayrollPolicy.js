@@ -947,8 +947,8 @@ const PayrollPolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
                       <CustomTextField {...field} select fullWidth label='Per-Day Formula'
                         helperText='Formula for daily LOP deduction'
                       >
-                        <MenuItem value='monthly_salary/calendar_days'>Gross ÷ Calendar Days (31 for July)</MenuItem>
-                        <MenuItem value='monthly_salary/working_days'>Gross ÷ Working Days (23 for July)</MenuItem>
+                        <MenuItem value='monthly_salary/calendar_days'>Gross ÷ Calendar Days (varies by month)</MenuItem>
+                        <MenuItem value='monthly_salary/working_days'>Gross ÷ Working Days (per policy)</MenuItem>
                         <MenuItem value='monthly_salary/30'>Gross ÷ 30 (Fixed)</MenuItem>
                         <MenuItem value='monthly_salary/26'>Gross ÷ 26 (Industry Standard)</MenuItem>
                       </CustomTextField>
