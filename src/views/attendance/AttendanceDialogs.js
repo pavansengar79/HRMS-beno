@@ -31,6 +31,9 @@ const STATUS_LABEL = {
   WFH:       'WFH'
 }
 
+
+// test cmmit only 
+
 const REGULARIZATION_TYPE_LABEL = {
   MISSED_PUNCH_IN:  'Missed Punch In',
   MISSED_PUNCH_OUT: 'Missed Punch Out',
