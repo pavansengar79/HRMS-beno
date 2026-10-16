@@ -1063,7 +1063,10 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
   }
 
   const cleanMeta = stripIds(metaData)
-  const cleanLeaveTypes = stripIds(leaveTypes)
+  const cleanLeaveTypes = stripIds(leaveTypes).map(leaveType => ({
+    ...leaveType,
+    leaveTypeId: leaveType.leaveTypeId || null
+  }))
 
   setSaving(true)
   try {
@@ -1071,25 +1074,14 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
       ? `/api/v1/leave-policies/${editData._id}`
       : `/api/v1/leave-policies`
 
-    // Step 1 — Create or update policy meta
-    const metaRes = isEdit
-      ? await axiosRequest.put(url, cleanMeta)
-      : await axiosRequest.post(url, cleanMeta)
+    const savedPolicy = isEdit
+      ? await axiosRequest.put(url, { ...cleanMeta, leaveTypes: cleanLeaveTypes })
+      : await axiosRequest.post(url, { ...cleanMeta, leaveTypes: cleanLeaveTypes })
 
-    if (!metaRes?.success) return
-
-    const policyId = isEdit ? editData._id : metaRes.data?._id
-
-    // Step 2 — Update leave types (only if any added)
-    if (cleanLeaveTypes?.length > 0) {
-      await axiosRequest.put(
-        `/api/v1/leave-policies/${policyId}/leave-types`,
-        { leaveTypes: cleanLeaveTypes }
-      )
-    }
+    if (!savedPolicy?.success) throw new Error('Failed to save policy')
 
     toast.success(`Policy ${isEdit ? 'updated' : 'created'} successfully`)
-    onSuccess(metaRes.data, isEdit)
+    onSuccess(savedPolicy.data, isEdit)
     onClose()
 
   } catch (err) {

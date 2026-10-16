@@ -99,24 +99,42 @@ const monthOf = (dateStr) => {
 // Team Overview Widget
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TeamOverviewWidget = ({ rows, overview, loading }) => {
-  const present = overview?.present ?? rows.filter(r => ['PRESENT', 'LATE', 'WFH'].includes(r.status)).length
-  const absent = overview?.absent ?? rows.filter(r => r.status === 'ABSENT').length
-  const onLeave = overview?.onLeave ?? rows.filter(r => r.status === 'ON_LEAVE').length
-  const late = overview?.late ?? rows.filter(r => r.status === 'LATE').length
+const TeamOverviewWidget = ({ overview, loading, employee, status, rowCount }) => {
+  const present = overview?.present ?? 0
+  const absent = overview?.absent ?? 0
+  const onLeave = overview?.onLeave ?? 0
+  const late = overview?.late ?? 0
+  const availableDays = overview?.availableWorkdays ?? 0
+  const attendedDays = overview?.attendedWorkdays ?? 0
+  const attendanceRate = availableDays ? Math.round((attendedDays / availableDays) * 100) : null
 
   if (loading) return <Skeleton variant='rounded' height={80} sx={{ mb: 4 }} />
 
   return (
     <Alert severity='info' icon={<Icon icon='tabler:users' />} sx={{ mb: 4 }}>
-      <Box sx={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
         <Typography variant='body2'>
-          <strong>Team Overview:</strong>
+          <strong>{employee ? `${employee.name || 'Employee'} Attendance:` : 'Team Overview:'}</strong>
         </Typography>
-        <Chip label={`Present: ${present}`} size='small' color='success' variant='tonal' />
-        <Chip label={`Late: ${late}`} size='small' color='warning' variant='tonal' />
-        <Chip label={`On Leave: ${onLeave}`} size='small' color='primary' variant='tonal' />
-        <Chip label={`Absent: ${absent}`} size='small' color='error' variant='tonal' />
+        {status ? (
+          <Typography variant='body2'>{rowCount} matching record{rowCount !== 1 ? 's' : ''}</Typography>
+        ) : employee ? (
+          <>
+            <Chip label={`Present days: ${present}`} size='small' color='success' variant='tonal' />
+            <Chip label={`Late days: ${late}`} size='small' color='warning' variant='tonal' />
+            <Chip label={`On leave: ${onLeave}`} size='small' color='primary' variant='tonal' />
+            <Chip label={`Absent days: ${absent}`} size='small' color='error' variant='tonal' />
+          </>
+        ) : (
+          <>
+            <Typography variant='body2'>
+              <strong>Attendance rate: {attendanceRate === null ? 'N/A' : `${attendanceRate}%`}</strong>
+            </Typography>
+            <Typography variant='caption' color='text.secondary'>
+              {availableDays ? `${attendedDays} of ${availableDays} available employee-workdays attended (weekends, holidays and approved leave excluded)` : 'No available workdays in this range'}
+            </Typography>
+          </>
+        )}
       </Box>
     </Alert>
   )
@@ -205,6 +223,14 @@ const buildTeamColumns = (onRegularize, onEmployeeClick, showDateCol = true, isH
     ),
   },
   {
+    flex: 0.1, minWidth: 95, field: 'overtimeHours', headerName: 'OT Hours',
+    renderCell: ({ row }) => (
+      <Typography noWrap sx={{ color: row.overtimeHours > 0 ? 'success.main' : 'text.disabled', fontSize: '0.875rem' }}>
+        {row.checkOut ? `${row.overtimeHours || 0}h` : '—'}
+      </Typography>
+    ),
+  },
+  {
     flex: 0.12, minWidth: 110, field: 'status', headerName: 'Status',
     renderCell: ({ row }) => (
       <CustomChip rounded skin='light' size='small'
@@ -229,7 +255,7 @@ const buildTeamColumns = (onRegularize, onEmployeeClick, showDateCol = true, isH
           </Tooltip>
         )}
         {row.overtimeHours > 0 && (
-          <Tooltip title={`OT: ${row.overtimeHours}h}`}>
+          <Tooltip title={`OT: ${row.overtimeHours}h`}>
             <Chip label='OT' size='small' color='success' variant='tonal' sx={{ height: 22, fontSize: '0.65rem' }} />
           </Tooltip>
         )}
@@ -626,7 +652,7 @@ export default function TeamAttendance() {
       <Grid container spacing={5}>
         {/* ── Team Overview Widget ─────────────────────────────────────── */}
         <Grid item xs={12}>
-          <TeamOverviewWidget rows={rows} overview={overview} loading={loading} />
+          <TeamOverviewWidget overview={overview} loading={loading} employee={selectedEmployeeFilter} status={filterStatus} rowCount={rowCount} />
         </Grid>
 
       {/* ── Main Table Card ─────────────────────────────────────────── */}

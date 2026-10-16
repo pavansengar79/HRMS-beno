@@ -97,7 +97,9 @@ export default function RunPayroll() {
     try {
       const res = await dispatch(runPayrollAll({ month })).unwrap()
       const s = res?.data?.summary ?? res?.summary ?? {}
-      toast.success(`Payroll run complete. Processed: ${s.processed ?? 0}, Failed: ${s.failed ?? 0}`)
+      const message = `Payroll run complete. Processed: ${s.processed ?? 0}, Failed: ${s.failed ?? 0}`
+      if (s.failed) toast.error(message)
+      else toast.success(message)
       dispatch(fetchAllPayslips({ month }))
     } catch (e) { if (typeof e !== 'string') toast.error(String(e)) }
   }
@@ -124,8 +126,10 @@ export default function RunPayroll() {
   const handlePublishAll = async () => {
     try {
       const [year, periodMonth] = month.split('-').map(Number)
-      await dispatch(publishAllPayslips({ month: periodMonth, year })).unwrap()
-      toast.success('All payslips published')
+      const result = await dispatch(publishAllPayslips({ month: periodMonth, year })).unwrap()
+      const summary = result?.data?.summary ?? result?.summary ?? {}
+      if (summary.failed) toast.error(`Published: ${summary.published ?? 0}, Failed: ${summary.failed}`)
+      else toast.success(`Published ${summary.published ?? 0} payslips`)
       dispatch(fetchAllPayslips({ month }))
     } catch (e) { toast.error(String(e)) }
   }
@@ -200,9 +204,18 @@ export default function RunPayroll() {
               {lockError ? 'Could not verify the payroll period lock. Run payroll is unavailable.' : periodLock ? `Lock ${month} before running payroll.` : 'Checking payroll period lock...'}
             </Alert>
           )}
-          {lastResult && (
-            <Alert severity='success' sx={{ mt: 2 }}>
+          {lastResult?.month === month && (
+            <Alert severity={lastResult?.summary?.failed ? 'warning' : 'success'} sx={{ mt: 2 }}>
               Processed: {lastResult?.summary?.processed ?? 0} · Failed: {lastResult?.summary?.failed ?? 0}
+              {lastResult?.summary?.errors?.length > 0 && (
+                <Box component='ul' sx={{ mb: 0, pl: 3 }}>
+                  {lastResult.summary.errors.map(error => (
+                    <li key={error.employeeId}>
+                      {error.name || error.employeeId}: {error.error}
+                    </li>
+                  ))}
+                </Box>
+              )}
             </Alert>
           )}
         </CardContent>

@@ -91,13 +91,19 @@ export default function HRDashboard({ companyId, unitId }) {
   const desigs        = data.designations || {}
   const todayAtt      = data.todayAttendance    || {}
   const monthlyAtt    = data.monthlyAttendance  || {}
-  const recordedDays   = (monthlyAtt.present || 0) + (monthlyAtt.absent || 0)
-  const monthlyRate    = recordedDays > 0 ? Math.round(((monthlyAtt.present || 0) / recordedDays) * 100) : 0
+  const generatedAt   = data.generatedAt        || null
+  const reportMonth = data.month || month
+  const [reportYear, reportMonthNumber] = reportMonth.split('-').map(Number)
+  const daysInMonth = new Date(reportYear, reportMonthNumber, 0).getDate()
+  const todayInUnit = todayAtt.date || month + '-01'
+  const elapsedDays = reportMonth === todayInUnit.slice(0, 7) ? Number(todayInUnit.slice(8, 10)) : reportMonth < todayInUnit.slice(0, 7) ? daysInMonth : 0
+  const calendarSlots = (employees.total || 0) * elapsedDays
+  const percentageOfMonth = count => calendarSlots > 0 ? Math.round((count / calendarSlots) * 100) : 0
+  const monthlyRate = percentageOfMonth(monthlyAtt.present || 0)
   const pendLeaves    = data.pendingLeaves      || []
   const holidays      = data.upcomingHolidays   || []
   const recentUsers   = data.recentUsers        || []
   const rolesData     = data.roles              || {}
-  const generatedAt   = data.generatedAt        || null
 
   const KPIS = [
     { 
@@ -286,47 +292,50 @@ export default function HRDashboard({ companyId, unitId }) {
                   <Typography variant='subtitle1' sx={{ fontWeight: 700 }}>Monthly Unit Attendance</Typography>
                   <Typography variant='caption' color='text.secondary'>Attendance records for employees in your assigned unit, not your personal attendance or the whole company</Typography>
                 </Box>
-                <Chip label={month} size='small' color='primary' variant='outlined' />
+                <Chip label={reportMonth} size='small' color='primary' variant='outlined' />
               </Box>
               <Box sx={{ px: 4, py: 3 }}>
                 <Grid container spacing={3}>
                   <Grid item xs={6} md={3}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant='h4' sx={{ fontWeight: 800, color: '#10b981' }}>{monthlyAtt.present || 0}</Typography>
-                      <Typography variant='caption' color='text.secondary'>Present employee-days</Typography>
+                      <Typography variant='h4' sx={{ fontWeight: 800, color: '#10b981' }}>{percentageOfMonth(monthlyAtt.present || 0)}%</Typography>
+                      <Typography variant='caption' color='text.secondary'>{monthlyAtt.present || 0} present days</Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6} md={3}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant='h4' sx={{ fontWeight: 800, color: '#ef4444' }}>{monthlyAtt.absent || 0}</Typography>
-                      <Typography variant='caption' color='text.secondary'>Absent employee-days</Typography>
+                      <Typography variant='h4' sx={{ fontWeight: 800, color: '#ef4444' }}>{percentageOfMonth(monthlyAtt.absent || 0)}%</Typography>
+                      <Typography variant='caption' color='text.secondary'>{monthlyAtt.absent || 0} absent days</Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6} md={3}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant='h4' sx={{ fontWeight: 800, color: '#f59e0b' }}>{monthlyAtt.late || 0}</Typography>
-                      <Typography variant='caption' color='text.secondary'>Late employee-days (included in present)</Typography>
+                      <Typography variant='h4' sx={{ fontWeight: 800, color: '#f59e0b' }}>{percentageOfMonth(monthlyAtt.late || 0)}%</Typography>
+                      <Typography variant='caption' color='text.secondary'>{monthlyAtt.late || 0} late days (also present)</Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6} md={3}>
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant='h4' sx={{ fontWeight: 800, color: '#6366f1' }}>{monthlyAtt.onLeave || 0}</Typography>
-                      <Typography variant='caption' color='text.secondary'>On-leave employee-days</Typography>
+                      <Typography variant='h4' sx={{ fontWeight: 800, color: '#6366f1' }}>{percentageOfMonth(monthlyAtt.onLeave || 0)}%</Typography>
+                      <Typography variant='caption' color='text.secondary'>{monthlyAtt.onLeave || 0} leave days</Typography>
                     </Box>
                   </Grid>
                 </Grid>
                 <Box sx={{ mt: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant='caption' sx={{ fontWeight: 600 }}>Recorded attendance rate</Typography>
-                    <Typography variant='caption' color='text.secondary'>{recordedDays > 0 ? `${monthlyRate}%` : 'No data'}</Typography>
+                    <Typography variant='caption' sx={{ fontWeight: 600 }}>Present days this month</Typography>
+                    <Typography variant='caption' color='text.secondary'>{calendarSlots > 0 ? `${monthlyRate}%` : 'No employees'}</Typography>
                   </Box>
                   <LinearProgress 
                     variant='determinate' 
-                    value={monthlyRate}
+                    value={Math.min(100, monthlyRate)}
                     sx={{ height: 8, borderRadius: 4, bgcolor: alpha('#6366f1', 0.15), '& .MuiLinearProgress-bar': { bgcolor: '#10b981', borderRadius: 4 } }} 
                   />
                   <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mt: 1 }}>
-                    Each count is one employee on one date, not a number of people. Present includes WFH and late; late is not added again. Rate = present / (present + absent) from recorded statuses only. Leave, half-days and missing records are excluded.
+                    {elapsedDays} of {daysInMonth} calendar days · {employees.total || 0} active employees · {calendarSlots} possible employee-days so far. Percentages use this total; weekends and days without records remain in the total. Late is included in present.
+                  </Typography>
+                  <Typography variant='body2' sx={{ mt: 2, fontWeight: 600 }}>
+                    Overtime credited: {monthlyAtt.totalOvertimeHours || 0}h
                   </Typography>
                 </Box>
               </Box>
