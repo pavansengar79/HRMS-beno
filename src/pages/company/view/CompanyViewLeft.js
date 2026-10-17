@@ -10,6 +10,7 @@ import Card from '@mui/material/Card'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import Divider from '@mui/material/Divider'
+import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import CardContent from '@mui/material/CardContent'
 import CardActions from '@mui/material/CardActions'
@@ -32,6 +33,8 @@ import { getInitials } from 'src/@core/utils/get-initials'
 // ** Redux
 import { useDispatch } from 'react-redux'
 import { updateCompany } from 'src/store/company/companySlice'
+import { useSelector } from 'react-redux'
+import { selectPermissions } from 'src/store/auth/authSlice'
 import toast from 'react-hot-toast'
 
 // ─── Color maps ───────────────────────────────────────────────────────────────
@@ -52,9 +55,14 @@ const SIZE_COLOR = {
 // ─── CompanyViewLeft ──────────────────────────────────────────────────────────
 const CompanyViewLeft = ({ company }) => {
   const dispatch = useDispatch()
+  const permissions = useSelector(selectPermissions) || []
+  const canEdit = permissions.includes('company.update')
 
   const [suspendOpen, setSuspendOpen] = useState(false)
   const [suspending, setSuspending]   = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editForm, setEditForm] = useState({})
 
   if (!company) return null
 
@@ -86,6 +94,53 @@ const CompanyViewLeft = ({ company }) => {
   const displayCode = company.company_code || company.companyCode || company.tenantCode || '—'
   const displayEmail = company.company_email || company.companyEmail || '—'
   const displayPhone = company.company_phone || company.companyPhone || '—'
+
+  const openEdit = () => {
+    setEditForm({
+      company_name: company.company_name || '',
+      brand_name: company.brand_name || '',
+      company_phone: company.company_phone || company.companyPhone || '',
+      gst: company.gst || '',
+      pan: company.pan || '',
+      cin: company.cin || '',
+      tan: company.tan || '',
+      epfo: company.epfo || '',
+      esic: company.esic || '',
+      pt_state: company.pt_state || ''
+    })
+    setEditOpen(true)
+  }
+
+  const handleEditChange = event => {
+    const { name, value } = event.target
+    setEditForm(previous => ({
+      ...previous,
+      [name]: name === 'company_phone' ? value.replace(/\D/g, '').slice(0, 13) : value
+    }))
+  }
+
+  const handleEditSave = async event => {
+    event.preventDefault()
+    const companyName = editForm.company_name?.trim()
+    if (!companyName) {
+      toast.error('Company name is required')
+      return
+    }
+
+    try {
+      setSaving(true)
+      await dispatch(updateCompany({
+        id: company._id || company.id,
+        payload: { ...editForm, company_name: companyName }
+      })).unwrap()
+      setEditOpen(false)
+      toast.success('Company details updated')
+    } catch (error) {
+      toast.error(typeof error === 'string' ? error : error?.message || 'Failed to update company details')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <Grid container spacing={6}>
@@ -292,6 +347,11 @@ const CompanyViewLeft = ({ company }) => {
 
           {/* ── Actions ────────────────────────────────────────── */}
           <CardActions sx={{ display: 'flex', justifyContent: 'center' }}>
+            {canEdit && (
+              <Button variant='contained' startIcon={<Icon icon='tabler:edit' />} onClick={openEdit}>
+                Edit Details
+              </Button>
+            )}
             <Button color={isInactive ? 'success' : 'error'} variant='tonal' onClick={() => setSuspendOpen(true)}>
               {isInactive ? 'Activate' : 'Suspend'}
             </Button>
@@ -334,6 +394,50 @@ const CompanyViewLeft = ({ company }) => {
             Cancel
           </Button>
         </DialogActions>
+      </Dialog>
+
+      <Dialog open={editOpen} onClose={() => !saving && setEditOpen(false)} maxWidth='sm' fullWidth>
+        <DialogTitle>Edit Company Details</DialogTitle>
+        <Box component='form' onSubmit={handleEditSave}>
+          <DialogContent dividers>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 3 }}>
+              {[
+                { name: 'company_name', label: 'Company Name', required: true },
+                { name: 'brand_name', label: 'Brand Name' },
+                { name: 'company_phone', label: 'Phone Number', phone: true },
+                { name: 'gst', label: 'GST' },
+                { name: 'pan', label: 'PAN' },
+                { name: 'cin', label: 'CIN' },
+                { name: 'tan', label: 'TAN' },
+                { name: 'epfo', label: 'EPFO' },
+                { name: 'esic', label: 'ESIC' },
+                { name: 'pt_state', label: 'PT State' }
+              ].map(field => (
+                <TextField
+                  key={field.name}
+                  name={field.name}
+                  label={field.label}
+                  value={editForm[field.name] || ''}
+                  onChange={handleEditChange}
+                  required={field.required}
+                  fullWidth
+                  {...(field.phone && {
+                    type: 'tel',
+                    inputProps: { inputMode: 'numeric', maxLength: 13, pattern: '[0-9]{0,13}' }
+                  })}
+                />
+              ))}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button variant='tonal' color='secondary' onClick={() => setEditOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type='submit' variant='contained' disabled={saving}>
+              {saving ? <CircularProgress size={20} color='inherit' /> : 'Save Changes'}
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
 
     </Grid>

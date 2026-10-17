@@ -13,6 +13,12 @@ import Icon from 'src/@core/components/icon'
 import { useSelector } from 'react-redux'
 import { selectOrganization, selectCompany, selectUnit, selectLevel, selectRoleSlug } from 'src/store/auth/authSlice'
 
+const getTooltipText = value => {
+  const safeValue = typeof value === 'string' ? value.trim() : ''
+
+  return safeValue || ''
+}
+
 const OrgCompanyUnitHeader = () => {
   const organization = useSelector(selectOrganization)
   const company = useSelector(selectCompany)
@@ -56,7 +62,7 @@ const OrgCompanyUnitHeader = () => {
                 <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block' }}>
                   Organization
                 </Typography>
-                <Tooltip title={organization.name && organization.name.length > 20 ? organization.name : ''} arrow placement='top'>
+                <Tooltip title={getTooltipText(organization.name)} arrow placement='top' disableHoverListener={!getTooltipText(organization.name)}>
                   <Typography variant='subtitle2' sx={{ fontWeight: 700, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {organization.name || '—'}
                   </Typography>
@@ -102,7 +108,7 @@ const OrgCompanyUnitHeader = () => {
                 <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block' }}>
                   Company
                 </Typography>
-                <Tooltip title={company.company_name && company.company_name.length > 20 ? company.company_name : ''} arrow placement='top'>
+                <Tooltip title={getTooltipText(company.company_name)} arrow placement='top' disableHoverListener={!getTooltipText(company.company_name)}>
                   <Typography variant='subtitle2' sx={{ fontWeight: 700, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {company.company_name || '—'}
                   </Typography>
@@ -138,7 +144,7 @@ const OrgCompanyUnitHeader = () => {
               <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block' }}>
                 Unit
               </Typography>
-              <Tooltip title={unit.unit_name && unit.unit_name.length > 20 ? unit.unit_name : ''} arrow placement='top'>
+              <Tooltip title={getTooltipText(unit.unit_name)} arrow placement='top' disableHoverListener={!getTooltipText(unit.unit_name)}>
                 <Typography variant='subtitle2' sx={{ fontWeight: 700, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {unit.unit_name || '—'}
                 </Typography>

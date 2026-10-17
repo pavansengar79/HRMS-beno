@@ -19,9 +19,9 @@
 //      PUT /api/v1/companies/:id
 
 import { useState, useEffect, useRef } from 'react'
-import { useSelector } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { useRouter } from 'next/router'
-import { selectRoleSlug, selectCompanyId, selectOrgId, selectPermissions } from 'src/store/auth/authSlice'
+import { selectRoleSlug, selectCompanyId, selectOrgId, selectPermissions, updateCompanyLogo } from 'src/store/auth/authSlice'
 import axiosRequest from 'src/utils/AxiosInterceptor'
 import toast from 'react-hot-toast'
 import { INDIAN_STATES, getCitiesForState } from 'src/utils/locationConstants'
@@ -343,6 +343,21 @@ const SystemConfigPage = () => {
     finally { setSaving(false) }
   }
 
+  const syncStoredUserLogo = nextLogo => {
+    try {
+      const storedUser = JSON.parse(window.localStorage.getItem('userData') || '{}')
+      const nextUser = {
+        ...storedUser,
+        companyLogo: nextLogo,
+        company: {
+          ...(storedUser.company || {}),
+          logo_url: nextLogo,
+        },
+      }
+      window.localStorage.setItem('userData', JSON.stringify(nextUser))
+    } catch (_) {}
+  }
+
   const handleLogoUpload = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -369,12 +384,27 @@ const SystemConfigPage = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
-      setCompanyLogo(res.data.logo_url)
+      const nextLogo = res.data.logo_url
+      setCompanyLogo(nextLogo)
+      dispatch(updateCompanyLogo(nextLogo))
+      syncStoredUserLogo(nextLogo)
       toast.success('Company logo uploaded successfully')
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Logo upload failed')
     } finally {
       setUploadingLogo(false)
+    }
+  }
+
+  const handleRemoveLogo = async () => {
+    try {
+      await axiosRequest.delete('/api/v1/companies/logo')
+      setCompanyLogo(null)
+      dispatch(updateCompanyLogo(null))
+      syncStoredUserLogo(null)
+      toast.success('Company logo removed successfully')
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to remove logo')
     }
   }
 
@@ -597,7 +627,7 @@ const SystemConfigPage = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: 2,
+                        gap: 1,
                         opacity: 0,
                         transition: 'opacity 0.2s',
                         '&:hover': {
@@ -618,6 +648,13 @@ const SystemConfigPage = () => {
                         onClick={(e) => { e.stopPropagation(); logoInputRef.current?.click(); }}
                       >
                         <Icon icon='tabler:camera' fontSize={20} color='black' />
+                      </IconButton>
+                      <IconButton
+                        size='small'
+                        sx={{ bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: 'white' }, color: 'error.main' }}
+                        onClick={(e) => { e.stopPropagation(); handleRemoveLogo(); }}
+                      >
+                        <Icon icon='tabler:trash' fontSize={20} color='error.main' />
                       </IconButton>
                     </Box>
                   </>
@@ -702,7 +739,7 @@ const SystemConfigPage = () => {
                 />
               )}
             </DialogContent>
-            <DialogActions sx={{ justifyContent: 'center', pb: 4 }}>
+            <DialogActions sx={{ justifyContent: 'center', pb: 4, gap: 1 }}>
               <Button variant='outlined' onClick={() => setLogoPreviewOpen(false)}>
                 Close
               </Button>
@@ -712,6 +749,14 @@ const SystemConfigPage = () => {
                 onClick={() => { setLogoPreviewOpen(false); logoInputRef.current?.click(); }}
               >
                 Change Logo
+              </Button>
+              <Button
+                variant='outlined'
+                color='error'
+                startIcon={<Icon icon='tabler:trash' />}
+                onClick={() => { setLogoPreviewOpen(false); handleRemoveLogo(); }}
+              >
+                Remove Logo
               </Button>
             </DialogActions>
           </Dialog>

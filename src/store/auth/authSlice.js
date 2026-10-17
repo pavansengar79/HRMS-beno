@@ -85,6 +85,32 @@ const authSlice = createSlice({
       state.permissions = flat; state.permissionsByModule = grouped
     },
     clearCredentials: () => initialState,
+    updateOrgLogo: (state, { payload }) => {
+      const nextLogo = payload || null
+      state.orgLogo = nextLogo
+      if (state.user) {
+        state.user.orgLogo = nextLogo
+      }
+      if (state.organization) {
+        state.organization = { ...state.organization, logo_url: nextLogo }
+      }
+      if (state.user?.organization) {
+        state.user.organization = { ...state.user.organization, logo_url: nextLogo }
+      }
+    },
+    updateCompanyLogo: (state, { payload }) => {
+      const nextLogo = payload || null
+      state.companyLogo = nextLogo
+      if (state.user) {
+        state.user.companyLogo = nextLogo
+      }
+      if (state.company) {
+        state.company = { ...state.company, logo_url: nextLogo }
+      }
+      if (state.user?.company) {
+        state.user.company = { ...state.user.company, logo_url: nextLogo }
+      }
+    },
     setLoading: (state, { payload }) => { state.loading = payload },
     setError:   (state, { payload }) => { state.error = payload; state.loading = false },
     clearError: state => { state.error = null },
@@ -125,7 +151,7 @@ const authSlice = createSlice({
   }
 })
 
-export const { setCredentials, rehydrateAuth, clearCredentials, setLoading, setError, clearError } = authSlice.actions
+export const { setCredentials, rehydrateAuth, clearCredentials, updateOrgLogo, updateCompanyLogo, setLoading, setError, clearError } = authSlice.actions
 export default authSlice.reducer
 
 export const selectUser            = s => s.auth.user

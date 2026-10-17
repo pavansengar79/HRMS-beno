@@ -223,11 +223,19 @@ const buildTeamColumns = (onRegularize, onEmployeeClick, showDateCol = true, isH
     ),
   },
   {
-    flex: 0.1, minWidth: 95, field: 'overtimeHours', headerName: 'OT Hours',
+    flex: 0.1, minWidth: 135, field: 'overtimeHours', headerName: 'OT Hours',
     renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: row.overtimeHours > 0 ? 'success.main' : 'text.disabled', fontSize: '0.875rem' }}>
-        {row.checkOut ? `${row.overtimeHours || 0}h` : '—'}
-      </Typography>
+      row.uncreditedOvertimeHours > 0 ? (
+        <Tooltip title={`Estimated from punches and current policy; ${row.overtimeHours || 0}h saved as credited OT. Payroll has not been updated.`}>
+          <Typography noWrap sx={{ color: 'warning.dark', fontSize: '0.875rem' }}>
+            {row.uncreditedOvertimeHours}h estimated
+          </Typography>
+        </Tooltip>
+      ) : (
+        <Typography noWrap sx={{ color: row.overtimeHours > 0 ? 'success.main' : 'text.disabled', fontSize: '0.875rem' }}>
+          {row.checkOut ? `${row.overtimeHours || 0}h` : '—'}
+        </Typography>
+      )
     ),
   },
   {
@@ -257,6 +265,11 @@ const buildTeamColumns = (onRegularize, onEmployeeClick, showDateCol = true, isH
         {row.overtimeHours > 0 && (
           <Tooltip title={`OT: ${row.overtimeHours}h`}>
             <Chip label='OT' size='small' color='success' variant='tonal' sx={{ height: 22, fontSize: '0.65rem' }} />
+          </Tooltip>
+        )}
+        {row.uncreditedOvertimeHours > 0 && (
+          <Tooltip title={`Estimated OT: ${row.uncreditedOvertimeHours}h, not credited`}>
+            <Chip label='OT?' size='small' color='warning' variant='tonal' sx={{ height: 22, fontSize: '0.65rem' }} />
           </Tooltip>
         )}
       </Box>

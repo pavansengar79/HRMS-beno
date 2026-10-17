@@ -30,8 +30,6 @@ const LEVEL_FOR_SLUG = {
   hr_manager:         'unit',
 }
 
-const ROLE_LEVEL_ORDER = { org: 1, company: 2, unit: 3 }
-
 const DRAWER_WIDTH = 420
 
 const STATUS_OPTIONS = [
@@ -75,15 +73,7 @@ const AdminEditDrawer = ({ open, onClose, user, onSuccess }) => {
       .then(res => { 
         if (res?.success && Array.isArray(res.data)) {
           const targetUserLevel = user?.roleId?.level || user?.role?.level || 'unit'
-          const editorLevelOrder = ROLE_LEVEL_ORDER[userLevel]
-          const targetLevelOrder = ROLE_LEVEL_ORDER[targetUserLevel]
-          const allowedRoles = res.data.filter(role => {
-            const roleLevelOrder = ROLE_LEVEL_ORDER[role.level]
-
-            return roleLevelOrder !== undefined &&
-              editorLevelOrder <= roleLevelOrder &&
-              roleLevelOrder <= targetLevelOrder
-          })
+          const allowedRoles = res.data.filter(role => role.level === targetUserLevel)
 
           setRoles(allowedRoles)
         } 

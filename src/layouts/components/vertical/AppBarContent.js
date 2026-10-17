@@ -78,7 +78,7 @@ const AppBarContent = props => {
       if (company && (roleSlug === 'org_admin' || roleSlug === 'org_head')) {
         crumbs.push({
           label: company.name || company.company_name || 'Company',
-          href:  `/company/${company._id}`,
+          href:  `/company/${company._id}/details/overview`,
           icon:  'mdi:domain',
         })
       } else if (company) {
@@ -112,7 +112,7 @@ const AppBarContent = props => {
     if (selectedCompany) {
       crumbs.push({
         label: selectedCompany.name || selectedCompany.company_name || 'Company',
-        href:  `/company/${selectedCompany._id}`,
+        href:  `/company/${selectedCompany._id}/details/overview`,
         icon:  'mdi:domain',
       })
     }

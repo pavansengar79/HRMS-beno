@@ -513,9 +513,17 @@ const AddDepartmentDrawer = ({ open, toggle, onSuccess, editingDept }) => {
         />
 
         {/* ── Actions ─────────────────────────────────────────────── */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, pt: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pt: 2 }}>
           <Button
-            sx={{ flex: 1, minWidth: 0 }}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 44,
+              px: 2,
+              fontWeight: 600,
+              textTransform: 'none',
+              justifyContent: 'center'
+            }}
             type='submit'
             variant='contained'
             disabled={submitting}
@@ -526,7 +534,21 @@ const AddDepartmentDrawer = ({ open, toggle, onSuccess, editingDept }) => {
               : isEditMode ? 'Save Changes' : 'Create Department'
             }
           </Button>
-          <Button sx={{ flex: 1, minWidth: 0 }} variant='tonal' color='secondary' onClick={handleClose} disabled={submitting}>
+          <Button
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              minHeight: 44,
+              px: 2,
+              fontWeight: 600,
+              textTransform: 'none',
+              justifyContent: 'center'
+            }}
+            variant='tonal'
+            color='secondary'
+            onClick={handleClose}
+            disabled={submitting}
+          >
             Cancel
           </Button>
         </Box>
