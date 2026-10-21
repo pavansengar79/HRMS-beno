@@ -75,14 +75,14 @@ export default function CustomersPage() {
   const approvalLocks = useRef(new Set())
 
   useEffect(() => {
-    dispatch(fetchAllCustomers({ page: page + 1, limit, search, status: statusFilter }))
+    dispatch(fetchAllCustomers({ page: page + 1, limit, search: search.trim(), status: statusFilter }))
   }, [dispatch, page, limit, search, statusFilter])
 
   const handleStatusChange = async (customerId, newStatus) => {
     try {
       await dispatch(updateTenantStatus({ id: customerId, status: newStatus })).unwrap()
       toast.success(`Customer status updated to ${newStatus}`)
-      dispatch(fetchAllCustomers({ page: page + 1, limit, search, status: statusFilter }))
+      dispatch(fetchAllCustomers({ page: page + 1, limit, search: search.trim(), status: statusFilter }))
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'Failed to update status')
     }
@@ -100,7 +100,7 @@ export default function CustomersPage() {
       const res = await axiosRequest.post(`/api/v1/super-admin/customers/${customerId}/approve`)
       if (res?.success) {
         toast.success(res.data?.message || 'Customer approved! Credentials sent to work email.', { duration: 6000 })
-        dispatch(fetchAllCustomers({ page: page + 1, limit, search }))
+        dispatch(fetchAllCustomers({ page: page + 1, limit, search: search.trim() }))
       } else {
         toast.error(res?.message || 'Failed to approve customer')
       }

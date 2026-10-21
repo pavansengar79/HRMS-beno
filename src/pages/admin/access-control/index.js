@@ -450,7 +450,9 @@ const ModuleMatrixModal = ({ open, role, onClose, onSaved, allPermissions }) => 
         />
 
         {sortedModules.length === 0 ? (
-          <Typography variant='caption' color='text.disabled'>No assignable permissions for this level</Typography>
+          <Typography variant='caption' color='text.disabled'>
+            {permSearch.trim() ? 'No results found' : 'No assignable permissions for this level'}
+          </Typography>
         ) : (
           <Box sx={{ maxHeight: 500, overflowY: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
             <TableContainer>
@@ -785,7 +787,9 @@ const RoleFormModal = ({ open, editRole, permissions, onClose, onSaved, defaultL
         />
 
         {sortedModules.length === 0 ? (
-          <Typography variant='caption' color='text.disabled'>No assignable permissions for this level</Typography>
+          <Typography variant='caption' color='text.disabled'>
+            {permSearch.trim() ? 'No results found' : 'No assignable permissions for this level'}
+          </Typography>
         ) : (
           <Box sx={{ maxHeight: 500, overflowY: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
             <TableContainer>
