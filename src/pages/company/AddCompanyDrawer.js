@@ -5,7 +5,9 @@ import { styled } from '@mui/material/styles'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
+import Autocomplete from '@mui/material/Autocomplete'
 import CircularProgress from '@mui/material/CircularProgress'
+import { getCountries, getCountryCallingCode } from 'libphonenumber-js'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -23,17 +25,24 @@ const schema = yup.object().shape({
   company_name:  yup.string().required('Company name is required'),
   company_email: yup.string().email('Enter valid email').matches(/^[^.]/, 'Email cannot start with a dot').required('Company email is required'),
   company_phone: yup.string().required('Phone is required').matches(/^[0-9]{1,13}$/, 'Enter up to 13 digits'),
+  phone_country_code: yup.string().required('Country is required'),
   // admin_name:    yup.string().required('Admin name is required'),
   // admin_email:   yup.string().email('Enter valid email').required('Admin email is required'),
   // admin_phone:   yup.string(),
 })
+
+const countryNames = new Intl.DisplayNames(['en'], { type: 'region' })
+const countries = getCountries().map(code => ({
+  code,
+  label: `${countryNames.of(code)} (+${getCountryCallingCode(code)})`
+})).sort((first, second) => first.label.localeCompare(second.label))
 
 const AddCompanyDrawer = ({ open, toggle }) => {
   const [loading, setLoading] = useState(false)
   const dispatch = useDispatch()
 
   const { reset, control, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: { company_name: '', company_email: '', company_phone: '', admin_name: '', admin_email: '', admin_phone: '' },
+    defaultValues: { company_name: '', company_email: '', company_phone: '', phone_country_code: 'IN', admin_name: '', admin_email: '', admin_phone: '' },
     mode: 'onChange', resolver: yupResolver(schema)
   })
 
@@ -62,6 +71,19 @@ const AddCompanyDrawer = ({ open, toggle }) => {
         )} />
         <Controller name='company_email' control={control} render={({ field }) => (
           <CustomTextField {...field} fullWidth required label='Company Email' sx={{ mb: 4 }} error={!!errors.company_email} helperText={errors.company_email?.message} />
+        )} />
+        <Controller name='phone_country_code' control={control} render={({ field }) => (
+          <Autocomplete
+            options={countries}
+            value={countries.find(country => country.code === field.value) || null}
+            onChange={(_, country) => field.onChange(country?.code || '')}
+            isOptionEqualToValue={(option, value) => option.code === value.code}
+            getOptionLabel={country => country.label}
+            renderInput={params => (
+              <CustomTextField {...params} label='Phone Country' required sx={{ mb: 4 }}
+                error={!!errors.phone_country_code} helperText={errors.phone_country_code?.message} />
+            )}
+          />
         )} />
         <Controller name='company_phone' control={control} render={({ field }) => (
           <CustomTextField {...field} fullWidth required label='Company Phone' sx={{ mb: 4 }}

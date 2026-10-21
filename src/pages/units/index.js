@@ -113,12 +113,17 @@ const AssignResponsibleDialog = ({ open, onClose, unit, onSuccess }) => {
   }
 
   const handleClose = () => {
+    if (saving) return
     handleReset()
     onClose()
   }
 
+  const handleDialogClose = (event, reason) => {
+    if (reason !== 'backdropClick') handleClose()
+  }
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth='sm' fullWidth>
+    <Dialog open={open} onClose={handleDialogClose} maxWidth='sm' fullWidth>
       <DialogTitle sx={{ fontWeight: 700 }}>Assign Responsible Person</DialogTitle>
       <DialogContent>
         <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>

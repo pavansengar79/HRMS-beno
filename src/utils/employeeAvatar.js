@@ -38,11 +38,13 @@ export const getInitials = (entity) => {
   // If string, use it directly
   const name = typeof entity === 'string' ? entity : (entity.name || entity.firstName || '');
   
-  if (!name) return '?';
+  if (!name.trim()) return '?';
   
   return name
-    .split(' ')
-    .map(n => n[0])
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(part => part[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);

@@ -87,6 +87,7 @@ const buildOrgNav = (companies, permissions = [], roleSlug) => {
     ...(isAdmin ? [{ title: 'Audit Logs', icon: 'tabler:file-text', path: '/audit-logs' }] : []),
     // Essentials - ONLY for org_admin (organization-wide PAN, timezone, currency)
     ...(roleSlug === 'org_admin' ? [{ title: 'Essentials', icon: 'tabler:settings-2', path: '/admin/system-config/essentials' }] : []),
+    ...(roleSlug === 'org_admin' ? [{ title: 'Subscription', icon: 'tabler:credit-card', path: '/pages/pricing' }] : []),
     { title: 'General Features', icon: 'tabler:adjustments',         path: '/admin/general-features' },
   ])
 }
@@ -310,6 +311,7 @@ const SUPER_ADMIN_NAV = stamp([
   { title: 'Organisations',       icon: 'tabler:building-skyscraper', path: '/organisation' },
   { title: 'Customers',           icon: 'tabler:users-group',         path: '/customers' },
   { title: 'Plans & Billing',     icon: 'tabler:credit-card',         path: '/pages/plan' },
+  { title: 'Subscription',        icon: 'tabler:receipt',             path: '/pages/pricing' },
   // { title: 'Trial Extensions', icon: 'tabler:clock-pause', path: '/admin/trial-extensions' },
   { sectionTitle: 'ADMINISTRATION' },
   { title: 'Access Control',      icon: 'tabler:lock',                path: '/admin/access-control' },

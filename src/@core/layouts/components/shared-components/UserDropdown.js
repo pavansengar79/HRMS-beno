@@ -121,13 +121,16 @@ const UserDropdown = props => {
   const isSuperAdmin = roleSlug === 'super_admin'
   
   // ── Role-based visibility ────────────────────────────────────────────────────
-  const canSeeSettings      = isAdminRole(roleSlug) && roleSlug !== 'super_admin' // Hide Settings for SUPER_ADMIN
+  const canSeeSettings      = isAdminRole(roleSlug)
   const canSeeProfile       = level === 'unit'  // Unit-level roles only
   const canMarkAttendance   = level === 'unit'  // All unit-level employees
   
   // ── Settings redirect based on role ──────────────────────────────────────────
   const getSettingsPath = () => {
-    if (roleSlug === 'super_admin' || roleSlug === 'org_admin') {
+    if (roleSlug === 'super_admin') {
+      return '/pages/account-settings/account'
+    }
+    if (roleSlug === 'org_admin') {
       return '/admin/system-config/essentials/'
     }
     if (roleSlug === 'company_admin') {
@@ -173,6 +176,14 @@ const UserDropdown = props => {
 
   // ── Avatar with centralized logic ───────────────────────────────────────────────
   const initials = getInitials(displayName)
+  const avatarStyles = {
+    width: 38,
+    height: 38,
+    backgroundColor: 'primary.main',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    ...(!profilePhoto && avatarImage && { '& img': { objectFit: 'contain' } })
+  }
 
   return (
     <Fragment>
@@ -188,7 +199,7 @@ const UserDropdown = props => {
           src={avatarImage}
           alt={displayName}
           onClick={handleDropdownOpen}
-          sx={{ width: 38, height: 38, backgroundColor: 'primary.main', fontSize: '0.875rem', fontWeight: 600 }}
+          sx={avatarStyles}
         >
           {!avatarImage && initials}
         </Avatar>
@@ -214,7 +225,7 @@ const UserDropdown = props => {
               <Avatar
                 src={avatarImage}
                 alt={displayName}
-                sx={{ width: '2.5rem', height: '2.5rem', backgroundColor: 'primary.main', fontSize: '0.875rem', fontWeight: 600 }}
+                sx={{ ...avatarStyles, width: '2.5rem', height: '2.5rem' }}
               >
                 {!avatarImage && initials}
               </Avatar>

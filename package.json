@@ -64,6 +64,7 @@
     "jsonwebtoken": "8.5.1",
     "jspdf": "^2.5.1",
     "keen-slider": "6.8.5",
+    "libphonenumber-js": "^1.13.15",
     "lodash": "^4.18.1",
     "moment": "^2.30.1",
     "next": "13.3.2",
