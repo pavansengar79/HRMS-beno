@@ -88,7 +88,7 @@ export default function CompanyAdminDashboard({ companyId }) {
     { label: 'Departments',     value: depts.total,  sub: 'across all units', icon: 'tabler:sitemap', color: '#10b981' },
     { label: 'Job Roles',       value: desigs.total, sub: 'job roles defined', icon: 'tabler:badge', color: '#8b5cf6' },
     { label: 'LOBs',            value: lobs.total,   sub: 'lines of business', icon: 'tabler:layout-grid', color: '#f59e0b' },
-    { label: 'Total Users',     value: users.total,  sub: 'admins + managers', icon: 'tabler:user-check', color: '#ef4444' },
+    { label: 'Admin Users',     value: users.total,  sub: 'admins + managers', icon: 'tabler:user-check', color: '#ef4444' },
     { label: 'Total Roles',     value: roles.total,  sub: 'org roles setup', icon: 'tabler:shield', color: '#14b8a6' },
   ]
 

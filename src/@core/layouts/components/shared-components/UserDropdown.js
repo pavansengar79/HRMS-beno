@@ -177,8 +177,8 @@ const UserDropdown = props => {
   // ── Avatar with centralized logic ───────────────────────────────────────────────
   const initials = getInitials(displayName)
   const avatarStyles = {
-    width: 38,
-    height: 38,
+    width: 44,
+    height: 44,
     backgroundColor: 'primary.main',
     fontSize: '0.875rem',
     fontWeight: 600,

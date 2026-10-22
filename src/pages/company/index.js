@@ -84,11 +84,11 @@ const Company = () => {
             {getInitials(row.company_name || 'NA').slice(0, 2)}
           </CustomAvatar>
           <Box>
-            <Typography noWrap component={Link} href={`/company/${row._id}/details/overview`}
+            <Typography noWrap component={Link} href={`/company/${row._id}/details/overview`} title={row.company_name || ''}
               sx={{ fontWeight: 500, textDecoration: 'none', color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
               {row.company_name || 'Unnamed'}
             </Typography>
-            <Typography noWrap variant='body2' sx={{ color: 'text.disabled' }}>{row.company_email}</Typography>
+            <Typography noWrap variant='body2' title={row.company_email || ''} sx={{ color: 'text.disabled' }}>{row.company_email}</Typography>
           </Box>
         </Box>
       )

@@ -16,7 +16,7 @@ import UserDropdown from 'src/@core/layouts/components/shared-components/UserDro
 import NotificationDropdown from 'src/@core/layouts/components/shared-components/NotificationDropdown'
 import { GlobalSearchIcon, GlobalSearchModal } from 'src/@core/layouts/components/shared-components/GlobalSearch'
 import { useAuth } from 'src/hooks/useAuth'
-import { selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectCompany, selectOrganization, selectRoleSlug } from 'src/store/auth/authSlice'
 import {
   selectAllHierarchyCompanies,
   selectAllHierarchyUnits,
@@ -52,6 +52,8 @@ const AppBarContent = props => {
   const router         = useRouter()
   const auth           = useAuth()
   const roleSlug       = useSelector(selectRoleSlug)
+  const organization   = useSelector(selectOrganization)
+  const authCompany    = useSelector(selectCompany)
   const allCompanies   = useSelector(selectAllHierarchyCompanies)
   const allUnits       = useSelector(selectAllHierarchyUnits)
   const selectedCompany = useSelector(selectSelectedCompany)
@@ -67,12 +69,12 @@ const AppBarContent = props => {
     const isDynamicRoute = !!(query.orgId && query.companyId && query.unitId)
 
     if (isDynamicRoute) {
-      const company = allCompanies.find(c => c._id === query.companyId) || selectedCompany
+      const company = allCompanies.find(c => c._id === query.companyId) || (roleSlug === 'company_admin' ? authCompany : null) || selectedCompany
       const unit    = allUnits.find(u => u._id === query.unitId)        || selectedUnit
       const moduleLabel = ROUTE_LABELS[query.module] || query.module || ''
 
       if (roleSlug === 'org_admin' || roleSlug === 'org_head') {
-        crumbs.push({ label: 'Organisation', href: '/dashboards/analytics', icon: 'mdi:office-building' })
+        crumbs.push({ label: organization?.name || 'Organisation', href: '/dashboards/analytics', icon: 'mdi:office-building' })
       }
 
       if (company && (roleSlug === 'org_admin' || roleSlug === 'org_head')) {
@@ -106,13 +108,14 @@ const AppBarContent = props => {
 
     // ── Flat / non-hierarchical route ────────────────────────────────────────
     if (roleSlug === 'org_admin' || roleSlug === 'org_head') {
-      crumbs.push({ label: 'Organisation', href: '/dashboards/analytics', icon: 'mdi:office-building' })
+      crumbs.push({ label: organization?.name || 'Organisation', href: '/dashboards/analytics', icon: 'mdi:office-building' })
     }
 
-    if (selectedCompany) {
+    const company = (roleSlug === 'company_admin' ? authCompany : null) || selectedCompany
+    if (company) {
       crumbs.push({
-        label: selectedCompany.name || selectedCompany.company_name || 'Company',
-        href:  `/company/${selectedCompany._id}/details/overview`,
+        label: company.name || company.company_name || 'Company',
+        href:  `/company/${company._id}/details/overview`,
         icon:  'mdi:domain',
       })
     }

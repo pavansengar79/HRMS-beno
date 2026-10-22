@@ -28,7 +28,7 @@ import Icon from 'src/@core/components/icon'
 // ** Custom Components
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomAvatar from 'src/@core/components/mui/avatar'
-import { getInitials } from 'src/@core/utils/get-initials'
+import { getInitials } from 'src/utils/employeeAvatar'
 
 // ** Redux
 import { useDispatch } from 'react-redux'

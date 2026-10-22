@@ -395,7 +395,7 @@ const PayrollLockPage = () => {
                       }}
                     />
                   </TableCell>
-                  <TableCell>{lockStatus?.period || `${MONTH_NAMES[Number(month) - 1]} ${year}`}</TableCell>
+                  <TableCell>{h.period || lockStatus?.period || `${MONTH_NAMES[Number(month) - 1]} ${year}`}</TableCell>
                   <TableCell>{h.by?.name || 'Admin'}</TableCell>
                   <TableCell>{h.at ? new Date(h.at).toLocaleString('en-IN') : '—'}</TableCell>
                   <TableCell>{h.reason || '—'}</TableCell>

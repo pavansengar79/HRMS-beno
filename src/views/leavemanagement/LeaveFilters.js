@@ -212,6 +212,7 @@ const LeaveFilters = ({
               if (onFilterChange) onFilterChange()
             }}
             size='small'
+            sx={{ '.MuiSelect-select': { textOverflow: 'ellipsis', overflow: 'hidden', paddingRight: '32px' } }}
           />
         </Box>
 

@@ -67,6 +67,7 @@ const DesignationPage = () => {
   }
 
   const handleDelete = async id => {
+    if (!window.confirm('Delete this job role? Employees assigned to it may be affected.')) return
     try { await axiosRequest.delete(`/api/v1/designations/${id}`); toast.success('Deleted'); fetchData() }
     catch (err) { if (typeof err !== 'string') toast.error(err?.message || 'Failed') }
   }

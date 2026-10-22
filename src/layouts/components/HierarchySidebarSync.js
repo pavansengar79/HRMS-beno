@@ -8,10 +8,12 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { useDispatch, useSelector } from 'react-redux'
+import { selectRoleSlug, selectUser } from 'src/store/auth/authSlice'
 import {
   setSelectedUnit,
   setSelectedCompany,
   clearHierarchySelection,
+  selectSelectedCompanyId,
   selectAllHierarchyUnits,
   selectAllHierarchyCompanies,
 } from 'src/store/hierarchy/hierarchySlice'
@@ -25,6 +27,9 @@ const HierarchySidebarSync = () => {
   const dispatch  = useDispatch()
   const units     = useSelector(selectAllHierarchyUnits)
   const companies = useSelector(selectAllHierarchyCompanies)
+  const roleSlug  = useSelector(selectRoleSlug)
+  const user      = useSelector(selectUser)
+  const selectedCompanyId = useSelector(selectSelectedCompanyId)
 
   useEffect(() => {
     const {
@@ -43,6 +48,8 @@ const HierarchySidebarSync = () => {
     } else if (pathCompanyId) {
       // Path-based company route: /dashboards/analytics/company/[companyId]
       dispatch(setSelectedCompany(pathCompanyId))
+    } else if (roleSlug === 'company_admin' && user?.company_id && !companyQueryParam && !unitQueryParam && !routeId) {
+      if (selectedCompanyId !== user.company_id) dispatch(setSelectedCompany(user.company_id))
     } else if (pathname === '/dashboards/analytics' && !companyQueryParam && !unitQueryParam) {
       // Org-level dashboard — user is at the top, clear any scoped context.
       // This fires when the "← All Companies" back button is used.
@@ -66,7 +73,7 @@ const HierarchySidebarSync = () => {
     }
     // All other pages: keep current context (sticky — e.g. /admin/access-control
     // while user is scoped to a company keeps showing company-scoped sidebar)
-  }, [router.query, router.pathname, units, companies, dispatch])
+  }, [router.query, router.pathname, units, companies, roleSlug, user?.company_id, selectedCompanyId, dispatch])
 
   return null
 }
