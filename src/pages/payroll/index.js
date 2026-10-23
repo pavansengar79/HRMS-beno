@@ -40,12 +40,13 @@ import { alpha } from '@mui/material/styles'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import Icon from 'src/@core/components/icon'
 
-import { selectRoleSlug } from 'src/store/auth/authSlice'
+import { selectPermissions, selectRoleSlug } from 'src/store/auth/authSlice'
 import { fetchAllEmployees } from 'src/store/employee/employeeSlice'
 import { publishPayslip, markPayslipPaid } from 'src/store/payroll/payrollSlice'
 
 import PayrollTabs from './PayrollTabs'
 import PayslipCalendar from './PayslipCalendar'
+import RevisePayslipDialog from './RevisePayslipDialog'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = n => n == null ? '—' : '₹' + Math.round(n).toLocaleString('en-IN')
@@ -80,6 +81,8 @@ const SalaryRegister = () => {
   const dispatch = useDispatch()
   const router = useRouter()
   const roleSlug = useSelector(selectRoleSlug)
+  const permissions = useSelector(selectPermissions) || []
+  const canRevise = permissions.includes('payroll.run') || ['super_admin', 'product_admin'].includes(roleSlug)
   const { allEmployees = [] } = useSelector(s => s.employee || {})
 
   // Employees don't manage payroll — send them to their own payslips instead.
@@ -104,6 +107,7 @@ const SalaryRegister = () => {
   const [detailLoading, setDetailLoading] = useState(false)
   const [payslipDetail, setPayslipDetail] = useState(null)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [revisionOpen, setRevisionOpen] = useState(false)
 
   // Multi-select state
   const [selected, setSelected] = useState([])
@@ -181,6 +185,18 @@ const SalaryRegister = () => {
       toast.error(err?.response?.data?.message || 'Failed to recalculate draft')
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  const handleRevisePayslip = async (id, changes) => {
+    try {
+      const body = await axiosRequest.patch(`/api/v1/payslips/${id}/revise`, changes)
+      setPayslipDetail(body?.data ?? body)
+      setRevisionOpen(false)
+      toast.success('Payslip revised')
+      fetchPayslips()
+    } catch (err) {
+      if (err instanceof Error && !err.response) toast.error('Failed to revise payslip')
     }
   }
 
@@ -743,6 +759,11 @@ const SalaryRegister = () => {
               Recalculate Draft
             </Button>
           )}
+          {canRevise && ['PUBLISHED', 'PAID'].includes(payslipDetail?.status) && (
+            <Button startIcon={<Icon icon='tabler:edit' />} onClick={() => setRevisionOpen(true)}>
+              Revise
+            </Button>
+          )}
           {payslipDetail && (
             <Button
               startIcon={<Icon icon='mdi:download' />}
@@ -756,6 +777,13 @@ const SalaryRegister = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      {revisionOpen && payslipDetail && (
+        <RevisePayslipDialog
+          payslip={payslipDetail}
+          onClose={() => setRevisionOpen(false)}
+          onRevised={handleRevisePayslip}
+        />
+      )}
       <PayslipCalendar payslip={payslipDetail} open={calendarOpen && Boolean(payslipDetail)} onClose={() => setCalendarOpen(false)} />
     </PayrollTabs>
   )

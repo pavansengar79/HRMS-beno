@@ -1033,7 +1033,7 @@ const LeavePolicyDrawer = ({ open, onClose, editData, onSuccess }) => {
 '_id', 'id', 'tenantId', 'createdAt', 'updatedAt',
 'createdBy', 'updatedBy', 'archivedAt', 'archivedBy',
 'activatedAt', 'activatedBy', '__v', 'version'
-// isActive yahan nahi — leaveType ke andar chahiye
+// isActive is not here — it should be inside leaveType
 ])
       return Object.entries(value).reduce((acc, [key, val]) => {
         if (keysToRemove.has(key)) return acc
