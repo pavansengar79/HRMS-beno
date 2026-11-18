@@ -63,6 +63,7 @@ export default function RunPayroll() {
   const now = new Date()
   const [month, setMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
   const [actionLoading, setActionLoading] = useState(null)
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
   const [periodLock, setPeriodLock] = useState(null)
   const [lockError, setLockError] = useState(false)
 
@@ -105,6 +106,7 @@ export default function RunPayroll() {
   }
 
   const handleRunSingle = async (empId, empName) => {
+    if (!canRunPayroll || runLoading || actionLoading || !confirm(`Run payroll for ${empName} in ${month}?`)) return
     setActionLoading(`run-${empId}`)
     try {
       await dispatch(runPayrollSingle({ empId, month })).unwrap()
@@ -189,8 +191,24 @@ export default function RunPayroll() {
         <CardContent>
           <Stack direction='row' spacing={2} flexWrap='wrap'>
             <Button variant='contained' startIcon={runLoading ? <CircularProgress size={16} color='inherit' /> : <Icon icon='tabler:player-play' />}
-              onClick={handleRunAll} disabled={runLoading || !canRunPayroll}>
+              onClick={handleRunAll} disabled={runLoading || Boolean(actionLoading) || !canRunPayroll}>
               Run Payroll for {month}
+            </Button>
+            <CustomTextField select label='Employee' size='small' value={selectedEmployeeId}
+              onChange={event => setSelectedEmployeeId(event.target.value)} sx={{ minWidth: 220 }}>
+              {allEmployees.map(employee => (
+                <MenuItem key={employee._id} value={employee._id}>
+                  {employee.name} ({employee.employeeId})
+                </MenuItem>
+              ))}
+            </CustomTextField>
+            <Button variant='outlined' startIcon={actionLoading === `run-${selectedEmployeeId}` ? <CircularProgress size={16} /> : <Icon icon='tabler:user-check' />}
+              disabled={!selectedEmployeeId || !canRunPayroll || runLoading || Boolean(actionLoading)}
+              onClick={() => {
+                const employee = allEmployees.find(item => item._id === selectedEmployeeId)
+                if (employee) handleRunSingle(employee._id, employee.name)
+              }}>
+              Run for Employee
             </Button>
             {draftPayslips.length > 0 && (
               <Button variant='outlined' color='success' startIcon={<Icon icon='tabler:send' />} onClick={handlePublishAll}>
