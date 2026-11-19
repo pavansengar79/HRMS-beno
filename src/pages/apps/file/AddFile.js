@@ -20,7 +20,7 @@ import { useDispatch, useSelector } from 'react-redux'
 // ** Custom Component Imports
 import CustomTextField from 'src/@core/components/mui/text-field'
 import { uploadFile } from 'src/store/apps/file'
-import { uploadFilesToAws } from 'src/utils/helper'
+import toast from 'react-hot-toast'
 import { styled } from '@mui/material/styles'
 
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
@@ -86,16 +86,10 @@ const AddFile = ({ handleClose }) => {
   const onSubmit = async data => {
     setSubmitButton(true)
 
-    if (data.file && data.type != 'file' && data.name.length > 0 && data.Dltype != 'DlType') {
-      const bucket = await uploadFilesToAws(data.file)
-      setfileuploaded(true)
-      console.log('bucket', bucket)
-      data.file = bucket[0]
-      dispatch(uploadFile(data))
-      handleClose()
-    } else {
-      setSubmitButton(false)
-    }
+    // The AWS S3 upload was removed: its access keys were hard-coded in the frontend.
+    // This is a template page with no HRMS file-storage backend.
+    toast.error('File upload is not available')
+    setSubmitButton(false)
   }
 
   return (
